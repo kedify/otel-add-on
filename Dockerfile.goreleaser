@@ -1,0 +1,8 @@
+ARG BASE_IMAGE=cgr.dev/chainguard/static:latest
+FROM $BASE_IMAGE 
+
+COPY bin/otel-add-on /otel-add-on
+
+USER 65532:65532
+
+ENTRYPOINT ["/otel-add-on"]

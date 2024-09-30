@@ -1,0 +1,167 @@
+project_name: otel-add-on
+env:
+  - IMAGE_TAG={{ if index .Env "IMAGE_TAG" }}{{ .Env.IMAGE_TAG }}{{ else }}{{ .Tag }}{{ end }}
+  - GH_REPO_ORG={{ if index .Env "GH_REPO_ORG" }}{{ .Env.GH_REPO_ORG }}{{ else }}jkremser{{ end }}
+
+builds:
+  - &BASE_BUILD
+    skip: true
+    id: base
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags: &ldflags
+      - -X github.com/{{ .Env.GH_REPO_ORG }}/{{ .ProjectName }}/build.gitCommit={{ .Commit }}
+  - &HARDENED_BUILD
+    <<: *BASE_BUILD
+    id: hardened
+    env:
+      - CGO_ENABLED=1
+      - GOEXPERIMENT=boringcrypto
+      - BUILD_EXTRA_GO_LDFLAGS="-linkmode=external -extldflags=-static"
+    goarch:
+      - amd64
+  - &HARDENED_BUILD_ARM
+    <<: *BASE_BUILD
+    id: hardened-arm
+    env:
+      - CC=aarch64-linux-gnu-gcc
+      - CGO_ENABLED=1
+      - GOEXPERIMENT=boringcrypto
+      - BUILD_EXTRA_GO_LDFLAGS="-linkmode=external -extldflags=-static"
+    goarch:
+      - arm64
+  - <<: *BASE_BUILD
+    skip: false
+    id: otel-add-on
+    binary: bin/otel-add-on
+    main: main.go
+  - <<: *HARDENED_BUILD
+    skip: false
+    id: otel-add-on-hardened-amd64
+    main: main.go
+    binary: bin/otel-add-on
+  - <<: *HARDENED_BUILD_ARM
+    skip: false
+    id: otel-add-on-hardened-arm64
+    main: main.go
+    binary: bin/otel-add-on
+
+release:
+  draft: true
+  prerelease: auto
+changelog:
+  skip: true
+
+dockers:
+  - &BASE_IMG
+    skip_push: true
+    id: base
+    use: buildx
+    goarch: amd64
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.description={{ .ProjectName }} by Kedify"
+  - &BASE_IMG_ARM
+    <<: *BASE_IMG
+    id: base-arm
+    goarch: arm64
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.description={{ .ProjectName }} by Kedify"
+  - &HARDENED_IMG
+    <<: *BASE_IMG
+    id: hardened
+    build_flag_templates:
+      - "--build-arg=BASE_IMAGE=cgr.dev/chainguard/glibc-dynamic:latest"
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.description={{ .ProjectName }} by Kedify"
+  - &HARDENED_IMG_ARM
+    <<: *BASE_IMG_ARM
+    id: hardened-arm
+    build_flag_templates:
+      - "--build-arg=BASE_IMAGE=cgr.dev/chainguard/glibc-dynamic:latest"
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.description={{ .ProjectName }} by Kedify"
+
+  - <<: *BASE_IMG
+    id: otel-add-on
+    ids: [otel-add-on]
+    image_templates:
+      - "ghcr.io/{{ .Env.GH_REPO_ORG }}/{{ .ProjectName }}:{{ .Env.IMAGE_TAG }}-amd64"
+    dockerfile: "Dockerfile.goreleaser"
+    skip_push: false
+  - <<: *BASE_IMG_ARM
+    id: otel-add-on-arm64
+    ids: [otel-add-on]
+    image_templates:
+      - "ghcr.io/{{ .Env.GH_REPO_ORG }}/{{ .ProjectName }}:{{ .Env.IMAGE_TAG }}-arm64"
+    dockerfile: "Dockerfile.goreleaser"
+    skip_push: false
+  - <<: *HARDENED_IMG
+    id: otel-add-on-amd64-hardened
+    ids: [otel-add-on-hardened-amd64]
+    image_templates:
+      - "ghcr.io/{{ .Env.GH_REPO_ORG }}/{{ .ProjectName }}:{{ .Env.IMAGE_TAG }}-amd64-hardened"
+    dockerfile: "Dockerfile.goreleaser"
+    skip_push: false
+  - <<: *HARDENED_IMG_ARM
+    id: otel-add-on-arm64-hardened
+    ids: [otel-add-on-hardened-arm64]
+    image_templates:
+      - "ghcr.io/{{ .Env.GH_REPO_ORG }}/{{ .ProjectName }}:{{ .Env.IMAGE_TAG }}-arm64-hardened"
+    dockerfile: "Dockerfile.goreleaser"
+    skip_push: false
+
+docker_manifests:
+  - name_template: "ghcr.io/{{ .Env.GH_REPO_ORG }}/{{ .ProjectName }}:{{ .Env.IMAGE_TAG }}-hardened"
+    image_templates:
+      - "ghcr.io/{{ .Env.GH_REPO_ORG }}/{{ .ProjectName }}:{{ .Env.IMAGE_TAG }}-arm64-hardened"
+      - "ghcr.io/{{ .Env.GH_REPO_ORG }}/{{ .ProjectName }}:{{ .Env.IMAGE_TAG }}-amd64-hardened"
+  - name_template: "ghcr.io/{{ .Env.GH_REPO_ORG }}/{{ .ProjectName }}:{{ .Env.IMAGE_TAG }}"
+    image_templates:
+      - "ghcr.io/{{ .Env.GH_REPO_ORG }}/{{ .ProjectName }}:{{ .Env.IMAGE_TAG }}-arm64"
+      - "ghcr.io/{{ .Env.GH_REPO_ORG }}/{{ .ProjectName }}:{{ .Env.IMAGE_TAG }}-amd64"
+
+docker_signs:
+  - id: kedify
+    cmd: cosign
+    args:
+      - "sign"
+      - "${artifact}@${digest}"
+      - "--yes"
+    artifacts: images
+    output: true
+
+archives:
+  - format: binary
+    id: regular
+    builds:
+      - otel-add-on
+    name_template: "{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+  - format: binary
+    id: hardened
+    builds:
+      - otel-add-on-hardened-amd64
+      - otel-add-on-hardened-arm64
+    name_template: "{{ .Binary }}_{{ .Os }}_{{ .Arch }}_hardened"
