@@ -2,14 +2,13 @@
 #		CONSTANTS
 ###############################
 SHELL       = /bin/bash
-# todo:
-GH_REPO_ORG = jkremser
+GH_REPO_ORG = kedify
 VERSION 		?= main
 GIT_COMMIT  ?= $(shell git rev-list -1 HEAD)
 GO_LDFLAGS="-X github.com/${GH_REPO_ORG}/otel-add-on/build.version=${VERSION} -X github.com/${GH_REPO_ORG}/otel-add-on/build.gitCommit=${GIT_COMMIT}"
 BUILD_PLATFORMS ?= linux/amd64,linux/arm64
 
-CONTAINER_IMAGE ?= ghcr.io/jkremser/otel-add-on
+CONTAINER_IMAGE ?= ghcr.io/kedify/otel-add-on
 HACK_BIN ?= bin
 ARCH ?= $(shell uname -m)
 ifeq ($(ARCH), x86_64)
