@@ -66,44 +66,49 @@ dockers:
     goarch: amd64
     build_flag_templates:
       - "--platform=linux/amd64"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.description={{ .ProjectName }} by Kedify"
+      - &LABEL1
+        "--label=org.opencontainers.image.created={{.Date}}"
+      - &LABEL2
+        "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - &LABEL3
+        "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - &LABEL4
+        "--label=org.opencontainers.image.version={{.Version}}"
+      - &LABEL5
+        "--label=org.opencontainers.image.description={{.ProjectName}} by Kedify"
   - &BASE_IMG_ARM
     <<: *BASE_IMG
     id: base-arm
     goarch: arm64
     build_flag_templates:
       - "--platform=linux/arm64"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.description={{ .ProjectName }} by Kedify"
+      - *LABEL1
+      - *LABEL2
+      - *LABEL3
+      - *LABEL4
+      - *LABEL5
   - &HARDENED_IMG
     <<: *BASE_IMG
     id: hardened
     build_flag_templates:
       - "--build-arg=BASE_IMAGE=cgr.dev/chainguard/glibc-dynamic:latest"
       - "--platform=linux/amd64"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.description={{ .ProjectName }} by Kedify"
+      - *LABEL1
+      - *LABEL2
+      - *LABEL3
+      - *LABEL4
+      - *LABEL5
   - &HARDENED_IMG_ARM
     <<: *BASE_IMG_ARM
     id: hardened-arm
     build_flag_templates:
       - "--build-arg=BASE_IMAGE=cgr.dev/chainguard/glibc-dynamic:latest"
       - "--platform=linux/arm64"
-      - "--label=org.opencontainers.image.created={{.Date}}"
-      - "--label=org.opencontainers.image.title={{.ProjectName}}"
-      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-      - "--label=org.opencontainers.image.description={{ .ProjectName }} by Kedify"
+      - *LABEL1
+      - *LABEL2
+      - *LABEL3
+      - *LABEL4
+      - *LABEL5
 
   - <<: *BASE_IMG
     id: otel-add-on
