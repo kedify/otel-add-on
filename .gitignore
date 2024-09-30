@@ -1,0 +1,9 @@
+# IDE
+.idea
+
+# Keda artifacts
+dist/
+bin
+.DS_Store
+
+
