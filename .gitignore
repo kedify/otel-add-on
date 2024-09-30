@@ -6,4 +6,5 @@ dist/
 bin
 .DS_Store
 
-
+# other
+/vendor/
