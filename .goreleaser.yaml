@@ -1,4 +1,5 @@
 project_name: otel-add-on
+# todo:
 env:
   - IMAGE_TAG={{ if index .Env "IMAGE_TAG" }}{{ .Env.IMAGE_TAG }}{{ else }}{{ .Tag }}{{ end }}
   - GH_REPO_ORG={{ if index .Env "GH_REPO_ORG" }}{{ .Env.GH_REPO_ORG }}{{ else }}jkremser{{ end }}
