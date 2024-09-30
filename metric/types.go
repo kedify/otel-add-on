@@ -14,7 +14,7 @@ type Aggregation string
 type Stale bool
 type Found bool
 type MetricName string
-type Labels map[string]string
+type Labels map[string]any
 type LabelsHash string
 type ObservedValue struct {
 	// observed value

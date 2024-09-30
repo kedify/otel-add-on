@@ -11,7 +11,9 @@ import (
 	"net"
 	"sync"
 
+	"github.com/jkremser/otel-add-on/metric"
 	"go.opentelemetry.io/collector/consumer/consumererror"
+	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
 
 	"google.golang.org/grpc"
@@ -37,17 +39,19 @@ type otlpReceiver struct {
 
 	obsrepGRPC *receiverhelper.ObsReport
 
-	settings *receiver.Settings
+	settings       *receiver.Settings
+	metricMemStore metric.MemStore
 }
 
 // newOtlpReceiver just creates the OpenTelemetry receiver services. It is the caller's
 // responsibility to invoke the respective Start*Reception methods as well
 // as the various Stop*Reception methods to end it.
-func NewOtlpReceiver(cfg *otlpreceiver.Config, set *receiver.Settings) (*otlpReceiver, error) {
+func NewOtlpReceiver(cfg *otlpreceiver.Config, set *receiver.Settings, memStore metric.MemStore) (*otlpReceiver, error) {
 	r := &otlpReceiver{
-		cfg:         cfg,
-		nextMetrics: nil,
-		settings:    set,
+		cfg:            cfg,
+		nextMetrics:    nil,
+		settings:       set,
+		metricMemStore: memStore,
 	}
 
 	var err error
@@ -75,7 +79,7 @@ func (r *otlpReceiver) startGRPCServer(host component.Host) error {
 	}
 
 	if r.nextMetrics != nil {
-		pmetricotlp.RegisterGRPCServer(r.serverGRPC, New(r.nextMetrics, r.obsrepGRPC))
+		pmetricotlp.RegisterGRPCServer(r.serverGRPC, New(r.nextMetrics, r.obsrepGRPC, r.metricMemStore))
 	}
 
 	r.settings.Logger.Info("Starting GRPC server", zap.String("endpoint", r.cfg.GRPC.NetAddr.Endpoint))
@@ -126,15 +130,17 @@ const dataFormatProtobuf = "protobuf"
 // Receiver is the type used to handle metrics from OpenTelemetry exporters.
 type Receiver struct {
 	pmetricotlp.UnimplementedGRPCServer
-	nextConsumer consumer.Metrics
-	obsreport    *receiverhelper.ObsReport
+	nextConsumer   consumer.Metrics
+	obsreport      *receiverhelper.ObsReport
+	metricMemStore metric.MemStore
 }
 
 // New creates a new Receiver reference.
-func New(nextConsumer consumer.Metrics, obsreport *receiverhelper.ObsReport) *Receiver {
+func New(nextConsumer consumer.Metrics, obsreport *receiverhelper.ObsReport, memStore metric.MemStore) *Receiver {
 	return &Receiver{
-		nextConsumer: nextConsumer,
-		obsreport:    obsreport,
+		nextConsumer:   nextConsumer,
+		obsreport:      obsreport,
+		metricMemStore: memStore,
 	}
 }
 
@@ -157,13 +163,29 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 			for k := 0; k < mLen; k++ {
 				fmt.Printf("-  name: %+v\n", metrics.At(k).Name())
 				fmt.Printf("   type: %+v\n", metrics.At(k).Type())
-				//fmt.Printf("gauge: %+v\n", metrics.At(k).Gauge())
-				for l := 0; l < metrics.At(k).Sum().DataPoints().Len(); l++ {
-					datapoint := metrics.At(k).Sum().DataPoints().At(l)
+				var dataPoints pmetric.NumberDataPointSlice
+				switch metrics.At(k).Type() {
+				case pmetric.MetricTypeGauge:
+					dataPoints = metrics.At(k).Gauge().DataPoints()
+				case pmetric.MetricTypeSum:
+					dataPoints = metrics.At(k).Sum().DataPoints()
+				default:
+					// ignore others
+				}
+				for l := 0; l < dataPoints.Len(); l++ {
+					datapoint := dataPoints.At(l)
 					fmt.Printf("     - time: %+v\n", datapoint.Timestamp())
 					fmt.Printf("       tags: %+v\n", datapoint.Attributes().AsRaw())
 					value := math.Max(datapoint.DoubleValue(), float64(datapoint.IntValue()))
 					fmt.Printf("       value: %+v\n", value)
+					r.metricMemStore.Put(metric.MetricEntry{
+						Name: metric.MetricName(metrics.At(k).Name()),
+						ObservedValue: metric.ObservedValue{
+							Value:      value,
+							LastUpdate: datapoint.Timestamp(),
+						},
+						Labels: datapoint.Attributes().AsRaw(),
+					})
 				}
 			}
 

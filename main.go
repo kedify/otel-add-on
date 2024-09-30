@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/jkremser/otel-add-on/build"
+	"github.com/jkremser/otel-add-on/metric"
 	"github.com/jkremser/otel-add-on/receiver"
 	"github.com/jkremser/otel-add-on/scaler"
 	"go.opentelemetry.io/collector/component"
@@ -92,6 +93,7 @@ func main() {
 	ctx = util.ContextWithLogger(ctx, setupLog)
 
 	eg, ctx := errgroup.WithContext(ctx)
+	ms := metric.NewMetricStore(5)
 
 	// start the endpoints informer
 	//eg.Go(func() error {
@@ -145,7 +147,7 @@ func main() {
 			BuildInfo:         component.NewDefaultBuildInfo(),
 			TelemetrySettings: componenttest.NewNopTelemetrySettings(),
 		}
-		r, err := receiver.NewOtlpReceiver(conf, settings)
+		r, err := receiver.NewOtlpReceiver(conf, settings, ms)
 
 		r.RegisterMetricsConsumer(mc{})
 
