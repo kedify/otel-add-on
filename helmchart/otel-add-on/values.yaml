@@ -1,0 +1,139 @@
+#otel-add-on:
+#------------
+replicaCount: 1
+
+image:
+  repository: ghcr.io/kedify/otel-add-on
+  pullPolicy: Always
+  tag: ""
+
+asciiArt: true
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+
+resources:
+   limits:
+     cpu: 500m
+     memory: 256Mi
+   requests:
+     cpu: 500m
+     memory: 128Mi
+
+volumes: []
+# - name: foo
+#   secret:
+#     secretName: mysecret
+#     optional: false
+
+volumeMounts: []
+# - name: foo
+#   mountPath: "/etc/foo"
+#   readOnly: true
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+#otel collector helm chart:
+#--------------------------
+opentelemetry-collector:
+  mode: deployment
+  image:
+    repository: otel/opentelemetry-collector-k8s
+  fullnameOverride: otelcol
+
+  ports:
+    jaeger-compact: {}
+    jaeger-thrift: {}
+    jaeger-grpc: {}
+    zipkin: {}
+    otlp: {}
+    otlp-http: {}
+    opencensus:
+      enabled: true
+      containerPort: 55678
+      servicePort: 55678
+      hostPort: 55678
+      protocol: TCP
+
+  config:
+    receivers:
+      # https://grafana.com/docs/alloy/latest/reference/components/otelcol/otelcol.receiver.opencensus/
+      opencensus:
+        endpoint: 0.0.0.0:55678
+        include_metadata: true
+      jaeger: {}
+      otlp: {}
+    exporters:
+      otlp:
+        endpoint: 192.168.84.98:4317
+        compression: "none"
+        tls:
+          insecure: true
+        # endpoint: otel-add-on:4317
+        #   tls:
+        #     cert_file: file.cert
+        #     key_file: file.key
+      debug:
+        verbosity: detailed
+    processors:
+      filter/ottl:
+        error_mode: ignore
+        metrics:
+          # runtime/service_invocation/req_sent_total
+          metric:
+            - | # drop all other metrics that are not whitelisted here
+              name != "http/client/completed_count" and
+              name != "http/server/request_count" and
+              name != "runtime/service_invocation/res_sent_total"
+
+            - resource.attributes["app_id"] == "nodeapp" # drop all metrics w/o the app_id = nodeapp tag on them
+
+            # - not (IsMatch(name, "http/client/*")) # drop all metrics that don't start w/ http/client/
+            # more here: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/pkg/ottl/LANGUAGE.md & https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/pkg/ottl/ottlfuncs1
+            # - 'type != METRIC_DATA_TYPE_GAUGE' # drop all non-gauges
+
+    # debug/profiling
+    # extensions:
+    #   pprof:
+    #     endpoint: :1888
+    #   zpages:
+    #     endpoint: :55679
+
+    service:
+      # extensions: [pprof, zpages]
+      pipelines:
+        traces: {}
+        logs: {}
+        metrics:
+          receivers:
+            - opencensus
+          processors:
+            - filter/ottl
+          exporters:
+            - debug
+            - otlp

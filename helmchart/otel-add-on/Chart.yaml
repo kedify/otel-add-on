@@ -1,0 +1,18 @@
+apiVersion: v2
+name: otel-add-on
+description: A Helm chart for otel-add-on
+type: application
+version: 0.0.1
+appVersion: "0.0.1"
+kubeVersion: ">= 1.19.0-0"
+icon: https://raw.githubusercontent.com/kedacore/keda/main/images/keda-logo-500x500-white.png
+
+dependencies:
+  - name: opentelemetry-collector
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+    version: 0.107.0
+
+home: https://github.com/kedify/otel-add-on
+sources:
+  - https://github.com/kedify/otel-add-on
+

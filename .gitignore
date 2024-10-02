@@ -6,5 +6,8 @@ dist/
 bin
 .DS_Store
 
-# other
+# Helm charts
+helmchart/otel-add-on/charts/*.tgz
+
+# Other
 /vendor/
