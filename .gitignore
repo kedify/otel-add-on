@@ -9,5 +9,8 @@ bin
 # Helm charts
 helmchart/otel-add-on/charts/*.tgz
 
+# generated
+/generated/*
+
 # Other
 /vendor/

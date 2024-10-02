@@ -25,8 +25,12 @@ GO_BUILD_VARS= GO111MODULE=on CGO_ENABLED=$(CGO) GOOS=$(TARGET_OS) GOARCH=$(ARCH
 all: help
 
 .PHONY: build
-build: ## Builds the binary.
+build:  ## Builds the binary.
 	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -o bin/otel-add-on .
+
+.PHONY: run
+run:  ## Runs the scaler locally.
+	go run ./main.go
 
 .PHONY: build-image
 build-image: build  ## Builds the container image for current arch.
@@ -41,6 +45,20 @@ build-image-multiarch:  ## Builds the container image for arm64 and amd64.
 .PHONY: build-image-goreleaser
 build-image-goreleaser: ## Builds the multi-arch container image using goreleaser.
 	goreleaser release --skip=validate,publish,sbom --clean --snapshot
+
+codegen: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+	$(CONTROLLER_GEN) object:headerFile='hack/boilerplate.go.txt' paths='./...'
+	./hack/update-codegen.sh
+
+.PHONY: deploy-helm
+deploy-helm:  ## Deploys helm chart with otel-collector and otel scaler.
+	cd helmchart/otel-add-on && \
+	helm dependency build && \
+	helm upgrade -i otel-add-on .
+
+CONTROLLER_GEN = ${HACK_BIN}/controller-gen
+controller-gen: ## Download controller-gen locally if necessary.
+	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.15.0
 
 .PHONY: help
 help: ## Show this help.

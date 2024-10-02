@@ -12,21 +12,17 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/jkremser/otel-add-on/metric"
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
-	"k8s.io/utils/ptr"
+
+	"github.com/kedify/otel-add-on/metric"
 
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
-	"github.com/kedacore/http-add-on/pkg/k8s"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 const (
 	keyInterceptorTargetPendingRequests = "interceptorTargetPendingRequests"
-	kedifyProxySvcName                  = "kedify-proxy"
-	kedifyAutowireAnnotation            = "http.kedify.io/traffic-autowire"
 )
 
 var streamInterval time.Duration
@@ -41,27 +37,27 @@ func init() {
 }
 
 type impl struct {
-	lggr           logr.Logger
-	metricStore    metric.MemStore
-	metricParser   metric.Parser
-	httpsoInformer informershttpv1alpha1.HTTPScaledObjectInformer
-	targetMetric   int64
+	lggr         logr.Logger
+	metricStore  metric.MemStore
+	metricParser metric.Parser
+	//soInformer   informersv1alpha1.ScaledObjectInformer
+	targetMetric int64
 	externalscaler.UnimplementedExternalScalerServer
 }
 
-func newImpl(
+func New(
 	lggr logr.Logger,
 	metricStore metric.MemStore,
 	metricParser metric.Parser,
-	httpsoInformer informershttpv1alpha1.HTTPScaledObjectInformer,
+	//soInformer informersv1alpha1.ScaledObjectInformer,
 	defaultTargetMetric int64,
 ) *impl {
 	return &impl{
-		lggr:           lggr,
-		metricStore:    metricStore,
-		metricParser:   metricParser,
-		httpsoInformer: httpsoInformer,
-		targetMetric:   defaultTargetMetric,
+		lggr:         lggr,
+		metricStore:  metricStore,
+		metricParser: metricParser,
+		//soInformer:   soInformer,
+		targetMetric: defaultTargetMetric,
 	}
 }
 
@@ -149,42 +145,47 @@ func (e *impl) GetMetricSpec(
 	sor *externalscaler.ScaledObjectRef,
 ) (*externalscaler.GetMetricSpecResponse, error) {
 
-	lggr := e.lggr.WithName("GetMetricSpec")
-
-	namespacedName := k8s.NamespacedNameFromScaledObjectRef(sor)
-	metricName := namespacedName.Name
-
-	httpso, err := e.httpsoInformer.Lister().HTTPScaledObjects(sor.Namespace).Get(sor.Name)
-	if err != nil {
-		if scalerMetadata := sor.GetScalerMetadata(); scalerMetadata != nil {
-			if interceptorTargetPendingRequests, ok := scalerMetadata[keyInterceptorTargetPendingRequests]; ok {
-				return e.interceptorMetricSpec(metricName, interceptorTargetPendingRequests)
-			}
-		}
-
-		lggr.Error(err, "unable to get HTTPScaledObject", "name", sor.Name, "namespace", sor.Namespace)
-		return nil, err
-	}
-	targetValue := int64(ptr.Deref(httpso.Spec.TargetPendingRequests, 100))
-
-	if httpso.Spec.ScalingMetric != nil {
-		if httpso.Spec.ScalingMetric.Concurrency != nil {
-			targetValue = int64(httpso.Spec.ScalingMetric.Concurrency.TargetValue)
-		}
-		if httpso.Spec.ScalingMetric.Rate != nil {
-			targetValue = int64(httpso.Spec.ScalingMetric.Rate.TargetValue)
-		}
-	}
-
-	res := &externalscaler.GetMetricSpecResponse{
-		MetricSpecs: []*externalscaler.MetricSpec{
-			{
-				MetricName: metricName,
-				TargetSize: targetValue,
-			},
-		},
-	}
-	return res, nil
+	//lggr := e.lggr.WithName("GetMetricSpec")
+	//
+	//namespacedName := k8s.NamespacedNameFromScaledObjectRef(sor)
+	//metricName := namespacedName.Name
+	//
+	//so, err := e.soInformer.Lister().ScaledObjects(sor.Namespace).Get(sor.Name)
+	//if err != nil {
+	//	if scalerMetadata := sor.GetScalerMetadata(); scalerMetadata != nil {
+	//		//if interceptorTargetPendingRequests, ok := scalerMetadata[keyInterceptorTargetPendingRequests]; ok {
+	//		//	return e.interceptorMetricSpec(metricName, interceptorTargetPendingRequests)
+	//		//}
+	//		targetValue, ok := scalerMetadata["todo"]
+	//		if !ok {
+	//			// todo
+	//		}
+	//	}
+	//
+	//	lggr.Error(err, "unable to get ScaledObject", "name", sor.Name, "namespace", sor.Namespace)
+	//	return nil, err
+	//}
+	//// todo:
+	//
+	//
+	////if httpso.Spec.ScalingMetric != nil {
+	////	if httpso.Spec.ScalingMetric.Concurrency != nil {
+	////		targetValue = int64(targetValue)
+	////	}
+	////	if httpso.Spec.ScalingMetric.Rate != nil {
+	////		targetValue = int64(httpso.Spec.ScalingMetric.Rate.TargetValue)
+	////	}
+	////}
+	//
+	////res := &externalscaler.GetMetricSpecResponse{
+	////	MetricSpecs: []*externalscaler.MetricSpec{
+	////		{
+	////			MetricName: metricName,
+	////			TargetSize: targetValue,
+	////		},
+	////	},
+	////}
+	return nil, nil
 }
 
 func (e *impl) interceptorMetricSpec(metricName string, interceptorTargetPendingRequests string) (*externalscaler.GetMetricSpecResponse, error) {

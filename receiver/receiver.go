@@ -11,10 +11,11 @@ import (
 	"net"
 	"sync"
 
-	"github.com/jkremser/otel-add-on/metric"
 	"go.opentelemetry.io/collector/consumer/consumererror"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
+
+	"github.com/kedify/otel-add-on/metric"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

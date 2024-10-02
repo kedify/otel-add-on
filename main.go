@@ -12,10 +12,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/jkremser/otel-add-on/build"
-	"github.com/jkremser/otel-add-on/metric"
-	"github.com/jkremser/otel-add-on/receiver"
-	"github.com/jkremser/otel-add-on/scaler"
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/component/componenttest"
@@ -29,14 +25,16 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/kedify/otel-add-on/build"
+	"github.com/kedify/otel-add-on/metric"
+	"github.com/kedify/otel-add-on/receiver"
+	"github.com/kedify/otel-add-on/scaler"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 
-	clientset "github.com/kedacore/http-add-on/operator/generated/clientset/versioned"
-	informers "github.com/kedacore/http-add-on/operator/generated/informers/externalversions"
-	informershttpv1alpha1 "github.com/kedacore/http-add-on/operator/generated/informers/externalversions/http/v1alpha1"
 	"github.com/kedacore/http-add-on/pkg/util"
 )
 
@@ -49,7 +47,6 @@ var (
 
 func main() {
 	// todo: get rid of http addon dependencies
-	fmt.Printf("\n\n\nAhoj")
 	cfg := scaler.MustParseConfig()
 	otlpReceiverPort := cfg.OTLPReceiverPort
 	//namespace := cfg.TargetNamespace
@@ -64,7 +61,8 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	k8sCfg, err := ctrl.GetConfig()
+	//k8sCfg, err := ctrl.GetConfig()
+	_, err := ctrl.GetConfig()
 	if err != nil {
 		setupLog.Error(err, "Kubernetes client config not found")
 		os.Exit(1)
@@ -82,19 +80,26 @@ func main() {
 	//	cfg.DeploymentCacheRsyncPeriod,
 	//)
 
-	httpCl, err := clientset.NewForConfig(k8sCfg)
+	//httpCl, err := clientset.NewForConfig(k8sCfg)
 	if err != nil {
 		setupLog.Error(err, "creating new HTTP ClientSet")
 		os.Exit(1)
 	}
-	sharedInformerFactory := informers.NewSharedInformerFactory(httpCl, cfg.ConfigMapCacheRsyncPeriod)
-	httpsoInformer := informershttpv1alpha1.New(sharedInformerFactory, "", nil).HTTPScaledObjects()
+	//sharedInformerFactory := informers.NewSharedInformerFactory(httpCl, cfg.ConfigMapCacheRsyncPeriod)
+	//soInformer := informersv1alpha1.New(sharedInformerFactory, "", nil).ScaledObjects()
+
+	//httpCl, err := clientset.NewForConfig(k8sCfg)
+	if err != nil {
+		setupLog.Error(err, "creating new HTTP ClientSet")
+		os.Exit(1)
+	}
 
 	ctx := ctrl.SetupSignalHandler()
 	ctx = util.ContextWithLogger(ctx, setupLog)
 
 	eg, ctx := errgroup.WithContext(ctx)
 	ms := metric.NewMetricStore(5)
+	mp := metric.NewParser()
 
 	// start the endpoints informer
 	//eg.Go(func() error {
@@ -106,7 +111,7 @@ func main() {
 	//// start the httpso informer
 	//eg.Go(func() error {
 	//	setupLog.Info("starting the httpso informer")
-	//	httpsoInformer.Informer().Run(ctx.Done())
+	//	soInformer.Informer().Run(ctx.Done())
 	//	return nil
 	//})
 
@@ -160,7 +165,7 @@ func main() {
 
 		setupLog.Info("starting the grpc server KEDA external push...")
 		// todo: port cfg
-		if err := startGrpcServer(ctx, cfg, ctrl.Log, otlpReceiverPort+1, httpsoInformer, int64(targetPendingRequests)); !util.IsIgnoredErr(err) {
+		if err := startGrpcServer(ctx, cfg, ctrl.Log, ms, mp, otlpReceiverPort+1, int64(targetPendingRequests)); !util.IsIgnoredErr(err) {
 			setupLog.Error(err, "grpc server failed")
 			return err
 		}
@@ -182,8 +187,9 @@ func startGrpcServer(
 	ctx context.Context,
 	cfg *scaler.Config,
 	lggr logr.Logger,
+	ms metric.MemStore,
+	mp metric.Parser,
 	port int,
-	httpsoInformer informershttpv1alpha1.HTTPScaledObjectInformer,
 	targetPendingRequests int64,
 ) error {
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
@@ -231,10 +237,11 @@ func startGrpcServer(
 
 	externalscaler.RegisterExternalScalerServer(
 		grpcServer,
-		newImpl(
+		scaler.New(
 			lggr,
-			pinger,
-			httpsoInformer,
+			ms,
+			mp,
+			//soInformer,
 			targetPendingRequests,
 		),
 	)
