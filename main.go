@@ -16,6 +16,7 @@ import (
 	"github.com/jkremser/otel-add-on/metric"
 	"github.com/jkremser/otel-add-on/receiver"
 	"github.com/jkremser/otel-add-on/scaler"
+	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/component/componenttest"
 	"go.opentelemetry.io/collector/config/configgrpc"
@@ -228,15 +229,15 @@ func startGrpcServer(
 		hs,
 	)
 
-	//externalscaler.RegisterExternalScalerServer(
-	//	grpcServer,
-	//	newImpl(
-	//		lggr,
-	//		pinger,
-	//		httpsoInformer,
-	//		targetPendingRequests,
-	//	),
-	//)
+	externalscaler.RegisterExternalScalerServer(
+		grpcServer,
+		newImpl(
+			lggr,
+			pinger,
+			httpsoInformer,
+			targetPendingRequests,
+		),
+	)
 
 	go func() {
 		<-ctx.Done()

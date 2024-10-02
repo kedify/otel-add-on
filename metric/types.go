@@ -42,3 +42,8 @@ type MemStore interface {
 	// Gc removes the data points older than certain threshold from the store
 	Gc()
 }
+
+type Parser interface {
+	// Parse parses the metric queyr provided as a string
+	Parse(string) (MetricName, Labels, Aggregation, error)
+}
