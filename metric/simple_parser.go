@@ -3,25 +3,27 @@ package metric
 import (
 	"fmt"
 	"strings"
+
+	"github.com/kedify/otel-add-on/types"
 )
 
 type p struct {
 }
 
 // enforce iface impl
-var _ Parser = new(p)
+var _ types.Parser = new(p)
 
-func NewParser() Parser {
+func NewParser() types.Parser {
 	return p{}
 }
 
-func (p p) Parse(metricQuery string) (MetricName, Labels, AggregationOverVectors, error) {
+func (p p) Parse(metricQuery string) (types.MetricName, types.Labels, types.AggregationOverVectors, error) {
 	if metricQuery == "" {
 		return "", nil, "", fmt.Errorf("unable to parse metric query: %s", metricQuery)
 	}
 	mq := strings.TrimSpace(metricQuery)
-	aggregateFunction := VecSum // default
-	for _, aggFn := range []AggregationOverVectors{VecSum, VecAvg, VecMin, VecMax} {
+	aggregateFunction := types.VecSum // default
+	for _, aggFn := range []types.AggregationOverVectors{types.VecSum, types.VecAvg, types.VecMin, types.VecMax} {
 		if strings.HasPrefix(mq, string(aggFn)+"(") && strings.HasSuffix(mq, ")") {
 			aggregateFunction = aggFn
 			mq = strings.TrimPrefix(mq, string(aggFn)+"(")
@@ -34,9 +36,9 @@ func (p p) Parse(metricQuery string) (MetricName, Labels, AggregationOverVectors
 		return "", nil, "", fmt.Errorf("unable to parse metric query: %s", metricQuery)
 	}
 	if first == -1 && last == -1 { // no labels specified
-		return MetricName(mq), map[string]any{}, aggregateFunction, nil
+		return types.MetricName(mq), map[string]any{}, aggregateFunction, nil
 	}
-	metricName := MetricName(mq[:first])
+	metricName := types.MetricName(mq[:first])
 	labels, err := p.ParseLabels(mq[first+1 : last])
 	if err != nil {
 		return "", nil, "", err
@@ -44,7 +46,7 @@ func (p p) Parse(metricQuery string) (MetricName, Labels, AggregationOverVectors
 	return metricName, labels, aggregateFunction, nil
 }
 
-func (p p) ParseLabels(labelsQuery string) (Labels, error) {
+func (p p) ParseLabels(labelsQuery string) (types.Labels, error) {
 	lq := strings.TrimSpace(labelsQuery)
 	if lq == "" {
 		return nil, fmt.Errorf("unable to parse labels: %s", lq)

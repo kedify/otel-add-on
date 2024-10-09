@@ -11,8 +11,15 @@ spec:
     - type: external
       metadata:
         scalerAddress: keda-otel-scaler:4318
+
+        # required
         metricQuery: "sum(http/server/request_count{app_id=nodeapp, method=GET, path=/v1.0/state/statestore})"
+
+        # optional - default no limit
         clampMin: 1
+
+        # optional - default no limit
         clampMax: 10
-        operationOverTime: last_one/rate/count/average/min/max
-        overTimePeriodSeconds: 60
+
+        # optional - default 'last_one', available values: last_one,rate,count,avg,min,max
+        operationOverTime: last_one

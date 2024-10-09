@@ -7,18 +7,17 @@ package scaler
 import (
 	"context"
 	"errors"
-	"fmt"
+	"math"
 	"strconv"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 
-	"github.com/kedify/otel-add-on/metric"
+	"github.com/kedify/otel-add-on/types"
+	"github.com/kedify/otel-add-on/util"
 
 	"google.golang.org/protobuf/types/known/emptypb"
-
-	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 const (
@@ -38,8 +37,8 @@ func init() {
 
 type impl struct {
 	lggr         logr.Logger
-	metricStore  metric.MemStore
-	metricParser metric.Parser
+	metricStore  types.MemStore
+	metricParser types.Parser
 	//soInformer   informersv1alpha1.ScaledObjectInformer
 	targetMetric int64
 	externalscaler.UnimplementedExternalScalerServer
@@ -47,8 +46,8 @@ type impl struct {
 
 func New(
 	lggr logr.Logger,
-	metricStore metric.MemStore,
-	metricParser metric.Parser,
+	metricStore types.MemStore,
+	metricParser types.Parser,
 	//soInformer informersv1alpha1.ScaledObjectInformer,
 	defaultTargetMetric int64,
 ) *impl {
@@ -219,27 +218,21 @@ func (e *impl) GetMetrics(
 	//metricName := namespacedName.Name
 
 	scalerMetadata := sor.GetScalerMetadata()
-	metricQuery, ok := scalerMetadata["metricQuery"]
-	if !ok {
-		err := fmt.Errorf("unable to get metric query from scaled object's metadata")
-		lggr.Error(err, "GetMetrics")
-		return nil, err
-	}
-	name, labels, agg, err := e.metricParser.Parse(metricQuery)
+	metricName, labels, agg, err := util.GetMetricQuery(lggr, scalerMetadata, e.metricParser)
 	if err != nil {
-		lggr.Error(err, "GetMetrics")
 		return nil, err
 	}
 
-	// todo: time op
-	value, stale, found := e.metricStore.Get(name, labels, metric.OpLastOne, agg)
-	lggr.V(1).Info("got metric value: ", "value", value, "stale", stale, "found", found)
+	opOverTime := util.GetOperationOvertTime(lggr, scalerMetadata)
+	value, found, err := e.metricStore.Get(metricName, labels, opOverTime, agg)
+	lggr.V(1).Info("got metric value: ", "value", value, "found", found, "error", err)
+	value = util.ClampValue(lggr, value, scalerMetadata)
 
 	res := &externalscaler.GetMetricsResponse{
 		MetricValues: []*externalscaler.MetricValue{
 			{
-				MetricName:  metricQuery,
-				MetricValue: int64(value),
+				MetricName:  string(metricName),
+				MetricValue: int64(math.Round(value)),
 			},
 		},
 	}

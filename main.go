@@ -29,6 +29,7 @@ import (
 	"github.com/kedify/otel-add-on/metric"
 	"github.com/kedify/otel-add-on/receiver"
 	"github.com/kedify/otel-add-on/scaler"
+	"github.com/kedify/otel-add-on/types"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -187,8 +188,8 @@ func startGrpcServer(
 	ctx context.Context,
 	cfg *scaler.Config,
 	lggr logr.Logger,
-	ms metric.MemStore,
-	mp metric.Parser,
+	ms types.MemStore,
+	mp types.Parser,
 	port int,
 	targetPendingRequests int64,
 ) error {

@@ -1,4 +1,4 @@
-package metric
+package types
 
 import "go.opentelemetry.io/collector/pdata/pcommon"
 
@@ -70,6 +70,6 @@ type MemStore interface {
 }
 
 type Parser interface {
-	// Parse parses the metric queyr provided as a string
+	// Parse parses the metric query provided as a string
 	Parse(string) (MetricName, Labels, AggregationOverVectors, error)
 }

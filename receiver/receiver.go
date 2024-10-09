@@ -15,7 +15,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
 
-	"github.com/kedify/otel-add-on/metric"
+	"github.com/kedify/otel-add-on/types"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -41,13 +41,13 @@ type otlpReceiver struct {
 	obsrepGRPC *receiverhelper.ObsReport
 
 	settings       *receiver.Settings
-	metricMemStore metric.MemStore
+	metricMemStore types.MemStore
 }
 
 // newOtlpReceiver just creates the OpenTelemetry receiver services. It is the caller's
 // responsibility to invoke the respective Start*Reception methods as well
 // as the various Stop*Reception methods to end it.
-func NewOtlpReceiver(cfg *otlpreceiver.Config, set *receiver.Settings, memStore metric.MemStore) (*otlpReceiver, error) {
+func NewOtlpReceiver(cfg *otlpreceiver.Config, set *receiver.Settings, memStore types.MemStore) (*otlpReceiver, error) {
 	r := &otlpReceiver{
 		cfg:            cfg,
 		nextMetrics:    nil,
@@ -133,11 +133,11 @@ type Receiver struct {
 	pmetricotlp.UnimplementedGRPCServer
 	nextConsumer   consumer.Metrics
 	obsreport      *receiverhelper.ObsReport
-	metricMemStore metric.MemStore
+	metricMemStore types.MemStore
 }
 
 // New creates a new Receiver reference.
-func New(nextConsumer consumer.Metrics, obsreport *receiverhelper.ObsReport, memStore metric.MemStore) *Receiver {
+func New(nextConsumer consumer.Metrics, obsreport *receiverhelper.ObsReport, memStore types.MemStore) *Receiver {
 	return &Receiver{
 		nextConsumer:   nextConsumer,
 		obsreport:      obsreport,
@@ -179,9 +179,9 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 					fmt.Printf("       tags: %+v\n", datapoint.Attributes().AsRaw())
 					value := math.Max(datapoint.DoubleValue(), float64(datapoint.IntValue()))
 					fmt.Printf("       value: %+v\n", value)
-					r.metricMemStore.Put(metric.NewMetricEntry{
-						Name: metric.MetricName(metrics.At(k).Name()),
-						ObservedValue: metric.ObservedValue{
+					r.metricMemStore.Put(types.NewMetricEntry{
+						Name: types.MetricName(metrics.At(k).Name()),
+						ObservedValue: types.ObservedValue{
 							Value: value,
 							Time:  datapoint.Timestamp(),
 						},

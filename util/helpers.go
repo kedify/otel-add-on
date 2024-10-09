@@ -1,5 +1,14 @@
 package util
 
+import (
+	"fmt"
+	"os"
+	"strconv"
+	"time"
+
+	"github.com/kedify/otel-add-on/types"
+)
+
 func Map[I, R any](input []I, f func(I) R) []R {
 	result := make([]R, len(input))
 	for i := range input {
@@ -34,4 +43,44 @@ func Filter2[I any](input []I, f func(I) bool) []I {
 			return []I{}
 		}
 	})
+}
+
+func ResolveOsEnvBool(envName string, defaultValue bool) (bool, error) {
+	valueStr, found := os.LookupEnv(envName)
+
+	if found && valueStr != "" {
+		return strconv.ParseBool(valueStr)
+	}
+
+	return defaultValue, nil
+}
+
+func ResolveOsEnvInt(envName string, defaultValue int) (int, error) {
+	valueStr, found := os.LookupEnv(envName)
+
+	if found && valueStr != "" {
+		return strconv.Atoi(valueStr)
+	}
+
+	return defaultValue, nil
+}
+
+func ResolveOsEnvDuration(envName string) (*time.Duration, error) {
+	valueStr, found := os.LookupEnv(envName)
+
+	if found && valueStr != "" {
+		value, err := time.ParseDuration(valueStr)
+		return &value, err
+	}
+
+	return nil, nil
+}
+
+func CheckTimeOp(op types.OperationOverTime) error {
+	switch op {
+	case types.OpLastOne, types.OpRate, types.OpCount, types.OpAvg, types.OpMin, types.OpMax:
+		return nil
+	default:
+		return fmt.Errorf("unknown OperationOverTime:%s", op)
+	}
 }
