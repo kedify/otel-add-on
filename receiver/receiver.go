@@ -179,11 +179,11 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 					fmt.Printf("       tags: %+v\n", datapoint.Attributes().AsRaw())
 					value := math.Max(datapoint.DoubleValue(), float64(datapoint.IntValue()))
 					fmt.Printf("       value: %+v\n", value)
-					r.metricMemStore.Put(metric.MetricEntry{
+					r.metricMemStore.Put(metric.NewMetricEntry{
 						Name: metric.MetricName(metrics.At(k).Name()),
 						ObservedValue: metric.ObservedValue{
-							Value:      value,
-							LastUpdate: datapoint.Timestamp(),
+							Value: value,
+							Time:  datapoint.Timestamp(),
 						},
 						Labels: datapoint.Attributes().AsRaw(),
 					})

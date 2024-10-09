@@ -11,7 +11,7 @@ func TestSimpleParserOk(t *testing.T) {
 
 	// check
 	name, labels, agg, err := p.Parse("avg(metric_foo_bar{a=1, b=2})")
-	if name != "metric_foo_bar" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{"b": "2", "a": "1"}) || agg != Avg || err != nil {
+	if name != "metric_foo_bar" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{"b": "2", "a": "1"}) || agg != VecAvg || err != nil {
 		t.Errorf("expected: [metric_foo_bar, map[a:1 b:2], avg, <nil>], got: [%s, %v, %v, %v]", name, labels, agg, err)
 	}
 }
@@ -56,7 +56,7 @@ func TestSimpleParserDefaultAgg(t *testing.T) {
 
 	// check
 	name, labels, agg, err := p.Parse("metric_foo{a=1, b=2, c=5}")
-	if name != "metric_foo" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{"b": "2", "a": "1", "c": "5"}) || agg != Sum || err != nil {
+	if name != "metric_foo" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{"b": "2", "a": "1", "c": "5"}) || agg != VecSum || err != nil {
 		t.Errorf("expected: [metric_foo, map[a:1 b:2 c:5], avg, <nil>], got: [%s, %v, %v, %v]", name, labels, agg, err)
 	}
 }
@@ -67,7 +67,7 @@ func TestSimpleParserMin(t *testing.T) {
 
 	// check
 	name, labels, agg, err := p.Parse("min(metric_foo{ahoj=cau})")
-	if name != "metric_foo" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{"ahoj": "cau"}) || agg != Min || err != nil {
+	if name != "metric_foo" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{"ahoj": "cau"}) || agg != VecMin || err != nil {
 		t.Errorf("expected: [metric_foo, map[ahoj:cau], min, <nil>], got: [%s, %v, %v, %v]", name, labels, agg, err)
 	}
 }
@@ -78,7 +78,7 @@ func TestSimpleParserNoLabels(t *testing.T) {
 
 	// check
 	name, labels, agg, err := p.Parse("max(metric_foo)")
-	if name != "metric_foo" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{}) || agg != Max || err != nil {
+	if name != "metric_foo" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{}) || agg != VecMax || err != nil {
 		t.Errorf("expected: [metric_foo, map[], max, <nil>], got: [%s, %v, %v, %v]", name, labels, agg, err)
 	}
 }
@@ -89,7 +89,7 @@ func TestSimpleParserNoLabelsNoAgg(t *testing.T) {
 
 	// check
 	name, labels, agg, err := p.Parse("hello")
-	if name != "hello" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{}) || agg != Sum || err != nil {
+	if name != "hello" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{}) || agg != VecSum || err != nil {
 		t.Errorf("expected: [hello, map[], sum, <nil>], got: [%s, %v, %v, %v]", name, labels, agg, err)
 	}
 }

@@ -2,7 +2,7 @@ package metric
 
 import "go.opentelemetry.io/collector/pdata/pcommon"
 
-type MetricEntry struct {
+type NewMetricEntry struct {
 	ObservedValue
 	// metric name
 	Name MetricName
@@ -10,40 +10,66 @@ type MetricEntry struct {
 	Labels Labels
 }
 
-type Aggregation string
+type AggregationOverVectors string
+type OperationOverTime string
 type Stale bool
 type Found bool
 type MetricName string
 type Labels map[string]any
 type LabelsHash string
+type AggregatesOverTime map[OperationOverTime]float64
+type MetricData struct {
+	Name               MetricName
+	Labels             Labels
+	Data               []ObservedValue
+	AggregatesOverTime AggregatesOverTime
+	LastUpdate         pcommon.Timestamp
+}
+
 type ObservedValue struct {
 	// observed value
 	Value float64
 	// timestamp of last update
-	LastUpdate pcommon.Timestamp
-	Labels     Labels
+	Time pcommon.Timestamp
 }
-type StoredMetrics map[LabelsHash]ObservedValue
+type StoredMetrics map[LabelsHash]MetricData
 
 const (
-	Sum Aggregation = "sum"
-	Avg Aggregation = "avg"
-	Min Aggregation = "min"
-	Max Aggregation = "max"
+	// following aggregations can be applied across multiple metric series. This automatically happens if provided
+	// set of labels wasn't specific enough to identify just one vector. In which case we first apply the OperationOverTime
+	// and on the resulting set of numbers where each represents last_one, rate, min, max, avg of the time serie, we apply
+	// this function
+
+	// VecSum sums the number
+	VecSum AggregationOverVectors = "sum"
+	VecAvg AggregationOverVectors = "avg"
+	VecMin AggregationOverVectors = "min"
+	VecMax AggregationOverVectors = "max"
+
+	// following operations can be applied on one time serie vector that was captured over time
+	// returning just one number
+
+	// OpLastOne returns the last measured value
+	OpLastOne OperationOverTime = "last_one"
+
+	// OpRate calculates the per-second growth. Suitable for monotonic time series and is calculated as
+	// delta between last and first measured element divided by overTimePeriodSeconds
+	OpRate  OperationOverTime = "rate"
+	OpCount OperationOverTime = "count"
+	OpAvg   OperationOverTime = "avg"
+	OpMin   OperationOverTime = "min"
+	OpMax   OperationOverTime = "max"
 )
 
 type MemStore interface {
 	// Get retrieves the latest value from the in-memory metric store
-	Get(MetricName, Labels, Aggregation) (float64, Stale, Found)
+	Get(MetricName, Labels, OperationOverTime, AggregationOverVectors) (float64, Found, error)
 
 	// Put stores the value
-	Put(MetricEntry)
-
-	// Gc removes the data points older than certain threshold from the store
-	Gc()
+	Put(NewMetricEntry)
 }
 
 type Parser interface {
 	// Parse parses the metric queyr provided as a string
-	Parse(string) (MetricName, Labels, Aggregation, error)
+	Parse(string) (MetricName, Labels, AggregationOverVectors, error)
 }

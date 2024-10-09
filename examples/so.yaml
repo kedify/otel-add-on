@@ -1,0 +1,18 @@
+# helm upgrade -i keda-otel helmchart/otel-add-on/ --set image.repository=docker.io/jkremser/otel-add-on --set image.tag=latest
+
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: otel-example
+spec:
+  scaleTargetRef:
+    name: nodeapp
+  triggers:
+    - type: external
+      metadata:
+        scalerAddress: keda-otel-scaler:4318
+        metricQuery: "sum(http/server/request_count{app_id=nodeapp, method=GET, path=/v1.0/state/statestore})"
+        clampMin: 1
+        clampMax: 10
+        operationOverTime: last_one/rate/count/average/min/max
+        overTimePeriodSeconds: 60

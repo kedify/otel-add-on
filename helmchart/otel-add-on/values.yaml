@@ -34,6 +34,8 @@ securityContext: {}
 
 service:
   type: ClusterIP
+  otlpReceiverPort: 4317
+  kedaExternalScalerPort: 4318
 
 resources:
    limits:
@@ -67,12 +69,12 @@ opentelemetry-collector:
   fullnameOverride: otelcol
 
   ports:
-    jaeger-compact: {}
-    jaeger-thrift: {}
-    jaeger-grpc: {}
-    zipkin: {}
-    otlp: {}
-    otlp-http: {}
+    jaeger-compact: null
+    jaeger-thrift: null
+    jaeger-grpc: null
+    zipkin: null
+    otlp: null
+    otlp-http: null
     opencensus:
       enabled: true
       containerPort: 55678
@@ -86,11 +88,14 @@ opentelemetry-collector:
       opencensus:
         endpoint: 0.0.0.0:55678
         include_metadata: true
-      jaeger: {}
-      otlp: {}
+      prometheus: null
+      zipkin: null
+      jaeger: null
+      otlp: null
     exporters:
       otlp:
-        endpoint: 192.168.84.98:4317
+        # make sure this is the same hostname and port as .service
+        endpoint: keda-otel-scaler:4317
         compression: "none"
         tls:
           insecure: true
@@ -127,8 +132,8 @@ opentelemetry-collector:
     service:
       # extensions: [pprof, zpages]
       pipelines:
-        traces: {}
-        logs: {}
+        traces: null
+        logs: null
         metrics:
           receivers:
             - opencensus

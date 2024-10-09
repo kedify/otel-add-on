@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "otel-add-on.fullname" . }}
+  name: {{ include "otel-add-on.name" . }}-scaler
   labels:
     {{- include "otel-add-on.labels" . | nindent 4 }}
 spec:
@@ -34,18 +34,22 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - name: http
-              containerPort: {{ .Values.service.port }}
-              protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /
-              port: http
-          readinessProbe:
-            httpGet:
-              path: /
-              port: http
+#          livenessProbe:
+#            grpc:
+#              port: 4318
+#              service: liveness
+#            timeoutSeconds: 5
+#            periodSeconds: 5
+#            successThreshold: 1
+#            failureThreshold: 6
+#          readinessProbe:
+#            grpc:
+#              port: 4318
+#              service: readiness
+#            timeoutSeconds: 1
+#            periodSeconds: 5
+#            successThreshold: 1
+#            failureThreshold: 3
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.volumeMounts }}

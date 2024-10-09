@@ -15,13 +15,13 @@ func NewParser() Parser {
 	return p{}
 }
 
-func (p p) Parse(metricQuery string) (MetricName, Labels, Aggregation, error) {
+func (p p) Parse(metricQuery string) (MetricName, Labels, AggregationOverVectors, error) {
 	if metricQuery == "" {
 		return "", nil, "", fmt.Errorf("unable to parse metric query: %s", metricQuery)
 	}
 	mq := strings.TrimSpace(metricQuery)
-	aggregateFunction := Sum // default
-	for _, aggFn := range []Aggregation{Sum, Avg, Min, Max} {
+	aggregateFunction := VecSum // default
+	for _, aggFn := range []AggregationOverVectors{VecSum, VecAvg, VecMin, VecMax} {
 		if strings.HasPrefix(mq, string(aggFn)+"(") && strings.HasSuffix(mq, ")") {
 			aggregateFunction = aggFn
 			mq = strings.TrimPrefix(mq, string(aggFn)+"(")

@@ -231,7 +231,8 @@ func (e *impl) GetMetrics(
 		return nil, err
 	}
 
-	value, stale, found := e.metricStore.Get(name, labels, agg)
+	// todo: time op
+	value, stale, found := e.metricStore.Get(name, labels, metric.OpLastOne, agg)
 	lggr.V(1).Info("got metric value: ", "value", value, "stale", stale, "found", found)
 
 	res := &externalscaler.GetMetricsResponse{

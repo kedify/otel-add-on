@@ -223,8 +223,8 @@ func startGrpcServer(
 				//	hs.SetServingStatus("readiness", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 				//} else {
 				//	// we propagate pinger status as scaler status
-				//	hs.SetServingStatus("liveness", grpc_health_v1.HealthCheckResponse_ServingStatus(pinger.status))
-				//	hs.SetServingStatus("readiness", grpc_health_v1.HealthCheckResponse_ServingStatus(pinger.status))
+				hs.SetServingStatus("liveness", grpc_health_v1.HealthCheckResponse_ServingStatus(1))
+				hs.SetServingStatus("readiness", grpc_health_v1.HealthCheckResponse_ServingStatus(1))
 				//}
 			}
 		}
