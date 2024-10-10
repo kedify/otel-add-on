@@ -48,6 +48,11 @@ build-image-multiarch:  ## Builds the container image for arm64 and amd64.
 build-image-goreleaser: ## Builds the multi-arch container image using goreleaser.
 	goreleaser release --skip=validate,publish,sbom --clean --snapshot
 
+.PHONY: test
+test:  ## Runs golang unit tests.
+	@$(call say,Running golang unit tests)
+	go test -race -v ./...
+
 codegen: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile='hack/boilerplate.go.txt' paths='./...'
 	./hack/update-codegen.sh
