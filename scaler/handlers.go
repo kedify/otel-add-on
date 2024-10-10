@@ -20,15 +20,11 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-const (
-	keyInterceptorTargetPendingRequests = "interceptorTargetPendingRequests"
-)
-
 var streamInterval time.Duration
 
 func init() {
-	defaultMS := 200
-	timeoutMS, err := util.ResolveOsEnvInt("KEDA_HTTP_SCALER_STREAM_INTERVAL_MS", defaultMS)
+	defaultMS := 500
+	timeoutMS, err := util.ResolveOsEnvInt("IS_ACTIVE_POLLING_INTERVAL_MS", defaultMS)
 	if err != nil {
 		timeoutMS = defaultMS
 	}

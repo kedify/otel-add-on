@@ -7,6 +7,12 @@ image:
   pullPolicy: Always
   tag: ""
 
+settings:
+  metricStoreRetentionSeconds: 120
+  isActivePollingIntervalMilliseconds: 500
+  noColor: false
+  noBanner: false
+
 asciiArt: true
 imagePullSecrets: []
 nameOverride: ""

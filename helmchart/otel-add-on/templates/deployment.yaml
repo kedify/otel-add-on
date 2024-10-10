@@ -34,22 +34,35 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-#          livenessProbe:
-#            grpc:
-#              port: 4318
-#              service: liveness
-#            timeoutSeconds: 5
-#            periodSeconds: 5
-#            successThreshold: 1
-#            failureThreshold: 6
-#          readinessProbe:
-#            grpc:
-#              port: 4318
-#              service: readiness
-#            timeoutSeconds: 1
-#            periodSeconds: 5
-#            successThreshold: 1
-#            failureThreshold: 3
+          env:
+            - name: OTLP_RECEIVER_PORT
+              value: {{ .Values.service.otlpReceiverPort | quote }}
+            - name: KEDA_EXTERNAL_SCALER_PORT
+              value: {{ .Values.service.kedaExternalScalerPort | quote }}
+            - name: METRIC_STORE_RETENTION_SECONDS
+              value: {{ .Values.settings.metricStoreRetentionSeconds | quote }}
+            - name: IS_ACTIVE_POLLING_INTERVAL_MS
+              value: {{ .Values.settings.isActivePollingIntervalMilliseconds | quote }}
+            - name: NO_COLOR
+              value: {{ .Values.settings.noColor | quote }}
+            - name: NO_BANNER
+              value: {{ .Values.settings.noBanner | quote }}
+          livenessProbe:
+            grpc:
+              port: {{ .Values.service.kedaExternalScalerPort }}
+              service: liveness
+            timeoutSeconds: 5
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 6
+          readinessProbe:
+            grpc:
+              port: {{ .Values.service.kedaExternalScalerPort }}
+              service: readiness
+            timeoutSeconds: 1
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.volumeMounts }}
