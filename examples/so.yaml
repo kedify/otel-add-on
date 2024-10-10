@@ -30,7 +30,7 @@ spec:
         #  - label selector do not support advanced operators like != or =~ (only simple = denoting exact match is supported atm.)
         #  - it's not supported to combine different metric names here
         #  - no arithmetic
-        metricQuery: "sum(http/server/request_count{app_id=nodeapp, method=GET, path=/v1.0/state/statestore})"
+        metricQuery: "sum(http_server_request_count{app_id=nodeapp, method=GET, path=/v1.0/state/statestore})"
 
         # todo
         targetValue: "5"

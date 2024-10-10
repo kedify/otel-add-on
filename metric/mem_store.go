@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -18,8 +19,9 @@ type ms struct {
 	stalePeriodSeconds int
 }
 
-func (m ms) Get(name types.MetricName, searchLabels types.Labels, timeOp types.OperationOverTime, defaultAggregation types.AggregationOverVectors) (float64, types.Found, error) {
+func (m ms) Get(unescapedName types.MetricName, searchLabels types.Labels, timeOp types.OperationOverTime, defaultAggregation types.AggregationOverVectors) (float64, types.Found, error) {
 	now := time.Now().Unix()
+	name := escapeName(unescapedName)
 	if _, found := m.store[name]; !found {
 		// not found
 		return -1., false, nil
@@ -79,18 +81,19 @@ func checkDefaultAggregation(aggregation types.AggregationOverVectors) error {
 }
 
 func (m ms) Put(entry types.NewMetricEntry) {
-	fmt.Sprintf("               ----   Put: %v -> %v", entry.Name, entry.Value)
-	if _, found := m.store[entry.Name]; !found {
-		m.store[entry.Name] = make(map[types.LabelsHash]types.MetricData)
+	name := escapeName(entry.Name)
+	fmt.Sprintf("               ----   Put: %v -> %v", name, entry.Value)
+	if _, found := m.store[name]; !found {
+		m.store[name] = make(map[types.LabelsHash]types.MetricData)
 	}
 	now := time.Now().Unix()
 	labelsH := hashOfMap(entry.Labels)
-	if _, found := m.store[entry.Name][labelsH]; !found {
+	if _, found := m.store[name][labelsH]; !found {
 		// new MetricData
-		m.store[entry.Name][labelsH] = newMetricDatapoint(entry)
+		m.store[name][labelsH] = newMetricDatapoint(entry)
 	} else {
 		// found
-		md := m.store[entry.Name][labelsH]
+		md := m.store[name][labelsH]
 		notStale := util.Filter(md.Data, func(val types.ObservedValue) bool {
 			return !m.isStale(val.Time, now)
 		})
@@ -101,8 +104,12 @@ func (m ms) Put(entry types.NewMetricEntry) {
 		})
 		m.updateAggregatesOverTime(md)
 		md.LastUpdate = entry.Time
-		m.store[entry.Name][labelsH] = md
+		m.store[name][labelsH] = md
 	}
+}
+
+func escapeName(name types.MetricName) types.MetricName {
+	return types.MetricName(strings.ReplaceAll(string(name), "/", "_"))
 }
 
 func NewMetricStore(stalePeriodSeconds int) types.MemStore {

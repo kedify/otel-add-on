@@ -84,20 +84,6 @@ func (e *impl) IsActive(
 	metricValue := metricValues[0].GetMetricValue()
 	active := metricValue > 0
 
-	//if err := e.forwardIsActive(ctx, sor, active); err != nil {
-	//	lggr.Error(err, "IsActive forward to interceptors failed", "scaledObjectRef", sor.String())
-	//	return nil, err
-	//}
-
-	//if sor.GetScalerMetadata()["trafficAutowire"] == "false" {
-	//	return &externalscaler.IsActiveResponse{Result: active}, nil
-	//}
-	//hso, err := e.httpsoInformer.Lister().HTTPScaledObjects(sor.Namespace).Get(sor.Name)
-	//if err != nil {
-	//	lggr.Error(err, "unable to get HTTPScaledObject", "name", sor.Name, "namespace", sor.Namespace)
-	//	return &externalscaler.IsActiveResponse{Result: active}, nil
-	//}
-
 	return &externalscaler.IsActiveResponse{Result: active}, nil
 }
 
@@ -141,14 +127,11 @@ func (e *impl) GetMetricSpec(
 	_ context.Context,
 	sor *externalscaler.ScaledObjectRef,
 ) (*externalscaler.GetMetricSpecResponse, error) {
-
 	lggr := e.lggr.WithName("GetMetricSpec")
 
-	//namespacedName := util.NamespacedNameFromScaledObjectRef(sor)
-	//metricName := namespacedName.Name
+	namespacedName := util.NamespacedNameFromScaledObjectRef(sor)
+	metricName := fmt.Sprintf("%s-%s", namespacedName.Namespace, namespacedName.Name)
 
-	//so, err := e.soInformer.Lister().ScaledObjects(sor.Namespace).Get(sor.Name)
-	//if err != nil {
 	scalerMetadata := sor.GetScalerMetadata()
 	if scalerMetadata == nil {
 		lggr.Info("unable to get SO metadata", "name", sor.Name, "namespace", sor.Namespace)
@@ -159,29 +142,6 @@ func (e *impl) GetMetricSpec(
 		lggr.Error(err, "unable to get target value from SO metadata", "name", sor.Name, "namespace", sor.Namespace)
 		return nil, err
 	}
-
-	metricName, _, _, err := util.GetMetricQuery(lggr, scalerMetadata, e.metricParser)
-	if err != nil {
-		return nil, err
-	}
-	if err != nil {
-		lggr.Error(err, "unable to get target value from SO metadata", "name", sor.Name, "namespace", sor.Namespace)
-		return nil, err
-	}
-
-	//	lggr.Error(err, "unable to get ScaledObject", "name", sor.Name, "namespace", sor.Namespace)
-	//	return nil, err
-	//}
-	//// todo:
-
-	//if httpso.Spec.ScalingMetric != nil {
-	//	if httpso.Spec.ScalingMetric.Concurrency != nil {
-	//		targetValue = int64(targetValue)
-	//	}
-	//	if httpso.Spec.ScalingMetric.Rate != nil {
-	//		targetValue = int64(httpso.Spec.ScalingMetric.Rate.TargetValue)
-	//	}
-	//}
 
 	res := &externalscaler.GetMetricSpecResponse{
 		MetricSpecs: []*externalscaler.MetricSpec{
