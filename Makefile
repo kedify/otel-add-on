@@ -71,6 +71,11 @@ dev-k3d: build-image  ## Builds the container image for current arch, imports it
 	helm upgrade --reuse-values --set image.tag=latest keda-otel helmchart/otel-add-on --set image.pullPolicy=IfNotPresent
 	kubectl rollout restart deploy/otel-add-on-scaler
 
+.PHONY: logs
+logs:
+	@$(call say,logs)
+	kubectl logs -lapp.kubernetes.io/name=otel-add-on --tail=-1 --follow
+
 CONTROLLER_GEN = ${HACK_BIN}/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.15.0
