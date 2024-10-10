@@ -40,6 +40,7 @@ func (m ms) Get(name types.MetricName, searchLabels types.Labels, timeOp types.O
 			}
 			return ret, true, nil
 		}
+		fmt.Sprintf("               ----   Get: %v -> %v", name, md.AggregatesOverTime[timeOp])
 		return md.AggregatesOverTime[timeOp], true, nil
 	}
 	// multiple metric vectors match the search criteria
@@ -64,6 +65,7 @@ func (m ms) Get(name types.MetricName, searchLabels types.Labels, timeOp types.O
 			}
 		}
 	}
+	fmt.Sprintf("               ----   Get: %v -> %v", name, accumulator)
 	return accumulator, true, nil
 }
 
@@ -77,6 +79,7 @@ func checkDefaultAggregation(aggregation types.AggregationOverVectors) error {
 }
 
 func (m ms) Put(entry types.NewMetricEntry) {
+	fmt.Sprintf("               ----   Put: %v -> %v", entry.Name, entry.Value)
 	if _, found := m.store[entry.Name]; !found {
 		m.store[entry.Name] = make(map[types.LabelsHash]types.MetricData)
 	}

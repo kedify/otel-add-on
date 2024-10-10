@@ -14,26 +14,27 @@ const (
 	MetadataClampMin          = "clampMin"
 	MetadataClampMax          = "clampMax"
 	MetadataMetricQuery       = "metricQuery"
+	MetadataTargetValue       = "targetValue"
 	MetadataOperationOverTime = "operationOverTime"
 
 	MetadataOperationOverTimeDefaultValue = types.OpLastOne
 )
 
 func ClampValue(lggr logr.Logger, value float64, metadata map[string]string) float64 {
-	clampMin, clampMinFound := metadata[MetadataClampMin]
-	clampMax, clampMaxFound := metadata[MetadataClampMax]
-	if clampMinFound {
+	clampMin, minFound := metadata[MetadataClampMin]
+	clampMax, maxFound := metadata[MetadataClampMax]
+	if minFound {
 		mi, e := strconv.Atoi(clampMin)
 		if e != nil {
-			lggr.Info("  warning: cannot convert clampMin value: ", "value", clampMin, "error", e)
+			lggr.Info("  warning: cannot convert "+MetadataClampMin, MetadataClampMin, clampMin, "error", e)
 		} else {
 			value = math.Max(value, float64(mi))
 		}
 	}
-	if clampMaxFound {
+	if maxFound {
 		ma, e := strconv.Atoi(clampMax)
 		if e != nil {
-			lggr.Info("  warning: cannot convert clampMax value: ", "value", clampMax, "error", e)
+			lggr.Info("  warning: cannot convert "+MetadataClampMax, MetadataClampMax, clampMax, "error", e)
 		} else {
 			value = math.Min(value, float64(ma))
 		}
@@ -42,33 +43,39 @@ func ClampValue(lggr logr.Logger, value float64, metadata map[string]string) flo
 }
 
 func GetOperationOvertTime(lggr logr.Logger, metadata map[string]string) types.OperationOverTime {
-	operationOverTime, operationOverTimeFound := metadata[MetadataOperationOverTime]
-	if !operationOverTimeFound {
+	operationOverTime, found := metadata[MetadataOperationOverTime]
+	if !found {
 		return MetadataOperationOverTimeDefaultValue
 	}
 	if err := CheckTimeOp(types.OperationOverTime(operationOverTime)); err != nil {
-		lggr.Info("  warning: cannot convert read operationOverTime: ", "operationOverTime", operationOverTime)
+		lggr.Info("  warning: cannot convert read "+MetadataOperationOverTime, MetadataOperationOverTime, operationOverTime)
 		return MetadataOperationOverTimeDefaultValue
 	}
 	return types.OperationOverTime(operationOverTime)
 }
 
+func GetTargetValue(metadata map[string]string) (int64, error) {
+	targetValueStr, found := metadata[MetadataTargetValue]
+	if !found {
+		return -1, fmt.Errorf("not found %s", MetadataTargetValue)
+	}
+	targetValue, err := strconv.ParseInt(targetValueStr, 10, 64)
+	if err != nil {
+		return -1, err
+	}
+	return targetValue, nil
+}
+
 func GetMetricQuery(lggr logr.Logger, metadata map[string]string, mp types.Parser) (types.MetricName, types.Labels, types.AggregationOverVectors, error) {
-	metricQuery, ok := metadata["metricQuery"]
-	if !ok {
+	metricQuery, found := metadata[MetadataMetricQuery]
+	if !found {
 		err := fmt.Errorf("unable to get metric query from scaled object's metadata")
-		lggr.Error(err, "GetMetrics")
+		lggr.Error(err, "GetMetricQuery")
 		return "", nil, "", err
 	}
 	name, labels, agg, err := mp.Parse(metricQuery)
 	if err != nil {
-		lggr.Error(err, "GetMetrics")
-		return "", nil, "", err
-	}
-
-	if !ok {
-		err := fmt.Errorf("unable to get metric query from scaled object's metadata")
-		lggr.Error(err, "GetMetrics")
+		lggr.Error(err, "GetMetricQuery: cannot parse "+MetadataMetricQuery, MetadataMetricQuery, metricQuery)
 		return "", nil, "", err
 	}
 	return name, labels, agg, nil

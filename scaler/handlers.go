@@ -6,6 +6,7 @@ package scaler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"strconv"
 	"time"
@@ -141,47 +142,58 @@ func (e *impl) GetMetricSpec(
 	sor *externalscaler.ScaledObjectRef,
 ) (*externalscaler.GetMetricSpecResponse, error) {
 
-	//lggr := e.lggr.WithName("GetMetricSpec")
-	//
-	//namespacedName := k8s.NamespacedNameFromScaledObjectRef(sor)
+	lggr := e.lggr.WithName("GetMetricSpec")
+
+	//namespacedName := util.NamespacedNameFromScaledObjectRef(sor)
 	//metricName := namespacedName.Name
-	//
+
 	//so, err := e.soInformer.Lister().ScaledObjects(sor.Namespace).Get(sor.Name)
 	//if err != nil {
-	//	if scalerMetadata := sor.GetScalerMetadata(); scalerMetadata != nil {
-	//		//if interceptorTargetPendingRequests, ok := scalerMetadata[keyInterceptorTargetPendingRequests]; ok {
-	//		//	return e.interceptorMetricSpec(metricName, interceptorTargetPendingRequests)
-	//		//}
-	//		targetValue, ok := scalerMetadata["todo"]
-	//		if !ok {
-	//			// todo
-	//		}
-	//	}
-	//
+	scalerMetadata := sor.GetScalerMetadata()
+	if scalerMetadata == nil {
+		lggr.Info("unable to get SO metadata", "name", sor.Name, "namespace", sor.Namespace)
+		return nil, fmt.Errorf("GetMetricSpec")
+	}
+	targetValue, err := util.GetTargetValue(scalerMetadata)
+	if err != nil {
+		lggr.Error(err, "unable to get target value from SO metadata", "name", sor.Name, "namespace", sor.Namespace)
+		return nil, err
+	}
+
+	metricName, _, _, err := util.GetMetricQuery(lggr, scalerMetadata, e.metricParser)
+	if err != nil {
+		return nil, err
+	}
+	if err != nil {
+		lggr.Error(err, "unable to get target value from SO metadata", "name", sor.Name, "namespace", sor.Namespace)
+		return nil, err
+	}
+
 	//	lggr.Error(err, "unable to get ScaledObject", "name", sor.Name, "namespace", sor.Namespace)
 	//	return nil, err
 	//}
 	//// todo:
-	//
-	//
-	////if httpso.Spec.ScalingMetric != nil {
-	////	if httpso.Spec.ScalingMetric.Concurrency != nil {
-	////		targetValue = int64(targetValue)
-	////	}
-	////	if httpso.Spec.ScalingMetric.Rate != nil {
-	////		targetValue = int64(httpso.Spec.ScalingMetric.Rate.TargetValue)
-	////	}
-	////}
-	//
-	////res := &externalscaler.GetMetricSpecResponse{
-	////	MetricSpecs: []*externalscaler.MetricSpec{
-	////		{
-	////			MetricName: metricName,
-	////			TargetSize: targetValue,
-	////		},
-	////	},
-	////}
-	return nil, nil
+
+	//if httpso.Spec.ScalingMetric != nil {
+	//	if httpso.Spec.ScalingMetric.Concurrency != nil {
+	//		targetValue = int64(targetValue)
+	//	}
+	//	if httpso.Spec.ScalingMetric.Rate != nil {
+	//		targetValue = int64(httpso.Spec.ScalingMetric.Rate.TargetValue)
+	//	}
+	//}
+
+	res := &externalscaler.GetMetricSpecResponse{
+		MetricSpecs: []*externalscaler.MetricSpec{
+			{
+				MetricName: string(metricName),
+				TargetSize: targetValue,
+			},
+		},
+	}
+	fmt.Printf("GetMetricSpec: %v", res)
+	fmt.Printf("GetMetricSpec: name: %v target: %v", string(metricName), targetValue)
+	return res, nil
 }
 
 func (e *impl) interceptorMetricSpec(metricName string, interceptorTargetPendingRequests string) (*externalscaler.GetMetricSpecResponse, error) {
@@ -208,6 +220,7 @@ func (e *impl) GetMetrics(
 	ctx context.Context,
 	metricRequest *externalscaler.GetMetricsRequest,
 ) (*externalscaler.GetMetricsResponse, error) {
+	fmt.Println("called GetMetrics")
 	lggr := e.lggr.WithName("GetMetrics")
 	sor := metricRequest.ScaledObjectRef
 
@@ -222,7 +235,8 @@ func (e *impl) GetMetrics(
 
 	opOverTime := util.GetOperationOvertTime(lggr, scalerMetadata)
 	value, found, err := e.metricStore.Get(metricName, labels, opOverTime, agg)
-	lggr.V(1).Info("got metric value: ", "value", value, "found", found, "error", err)
+	//lggr.V(1).Info("got metric value: ", "value", value, "found", found, "error", err)
+	lggr.Info("got metric value: ", "name", metricName, "labels", labels, "value", value, "found", found, "error", err)
 	value = util.ClampValue(lggr, value, scalerMetadata)
 
 	res := &externalscaler.GetMetricsResponse{
@@ -233,6 +247,8 @@ func (e *impl) GetMetrics(
 			},
 		},
 	}
+	//fmt.Printf("GetMetrics: %v", res)
+	//fmt.Printf("GetMetrics: name: %v target: %v", string(metricName), targetValue)
 	return res, nil
 }
 

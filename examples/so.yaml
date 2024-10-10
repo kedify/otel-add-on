@@ -10,7 +10,7 @@ spec:
   triggers:
     - type: external
       metadata:
-        scalerAddress: keda-otel-scaler:4318
+        scalerAddress: "keda-otel-scaler.default.svc:4318"
 
         # required - no default
         # PromQL-like query identifying exactly one metric name
@@ -32,13 +32,16 @@ spec:
         #  - no arithmetic
         metricQuery: "sum(http/server/request_count{app_id=nodeapp, method=GET, path=/v1.0/state/statestore})"
 
+        # todo
+        targetValue: "5"
+
         # optional - default no limit
         # lower integer bound for the value calculated by the scaler (~min replicas)
-        clampMin: 1
+        clampMin: "1"
 
         # optional - default no limit
         # upper integer bound for the value calculated by the scaler (~max replicas)
-        clampMax: 10
+        clampMax: "10"
 
         # optional - default 'last_one', available values:
         #    example metric   t1   t2   t3   t4   t5   t6   t7        result
@@ -48,4 +51,4 @@ spec:
         #   - avg       ...   3    2    1    6    3    2    3    ->   round(20/7)=7
         #   - rate      ...   1    2    3    4    5    6    7    ->   1 (provided, measurements were taken each second)
         #   - count     ...   3    2    1    6    3    2    3    ->   7
-        operationOverTime: last_one
+        operationOverTime: "last_one"

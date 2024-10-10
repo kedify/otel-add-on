@@ -11,7 +11,7 @@ spec:
       targetPort: {{ .Values.service.otlpReceiverPort }}
       protocol: TCP
       name: grpc-otlp-receiver
-    - port: {{ .Values.service.otlpReceiverPort }}
+    - port: {{ .Values.service.kedaExternalScalerPort }}
       targetPort: {{ .Values.service.kedaExternalScalerPort }}
       protocol: TCP
       name: http

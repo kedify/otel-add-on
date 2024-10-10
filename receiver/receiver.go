@@ -186,7 +186,6 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 					})
 				}
 			}
-
 		}
 		//for k, v := range m {
 		//	fmt.Printf("k=: %+v\n", k)

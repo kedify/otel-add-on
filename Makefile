@@ -27,6 +27,7 @@ all: help
 
 .PHONY: build
 build:  ## Builds the binary.
+	@$(call say,Build the binary)
 	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -o bin/otel-add-on .
 
 .PHONY: run
@@ -35,12 +36,12 @@ run:  ## Runs the scaler locally.
 
 .PHONY: build-image
 build-image: build  ## Builds the container image for current arch.
-	@$(call say,Build container image $(WORKER_IMAGE))
+	@$(call say,Build container image $(CONTAINER_IMAGE))
 	docker build . -t ${CONTAINER_IMAGE} --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
 
 .PHONY: build-image-multiarch
 build-image-multiarch:  ## Builds the container image for arm64 and amd64.
-	@$(call say,Build container image $(WORKER_IMAGE))
+	@$(call say,Build container image $(CONTAINER_IMAGE))
 	docker buildx build --output=type=registry --platform=${BUILD_PLATFORMS} . -t ${CONTAINER_IMAGE} --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
 
 .PHONY: build-image-goreleaser
@@ -53,9 +54,17 @@ codegen: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and 
 
 .PHONY: deploy-helm
 deploy-helm:  ## Deploys helm chart with otel-collector and otel scaler.
+	@$(call say,Deploy helm chart to current k8s context)
 	cd helmchart/otel-add-on && \
 	helm dependency build && \
 	helm upgrade -i keda-otel .
+
+.PHONY: dev-k3d
+dev-k3d: build-image  ## Builds the container image for current arch, imports it to running k3d and restarts the scaler.
+	@$(call say,Doing the dev cycle)
+	k3d image import ghcr.io/kedify/otel-add-on:latest
+	helm upgrade --reuse-values --set image.tag=latest keda-otel helmchart/otel-add-on --set image.pullPolicy=IfNotPresent
+	kubectl rollout restart deploy/otel-add-on-scaler
 
 CONTROLLER_GEN = ${HACK_BIN}/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
@@ -77,7 +86,7 @@ NC=\033[0m
 endif
 
 define say
-echo "\n$(shell echo "$1  " | sed s/./=/g)\n $(YELLOW)$1$(NC)\n$(shell echo "$1  " | sed s/./=/g)"
+echo -e "\n$(shell echo "$1  " | sed s/./=/g)\n $(YELLOW)$1$(NC)\n$(shell echo "$1  " | sed s/./=/g)"
 endef
 
 define createNs
