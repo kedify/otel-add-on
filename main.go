@@ -54,7 +54,9 @@ func main() {
 	//svcName := cfg.TargetService
 	//deplName := cfg.TargetDeployment
 	//targetPortStr := fmt.Sprintf("%d", cfg.TargetPort)
-	targetPendingRequests := cfg.TargetPendingRequests
+	//targetPendingRequests := cfg.TargetPendingRequests
+
+	//targetPendingRequests := cfg.TargetPendingRequests
 
 	opts := zap.Options{}
 	opts.BindFlags(flag.CommandLine)
@@ -166,7 +168,7 @@ func main() {
 
 		setupLog.Info("starting the grpc server KEDA external push...")
 		// todo: port cfg
-		if err := startGrpcServer(ctx, cfg, ctrl.Log, ms, mp, otlpReceiverPort+1, int64(targetPendingRequests)); !util.IsIgnoredErr(err) {
+		if err := startGrpcServer(ctx, cfg, ctrl.Log, ms, mp, otlpReceiverPort+1); !util.IsIgnoredErr(err) {
 			setupLog.Error(err, "grpc server failed")
 			return err
 		}
@@ -191,7 +193,6 @@ func startGrpcServer(
 	ms types.MemStore,
 	mp types.Parser,
 	port int,
-	targetPendingRequests int64,
 ) error {
 	addr := fmt.Sprintf("0.0.0.0:%d", port)
 	lggr.Info("starting grpc server", "address", addr)
@@ -243,7 +244,6 @@ func startGrpcServer(
 			ms,
 			mp,
 			//soInformer,
-			targetPendingRequests,
 		),
 	)
 
@@ -261,14 +261,8 @@ func (m mc) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: false}
 }
 
-func (m mc) ConsumeMetrics(ctx context.Context, md pmetric.Metrics) error {
-	//fmt.Printf("data points num: %d\n", md.ResourceMetrics().Len())
-	//fmt.Printf("data points: %+v\n", md.ResourceMetrics())
-	//fmt.Printf("internal: %+v\n", md.ResourceMetrics().At(0).Resource().Attributes().AsRaw())
-	//fmt.Printf("internal: %+v\n", md.ResourceMetrics().At(0).Resource().Attributes().AsRaw())
-	//for i := 0; i < md.ResourceMetrics().Len(); i++ {
-	//	fmt.Printf("internal: %+v\n", md.ResourceMetrics().At(i).Resource().Attributes().AsRaw())
-	//}
+func (m mc) ConsumeMetrics(_ context.Context, _ pmetric.Metrics) error {
+	// noop, incoming metrics are processed in receiver.Export
 	return nil
 }
 

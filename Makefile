@@ -5,6 +5,7 @@ SHELL       = /bin/bash
 GH_REPO_ORG = kedify
 VERSION 		?= main
 GIT_COMMIT  ?= $(shell git rev-list -1 HEAD)
+LATEST_TAG ?= $(shell git fetch --force --tags &> /dev/null ; git describe --tags --abbrev=0)
 GO_LDFLAGS="-X github.com/${GH_REPO_ORG}/otel-add-on/build.version=${VERSION} -X github.com/${GH_REPO_ORG}/otel-add-on/build.gitCommit=${GIT_COMMIT}"
 BUILD_PLATFORMS ?= linux/amd64,linux/arm64
 
@@ -54,7 +55,7 @@ codegen: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and 
 deploy-helm:  ## Deploys helm chart with otel-collector and otel scaler.
 	cd helmchart/otel-add-on && \
 	helm dependency build && \
-	helm upgrade -i otel-add-on .
+	helm upgrade -i keda-otel .
 
 CONTROLLER_GEN = ${HACK_BIN}/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.

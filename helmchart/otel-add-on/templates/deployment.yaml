@@ -11,10 +11,10 @@ spec:
       {{- include "otel-add-on.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
+    {{- with .Values.podAnnotations }}
       annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{- toYaml . | nindent 8 }}
+    {{- end }}
       labels:
         {{- include "otel-add-on.labels" . | nindent 8 }}
         {{- with .Values.podLabels }}

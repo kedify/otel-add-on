@@ -1,7 +1,6 @@
 // Handlers contains the gRPC implementation for an external scaler as defined
 // by the KEDA documentation at https://keda.sh/docs/2.0/concepts/external-scalers/#built-in-scalers-interface
-// This is the interface KEDA will poll in order to get the request queue size
-// and scale user apps properly
+// This is the interface KEDA will poll in order to get the metric value used for scaling
 package scaler
 
 import (
@@ -40,7 +39,7 @@ type impl struct {
 	metricStore  types.MemStore
 	metricParser types.Parser
 	//soInformer   informersv1alpha1.ScaledObjectInformer
-	targetMetric int64
+	//targetMetric int64
 	externalscaler.UnimplementedExternalScalerServer
 }
 
@@ -48,15 +47,13 @@ func New(
 	lggr logr.Logger,
 	metricStore types.MemStore,
 	metricParser types.Parser,
-	//soInformer informersv1alpha1.ScaledObjectInformer,
-	defaultTargetMetric int64,
 ) *impl {
 	return &impl{
 		lggr:         lggr,
 		metricStore:  metricStore,
 		metricParser: metricParser,
 		//soInformer:   soInformer,
-		targetMetric: defaultTargetMetric,
+		//targetMetric: defaultTargetMetric,
 	}
 }
 
