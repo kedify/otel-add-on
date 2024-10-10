@@ -26,8 +26,6 @@ jobs:
           ref: refs/pull/${{ github.event.pull_request.number }}/merge
 
       - name: Verify dependencies
-        env:
-          GOPRIVATE: github.com/kedify
         run: |
           go mod verify
           go mod tidy
