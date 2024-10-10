@@ -5,7 +5,6 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -23,20 +22,18 @@ import (
 	"go.opentelemetry.io/collector/receiver/otlpreceiver"
 	"golang.org/x/sync/errgroup"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/kedify/otel-add-on/build"
 	"github.com/kedify/otel-add-on/metric"
 	"github.com/kedify/otel-add-on/receiver"
 	"github.com/kedify/otel-add-on/scaler"
 	"github.com/kedify/otel-add-on/types"
+	"github.com/kedify/otel-add-on/util"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
-
-	"github.com/kedacore/http-add-on/pkg/util"
 )
 
 var (
@@ -58,11 +55,8 @@ func main() {
 
 	//targetPendingRequests := cfg.TargetPendingRequests
 
-	opts := zap.Options{}
-	opts.BindFlags(flag.CommandLine)
-	flag.Parse()
-
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	util.SetupLog(cfg.NoColor)
+	util.PrintBanner(setupLog, cfg.NoColor)
 
 	//k8sCfg, err := ctrl.GetConfig()
 	_, err := ctrl.GetConfig()

@@ -5,8 +5,8 @@ go 1.22.2
 toolchain go1.22.7
 
 require (
+	github.com/fatih/color v1.17.0
 	github.com/go-logr/logr v1.4.2
-	github.com/kedacore/http-add-on v0.8.0
 	github.com/kedacore/keda/v2 v2.14.1-0.20240429185716-c55e306af94b
 	github.com/kelseyhightower/envconfig v1.4.0
 	go.opentelemetry.io/collector/component v0.110.0
@@ -22,6 +22,7 @@ require (
 	golang.org/x/sync v0.8.0
 	google.golang.org/grpc v1.67.0
 	google.golang.org/protobuf v1.34.2
+	k8s.io/apimachinery v0.30.3
 	k8s.io/code-generator v0.30.3
 	sigs.k8s.io/controller-runtime v0.18.4
 	sigs.k8s.io/kustomize/kustomize/v5 v5.4.1
@@ -61,6 +62,8 @@ require (
 	github.com/knadh/koanf/providers/confmap v0.1.0 // indirect
 	github.com/knadh/koanf/v2 v2.1.1 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -68,6 +71,7 @@ require (
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/mostynb/go-grpc-compression v1.2.3 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/onsi/ginkgo/v2 v2.17.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.19.0 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
@@ -120,7 +124,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.30.1 // indirect
 	k8s.io/apiextensions-apiserver v0.30.1 // indirect
-	k8s.io/apimachinery v0.30.3 // indirect
 	k8s.io/client-go v0.30.1 // indirect
 	k8s.io/gengo/v2 v2.0.0-20240228010128-51d4e06bde70 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect

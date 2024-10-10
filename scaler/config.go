@@ -7,7 +7,8 @@ import (
 )
 
 type Config struct {
-	OTLPReceiverPort int `envconfig:"OTLP_RECEIVER_PORT" default:"4317"`
+	OTLPReceiverPort int  `envconfig:"OTLP_RECEIVER_PORT" default:"4317"`
+	NoColor          bool `envconfig:"NO_COLOR" default:"false"`
 	// TargetNamespace is the namespace in which this scaler is running, and the namespace
 	// that the target interceptors are running in. This scaler and all the interceptors
 	// must be running in the same namespace
