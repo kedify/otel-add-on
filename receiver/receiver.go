@@ -39,17 +39,19 @@ type otlpReceiver struct {
 
 	settings       *receiver.Settings
 	metricMemStore types.MemStore
+	debug          bool
 }
 
 // newOtlpReceiver just creates the OpenTelemetry receiver services. It is the caller's
 // responsibility to invoke the respective Start*Reception methods as well
 // as the various Stop*Reception methods to end it.
-func NewOtlpReceiver(cfg *otlpreceiver.Config, set *receiver.Settings, memStore types.MemStore) (*otlpReceiver, error) {
+func NewOtlpReceiver(cfg *otlpreceiver.Config, set *receiver.Settings, memStore types.MemStore, debug bool) (*otlpReceiver, error) {
 	r := &otlpReceiver{
 		cfg:            cfg,
 		nextMetrics:    nil,
 		settings:       set,
 		metricMemStore: memStore,
+		debug:          debug,
 	}
 
 	var err error
@@ -77,7 +79,7 @@ func (r *otlpReceiver) startGRPCServer(host component.Host) error {
 	}
 
 	if r.nextMetrics != nil {
-		pmetricotlp.RegisterGRPCServer(r.serverGRPC, New(r.nextMetrics, r.obsrepGRPC, r.metricMemStore))
+		pmetricotlp.RegisterGRPCServer(r.serverGRPC, New(r.nextMetrics, r.obsrepGRPC, r.metricMemStore, r.debug))
 	}
 
 	r.settings.Logger.Info("Starting GRPC server", zap.String("endpoint", r.cfg.GRPC.NetAddr.Endpoint))
@@ -99,7 +101,7 @@ func (r *otlpReceiver) startGRPCServer(host component.Host) error {
 
 // Start runs the trace receiver on the gRPC server. Currently
 // it also enables the metrics receiver too.
-func (r *otlpReceiver) Start(ctx context.Context, host component.Host) error {
+func (r *otlpReceiver) Start(_ context.Context, host component.Host) error {
 	if err := r.startGRPCServer(host); err != nil {
 		return err
 	}
@@ -108,7 +110,7 @@ func (r *otlpReceiver) Start(ctx context.Context, host component.Host) error {
 }
 
 // Shutdown is a method to turn off receiving.
-func (r *otlpReceiver) Shutdown(ctx context.Context) error {
+func (r *otlpReceiver) Shutdown(_ context.Context) error {
 	var err error
 
 	if r.serverGRPC != nil {
@@ -131,14 +133,16 @@ type Receiver struct {
 	nextConsumer   consumer.Metrics
 	obsreport      *receiverhelper.ObsReport
 	metricMemStore types.MemStore
+	debug          bool
 }
 
 // New creates a new Receiver reference.
-func New(nextConsumer consumer.Metrics, obsreport *receiverhelper.ObsReport, memStore types.MemStore) *Receiver {
+func New(nextConsumer consumer.Metrics, obsreport *receiverhelper.ObsReport, memStore types.MemStore, debug bool) *Receiver {
 	return &Receiver{
 		nextConsumer:   nextConsumer,
 		obsreport:      obsreport,
 		metricMemStore: memStore,
+		debug:          debug,
 	}
 }
 
@@ -149,8 +153,8 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 	if dataPointCount == 0 {
 		return pmetricotlp.NewExportResponse(), nil
 	}
-	fmt.Printf("\n\nData point count: %d\n", dataPointCount)
-	//fmt.Printf("\n\nData points: %v\n", md.ResourceMetrics())
+	// using the printf instead of logger makes the metric data nicer in logs
+	r.p("\n\nData point count: %d\n", dataPointCount)
 	resLen := md.ResourceMetrics().Len()
 	for i := 0; i < resLen; i++ {
 		sm := md.ResourceMetrics().At(i).ScopeMetrics()
@@ -159,8 +163,8 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 			mLen := sm.At(j).Metrics().Len()
 			metrics := sm.At(j).Metrics()
 			for k := 0; k < mLen; k++ {
-				fmt.Printf("-  name: %+v\n", metrics.At(k).Name())
-				fmt.Printf("   type: %+v\n", metrics.At(k).Type())
+				r.p("-  name: %+v\n", metrics.At(k).Name())
+				r.p("   type: %+v\n", metrics.At(k).Type())
 				var dataPoints pmetric.NumberDataPointSlice
 				switch metrics.At(k).Type() {
 				case pmetric.MetricTypeGauge:
@@ -172,10 +176,10 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 				}
 				for l := 0; l < dataPoints.Len(); l++ {
 					datapoint := dataPoints.At(l)
-					fmt.Printf("     - time: %+v\n", datapoint.Timestamp())
-					fmt.Printf("       tags: %+v\n", datapoint.Attributes().AsRaw())
+					r.p("     - time: %+v\n", datapoint.Timestamp())
+					r.p("       tags: %+v\n", datapoint.Attributes().AsRaw())
 					value := math.Max(datapoint.DoubleValue(), float64(datapoint.IntValue()))
-					fmt.Printf("       value: %+v\n", value)
+					r.p("       value: %+v\n", value)
 					r.metricMemStore.Put(types.NewMetricEntry{
 						Name: types.MetricName(metrics.At(k).Name()),
 						ObservedValue: types.ObservedValue{
@@ -187,36 +191,23 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 				}
 			}
 		}
-		//for k, v := range m {
-		//	fmt.Printf("k=: %+v\n", k)
-		//	fmt.Printf("v=: %+v\n", v)
-		//}
-		//for j := 0; j < md.ResourceMetrics().At(i).ScopeMetrics().Len(); i++ {
-		//	md.ResourceMetrics().
-		//	fmt.Printf("222internal: %+v\n", md.ResourceMetrics().At(i).ScopeMetrics().At(j).Metrics())
-		//	//m := md.ResourceMetrics().At(i).Resource().Attributes().AsRaw()
-		//	//for k, v := range m {
-		//	//	fmt.Printf("k=: %+v\n", k)
-		//	//	fmt.Printf("v=: %+v\n", v)
-		//	//}
-		//}
 	}
 
 	ctx = r.obsreport.StartMetricsOp(ctx)
 	err := r.nextConsumer.ConsumeMetrics(ctx, md)
 	r.obsreport.EndMetricsOp(ctx, dataFormatProtobuf, dataPointCount, err)
 
-	// Use appropriate status codes for permanent/non-permanent errors
-	// If we return the error straightaway, then the grpc implementation will set status code to Unknown
-	// Refer: https://github.com/grpc/grpc-go/blob/v1.59.0/server.go#L1345
-	// So, convert the error to appropriate grpc status and return the error
-	// NonPermanent errors will be converted to codes.Unavailable (equivalent to HTTP 503)
-	// Permanent errors will be converted to codes.InvalidArgument (equivalent to HTTP 400)
 	if err != nil {
 		return pmetricotlp.NewExportResponse(), GetStatusFromError(err)
 	}
 
 	return pmetricotlp.NewExportResponse(), nil
+}
+
+func (r *Receiver) p(format string, a ...any) {
+	if r.debug {
+		fmt.Printf(format, a...)
+	}
 }
 
 func GetStatusFromError(err error) error {

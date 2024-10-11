@@ -6,8 +6,12 @@ import (
 	"strconv"
 	"time"
 
+	"go.uber.org/zap/zapcore"
+
 	"github.com/kedify/otel-add-on/types"
 )
+
+const DebugLvl = -1
 
 func Map[I, R any](input []I, f func(I) R) []R {
 	result := make([]R, len(input))
@@ -83,4 +87,8 @@ func CheckTimeOp(op types.OperationOverTime) error {
 	default:
 		return fmt.Errorf("unknown OperationOverTime:%s", op)
 	}
+}
+
+func IsDebug(lvl zapcore.LevelEnabler) bool {
+	return lvl != nil && lvl.Enabled(DebugLvl)
 }

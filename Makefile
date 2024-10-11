@@ -68,8 +68,16 @@ deploy-helm:  ## Deploys helm chart with otel-collector and otel scaler.
 dev-k3d: build-image  ## Builds the container image for current arch, imports it to running k3d and restarts the scaler.
 	@$(call say,Doing the dev cycle)
 	k3d image import ghcr.io/kedify/otel-add-on:latest
-	helm upgrade --reuse-values --set image.tag=latest keda-otel helmchart/otel-add-on --set image.pullPolicy=IfNotPresent
+	helm upgrade --reuse-values \
+		--set image.tag=latest keda-otel helmchart/otel-add-on \
+		--set image.pullPolicy=IfNotPresent \
+		--set settings.logs.logLvl=debug
 	kubectl rollout restart deploy/otel-add-on-scaler
+
+.PHONY: logs
+logs:
+	@$(call say,logs)
+	kubectl logs -lapp.kubernetes.io/name=otel-add-on --tail=-1 --follow
 
 CONTROLLER_GEN = ${HACK_BIN}/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
