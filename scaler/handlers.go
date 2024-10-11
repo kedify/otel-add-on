@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strconv"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -152,26 +151,6 @@ func (e *impl) GetMetricSpec(
 	return res, nil
 }
 
-func (e *impl) interceptorMetricSpec(metricName string, interceptorTargetPendingRequests string) (*externalscaler.GetMetricSpecResponse, error) {
-	lggr := e.lggr.WithName("interceptorMetricSpec")
-
-	targetPendingRequests, err := strconv.ParseInt(interceptorTargetPendingRequests, 10, 64)
-	if err != nil {
-		lggr.Error(err, "unable to parse interceptorTargetPendingRequests", "value", interceptorTargetPendingRequests)
-		return nil, err
-	}
-
-	res := &externalscaler.GetMetricSpecResponse{
-		MetricSpecs: []*externalscaler.MetricSpec{
-			{
-				MetricName: metricName,
-				TargetSize: targetPendingRequests,
-			},
-		},
-	}
-	return res, nil
-}
-
 func (e *impl) GetMetrics(
 	ctx context.Context,
 	metricRequest *externalscaler.GetMetricsRequest,
@@ -193,6 +172,12 @@ func (e *impl) GetMetrics(
 	value, found, err := e.metricStore.Get(metricName, labels, opOverTime, agg)
 	//lggr.V(1).Info("got metric value: ", "value", value, "found", found, "error", err)
 	lggr.Info("got metric value: ", "name", metricName, "labels", labels, "value", value, "found", found, "error", err)
+	if !found {
+		return nil, fmt.Errorf("not found")
+	}
+	if err != nil {
+		return nil, err
+	}
 	value = util.ClampValue(lggr, value, scalerMetadata)
 
 	res := &externalscaler.GetMetricsResponse{
@@ -203,6 +188,7 @@ func (e *impl) GetMetrics(
 			},
 		},
 	}
+
 	//fmt.Printf("GetMetrics: %v", res)
 	//fmt.Printf("GetMetrics: name: %v target: %v", string(metricName), targetValue)
 	return res, nil

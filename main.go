@@ -46,9 +46,10 @@ func main() {
 	kedaExternalScalerPort := cfg.KedaExternalScalerPort
 	metricStoreRetentionSeconds := cfg.MetricStoreRetentionSeconds
 
-	util.SetupLog(cfg.NoColor)
+	lvl := util.SetupLog(cfg.NoColor)
+
 	if !cfg.NoBanner {
-		util.PrintBanner(setupLog, cfg.NoColor)
+		util.PrintBanner(cfg.NoColor)
 	}
 	_, err := ctrl.GetConfig()
 	if err != nil {
@@ -94,31 +95,36 @@ func main() {
 				},
 			},
 		}
+
 		settings := &rec.Settings{
-			ID:                component.MustNewIDWithName("bar", "foo"),
+			ID:                component.MustNewIDWithName("id", "otlp-receiver"),
 			BuildInfo:         component.NewDefaultBuildInfo(),
 			TelemetrySettings: componenttest.NewNopTelemetrySettings(),
 		}
-		r, err := receiver.NewOtlpReceiver(conf, settings, ms)
-
+		r, e := receiver.NewOtlpReceiver(conf, settings, ms, util.IsDebug(lvl))
+		if e != nil {
+			setupLog.Error(e, "failed to create new OTLP receiver")
+			return e
+		}
 		r.RegisterMetricsConsumer(mc{})
 
-		r.Start(ctx, componenttest.NewNopHost())
-		if err != nil {
-			setupLog.Error(err, "otlp receiver failed to create")
-			return err
+		e = r.Start(ctx, componenttest.NewNopHost())
+		if e != nil {
+			setupLog.Error(e, "OTLP receiver failed to start")
+			return e
 		}
 
-		setupLog.Info("starting the grpc server KEDA external push...")
-		if err := startGrpcServer(ctx, ctrl.Log, ms, mp, kedaExternalScalerPort); !util.IsIgnoredErr(err) {
-			setupLog.Error(err, "grpc server failed")
-			return err
+		kedaExternalScalerAddr := fmt.Sprintf("0.0.0.0:%d", kedaExternalScalerPort)
+		setupLog.Info("starting the grpc server for KEDA scaler", "address", kedaExternalScalerAddr)
+		if e = startGrpcServer(ctx, ctrl.Log, ms, mp, kedaExternalScalerAddr); !util.IsIgnoredErr(err) {
+			setupLog.Error(e, "grpc server failed")
+			return e
 		}
 
 		return nil
 	})
 
-	build.PrintComponentInfo(ctrl.Log, "OTEL addon for KEDA")
+	build.PrintComponentInfo(ctrl.Log, lvl, "OTEL addon for KEDA")
 
 	if err := eg.Wait(); err != nil && !errors.Is(err, context.Canceled) {
 		setupLog.Error(err, "fatal error")
@@ -133,11 +139,8 @@ func startGrpcServer(
 	lggr logr.Logger,
 	ms types.MemStore,
 	mp types.Parser,
-	port int,
+	addr string,
 ) error {
-	addr := fmt.Sprintf("0.0.0.0:%d", port)
-	lggr.Info("starting grpc server", "address", addr)
-
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err

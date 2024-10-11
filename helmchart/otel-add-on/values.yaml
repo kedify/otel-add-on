@@ -8,10 +8,25 @@ image:
   tag: ""
 
 settings:
+  # how long the metrics should be kept in the short term (in memory) storage
   metricStoreRetentionSeconds: 120
+
+  # how often (in milliseconds) should the IsActive method be tried
   isActivePollingIntervalMilliseconds: 500
-  noColor: false
-  noBanner: false
+
+  logs:
+    # Can be one of 'debug', 'info', 'error', or any integer value > 0
+    # which corresponds to custom debug levels of increasing verbosity
+    logLvl: info
+
+    # one of: info, error, panic
+    stackTracesLvl: error
+
+    # if anything else than 'false', the log will not contain colors
+    noColor: false
+
+    # if anything else than 'false', the log will not print the ascii logo
+    noBanner: false
 
 asciiArt: true
 imagePullSecrets: []

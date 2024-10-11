@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/fatih/color"
-	"github.com/go-logr/logr"
 	"go.uber.org/zap/zapcore"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -15,7 +14,7 @@ const (
 	fiveSpaces = "     "
 )
 
-func PrintBanner(logger logr.Logger, noColor bool) {
+func PrintBanner(noColor bool) {
 	color.NoColor = noColor
 	c1, c2, c3, c4 := color.FgBlue, color.FgWhite, color.FgCyan, color.FgHiYellow
 	pad := fiveSpaces + fiveSpaces
@@ -33,7 +32,7 @@ func PrintBanner(logger logr.Logger, noColor bool) {
 }
 
 // SetupLog tweak the default log to use custom time format and use colors if supported
-func SetupLog(noColor bool) {
+func SetupLog(noColor bool) zapcore.LevelEnabler {
 	var opts zap.Options
 	zap.UseDevMode(true)(&opts)
 	zap.ConsoleEncoder(func(c *zapcore.EncoderConfig) {
@@ -49,4 +48,5 @@ func SetupLog(noColor bool) {
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	return opts.Level
 }

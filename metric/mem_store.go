@@ -42,7 +42,6 @@ func (m ms) Get(unescapedName types.MetricName, searchLabels types.Labels, timeO
 			}
 			return ret, true, nil
 		}
-		fmt.Sprintf("               ----   Get: %v -> %v", name, md.AggregatesOverTime[timeOp])
 		return md.AggregatesOverTime[timeOp], true, nil
 	}
 	// multiple metric vectors match the search criteria
@@ -67,7 +66,6 @@ func (m ms) Get(unescapedName types.MetricName, searchLabels types.Labels, timeO
 			}
 		}
 	}
-	fmt.Sprintf("               ----   Get: %v -> %v", name, accumulator)
 	return accumulator, true, nil
 }
 
@@ -82,7 +80,6 @@ func checkDefaultAggregation(aggregation types.AggregationOverVectors) error {
 
 func (m ms) Put(entry types.NewMetricEntry) {
 	name := escapeName(entry.Name)
-	fmt.Sprintf("               ----   Put: %v -> %v", name, entry.Value)
 	if _, found := m.store[name]; !found {
 		m.store[name] = make(map[types.LabelsHash]types.MetricData)
 	}
@@ -97,7 +94,6 @@ func (m ms) Put(entry types.NewMetricEntry) {
 		notStale := util.Filter(md.Data, func(val types.ObservedValue) bool {
 			return !m.isStale(val.Time, now)
 		})
-		fmt.Sprintf("not stale: %v", notStale)
 		md.Data = append(notStale, types.ObservedValue{
 			Time:  entry.Time,
 			Value: entry.Value,
