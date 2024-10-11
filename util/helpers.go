@@ -3,7 +3,9 @@ package util
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.uber.org/zap/zapcore"
@@ -91,4 +93,21 @@ func CheckTimeOp(op types.OperationOverTime) error {
 
 func IsDebug(lvl zapcore.LevelEnabler) bool {
 	return lvl != nil && lvl.Enabled(DebugLvl)
+}
+
+// SplitAfter works as the same way as strings.SplitAfter() but the separator is regexp
+func SplitAfter(s string, re *regexp.Regexp) (r []string) {
+	if re == nil {
+		return
+	}
+	re.ReplaceAllStringFunc(s, func(x string) string {
+		s = strings.ReplaceAll(s, x, "::"+x)
+		return s
+	})
+	for _, x := range strings.Split(s, "::") {
+		if x != "" {
+			r = append(r, x)
+		}
+	}
+	return
 }

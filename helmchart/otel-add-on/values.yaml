@@ -14,6 +14,9 @@ settings:
   # how often (in milliseconds) should the IsActive method be tried
   isActivePollingIntervalMilliseconds: 500
 
+  # internal (mostly golang) metrics will be exposed on :8080/metrics
+  internalMetricsPort: 8080
+
   logs:
     # Can be one of 'debug', 'info', 'error', or any integer value > 0
     # which corresponds to custom debug levels of increasing verbosity

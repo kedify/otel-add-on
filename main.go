@@ -20,8 +20,10 @@ import (
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	rec "go.opentelemetry.io/collector/receiver"
 	"go.opentelemetry.io/collector/receiver/otlpreceiver"
+	"go.uber.org/zap/zapcore"
 	"golang.org/x/sync/errgroup"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/kedify/otel-add-on/build"
 	"github.com/kedify/otel-add-on/metric"
@@ -47,84 +49,34 @@ func main() {
 	metricStoreRetentionSeconds := cfg.MetricStoreRetentionSeconds
 
 	lvl := util.SetupLog(cfg.NoColor)
-
 	if !cfg.NoBanner {
 		util.PrintBanner(cfg.NoColor)
 	}
-	_, err := ctrl.GetConfig()
-	if err != nil {
-		setupLog.Error(err, "Kubernetes client config not found")
-		os.Exit(1)
-	}
+	build.PrintComponentInfo(ctrl.Log, lvl, "OTEL addon for KEDA")
 
-	if err != nil {
-		setupLog.Error(err, "creating new HTTP ClientSet")
-		os.Exit(1)
-	}
-	if err != nil {
-		setupLog.Error(err, "creating new HTTP ClientSet")
-		os.Exit(1)
-	}
-
-	ctx := ctrl.SetupSignalHandler()
-	ctx = util.ContextWithLogger(ctx, setupLog)
-
+	ctx := util.ContextWithLogger(ctrl.SetupSignalHandler(), setupLog)
 	eg, ctx := errgroup.WithContext(ctx)
 	ms := metric.NewMetricStore(metricStoreRetentionSeconds)
 	mp := metric.NewParser()
 
 	eg.Go(func() error {
-		addr := fmt.Sprintf("0.0.0.0:%d", otlpReceiverPort)
-		setupLog.Info("starting the grpc server for OTLP receiver", "address", addr)
-		conf := &otlpreceiver.Config{
-			Protocols: otlpreceiver.Protocols{
-				GRPC: &configgrpc.ServerConfig{
-					NetAddr: confignet.AddrConfig{
-						Endpoint:  addr,
-						Transport: confignet.TransportTypeTCP4,
-					},
-					//TLSSetting: &configtls.ServerConfig{},
-					//TLSSetting: &configtls.ServerConfig{
-					//	Config: configtls.Config{
-					//		CAFile: "",
-					//		CertFile: "",
-					//		KeyFile: "",
-					//	},
-					//	ClientCAFile: "",
-					//},
-				},
-			},
-		}
-
-		settings := &rec.Settings{
-			ID:                component.MustNewIDWithName("id", "otlp-receiver"),
-			BuildInfo:         component.NewDefaultBuildInfo(),
-			TelemetrySettings: componenttest.NewNopTelemetrySettings(),
-		}
-		r, e := receiver.NewOtlpReceiver(conf, settings, ms, util.IsDebug(lvl))
-		if e != nil {
-			setupLog.Error(e, "failed to create new OTLP receiver")
+		var e error
+		if e = startInternalMetricsServer(ctx, cfg); !util.IsIgnoredErr(e) {
+			setupLog.Error(e, "metric server failed")
 			return e
 		}
-		r.RegisterMetricsConsumer(mc{})
-
-		e = r.Start(ctx, componenttest.NewNopHost())
-		if e != nil {
-			setupLog.Error(e, "OTLP receiver failed to start")
+		if e = startReceiver(ctx, otlpReceiverPort, ms, lvl); !util.IsIgnoredErr(e) {
+			setupLog.Error(e, "grpc server failed (OTLP receiver)")
 			return e
 		}
 
-		kedaExternalScalerAddr := fmt.Sprintf("0.0.0.0:%d", kedaExternalScalerPort)
-		setupLog.Info("starting the grpc server for KEDA scaler", "address", kedaExternalScalerAddr)
-		if e = startGrpcServer(ctx, ctrl.Log, ms, mp, kedaExternalScalerAddr); !util.IsIgnoredErr(err) {
-			setupLog.Error(e, "grpc server failed")
+		if e = startGrpcServer(ctx, ctrl.Log, ms, mp, kedaExternalScalerPort); !util.IsIgnoredErr(e) {
+			setupLog.Error(e, "grpc server failed (KEDA external scaler)")
 			return e
 		}
 
 		return nil
 	})
-
-	build.PrintComponentInfo(ctrl.Log, lvl, "OTEL addon for KEDA")
 
 	if err := eg.Wait(); err != nil && !errors.Is(err, context.Canceled) {
 		setupLog.Error(err, "fatal error")
@@ -134,14 +86,82 @@ func main() {
 	setupLog.Info("Bye!")
 }
 
+func startInternalMetricsServer(ctx context.Context, cfg *scaler.Config) error {
+	addr := fmt.Sprintf("0.0.0.0:%d", cfg.InternalMetricsPort)
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Metrics: server.Options{
+			BindAddress: addr,
+		},
+		//HealthProbeBindAddress:        probeAddr,
+	})
+	if err != nil {
+		return err
+	}
+	go func() {
+		if err := mgr.Start(ctx); err != nil {
+			setupLog.Error(err, "problem running manager")
+			os.Exit(1)
+		}
+	}()
+	m := metric.Metrics()
+	m.Init()
+	m.Register()
+	m.SetRuntimeInfo(cfg)
+	return nil
+}
+
+func startReceiver(ctx context.Context, otlpReceiverPort int, ms types.MemStore, lvl zapcore.LevelEnabler) error {
+	addr := fmt.Sprintf("0.0.0.0:%d", otlpReceiverPort)
+	setupLog.Info("starting the grpc server for OTLP receiver", "address", addr)
+	conf := &otlpreceiver.Config{
+		Protocols: otlpreceiver.Protocols{
+			GRPC: &configgrpc.ServerConfig{
+				NetAddr: confignet.AddrConfig{
+					Endpoint:  addr,
+					Transport: confignet.TransportTypeTCP4,
+				},
+				//TLSSetting: &configtls.ServerConfig{},
+				//TLSSetting: &configtls.ServerConfig{
+				//	Config: configtls.Config{
+				//		CAFile: "",
+				//		CertFile: "",
+				//		KeyFile: "",
+				//	},
+				//	ClientCAFile: "",
+				//},
+			},
+		},
+	}
+	settings := &rec.Settings{
+		ID:                component.MustNewIDWithName("id", "otlp-receiver"),
+		BuildInfo:         component.NewDefaultBuildInfo(),
+		TelemetrySettings: componenttest.NewNopTelemetrySettings(),
+	}
+	r, e := receiver.NewOtlpReceiver(conf, settings, ms, util.IsDebug(lvl))
+	if e != nil {
+		setupLog.Error(e, "failed to create new OTLP receiver")
+		return e
+	}
+	r.RegisterMetricsConsumer(mc{})
+
+	e = r.Start(ctx, componenttest.NewNopHost())
+	if e != nil {
+		setupLog.Error(e, "OTLP receiver failed to start")
+		return e
+	}
+	return nil
+}
+
 func startGrpcServer(
 	ctx context.Context,
 	lggr logr.Logger,
 	ms types.MemStore,
 	mp types.Parser,
-	addr string,
+	kedaExternalScalerPort int,
 ) error {
-	lis, err := net.Listen("tcp", addr)
+	kedaExternalScalerAddr := fmt.Sprintf("0.0.0.0:%d", kedaExternalScalerPort)
+	setupLog.Info("starting the grpc server for KEDA scaler", "address", kedaExternalScalerAddr)
+	lis, err := net.Listen("tcp", kedaExternalScalerAddr)
 	if err != nil {
 		return err
 	}

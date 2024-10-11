@@ -14,6 +14,10 @@ spec:
     - port: {{ .Values.service.kedaExternalScalerPort }}
       targetPort: {{ .Values.service.kedaExternalScalerPort }}
       protocol: TCP
-      name: http
+      name: keda-external-scaler
+    - port: {{ .Values.settings.internalMetricsPort }}
+      targetPort: {{ .Values.settings.internalMetricsPort }}
+      protocol: TCP
+      name: internal-metrics
   selector:
     {{- include "otel-add-on.selectorLabels" . | nindent 4 }}
