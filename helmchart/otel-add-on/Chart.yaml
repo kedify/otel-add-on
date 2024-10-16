@@ -28,4 +28,5 @@ annotations:
       platforms:
         - linux/amd64
         - linux/arm64
+  artifacthub.io/license: Apache-2.0
 

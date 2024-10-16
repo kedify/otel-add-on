@@ -98,13 +98,13 @@ jobs:
           sleep 5
           echo -e "\n\n\n   logs:\n\n"
           echo "::group::logs"
-          kubectl logs -lapp.kubernetes.io/name=otel-add-on --tail=-1
+          kubectl logs -nkeda -lapp.kubernetes.io/name=otel-add-on --tail=-1
           echo "::endgroup::"
 
           echo "::group::values.yaml"
-          helm get values -n keda otel-add-on
+          helm get values -n keda keda-otel-add-on
           echo "::endgroup::"
 
           echo "::group::resulting YAML manifests"
-          helm get manifest -n keda otel-add-on
+          helm get manifest -n keda keda-otel-add-on
           echo "::endgroup::"
