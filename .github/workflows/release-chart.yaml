@@ -10,6 +10,11 @@ permissions:
   contents: read
 
 jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: noop
+        run: echo "noop, because of 'The workflow must contain at least one job with no dependencies'"
   test:
     runs-on: ubuntu-latest
     if: startsWith(github.event.head_commit.message, '[post-release]')
