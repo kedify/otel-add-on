@@ -33,6 +33,8 @@ jobs:
       - name: Smoke test helm rendering and deployability (otel addon chart)
         run: |
           set -o pipefail
+          helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+          helm repo update
           pushd ./helmchart/otel-add-on && helm dependency build && popd
           helm template ./helmchart/otel-add-on | kubectl apply -f -
           sleep 10

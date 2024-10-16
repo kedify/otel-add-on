@@ -20,3 +20,6 @@ annotations:
   artifacthub.io/links: |
     - name: gh repo
       url: https://github.com/kedify/otel-add-on
+    - name: helm repo
+      url: https://kedify.github.io/otel-add-on
+
