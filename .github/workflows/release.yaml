@@ -41,16 +41,15 @@ jobs:
         with:
           title: "Update webpage"
           branch: chart-yaml-update
-          path: public
           token: ${{ secrets.PAT_TOKEN }}
-          commit-message: "[post-release] Updating Chart.yaml: ${{ steps.version.outputs.oldVersion }} -> ${{ steps.version.outputs.oldVersion }}"
+          commit-message: "[post-release] Updating Chart.yaml: ${{ steps.version.outputs.oldVersion }} -> ${{ steps.version.outputs.newVersion }}"
           delete-branch: true
-          base: master
+          base: main
           signoff: true
           body: |
             :package: Chart.yaml update :package:
             ### automated change
-            Updating Chart.yaml: ${{ steps.version.outputs.oldVersion }} -> ${{ steps.version.outputs.oldVersion }}
+            Updating Chart.yaml: ${{ steps.version.outputs.oldVersion }} -> ${{ steps.version.outputs.newVersion }}
             This automated PR was created by [this action](https://github.com/kedify/otel-add-on/actions/runs/${{ github.run_id }}).
 
       - name: Check PR
