@@ -17,4 +17,6 @@ sources:
   - https://github.com/open-telemetry/opentelemetry-helm-charts
 annotations:
   artifacthub.io/category: networking
-
+  artifacthub.io/links: |
+    - name: gh repo
+      url: https://github.com/kedify/otel-add-on
