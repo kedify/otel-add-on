@@ -9,6 +9,7 @@ entries:
           platforms:
             - linux/amd64
             - linux/arm64
+      artifacthub.io/license: Apache-2.0
       artifacthub.io/links: |
         - name: gh repo
           url: https://github.com/kedify/otel-add-on
@@ -16,14 +17,14 @@ entries:
           url: https://kedify.github.io/otel-add-on
     apiVersion: v2
     appVersion: v0.0.0-1
-    created: "2024-10-16T17:53:52.832775706Z"
+    created: "2024-10-16T17:59:59.649608425Z"
     dependencies:
     - condition: opentelemetry-collector.enabled
       name: opentelemetry-collector
       repository: https://open-telemetry.github.io/opentelemetry-helm-charts
       version: 0.108.0
     description: A Helm chart for KEDA otel-add-on
-    digest: 4a25b312933b41065f73c4cd12a8c4840357d572d3988a5aa313fdb27673f1c1
+    digest: 9fff07e8b0b8a9bd6b6f12ed811c135006239681b9b1a08c5a20678ba2002d6a
     home: https://github.com/kedify/otel-add-on
     icon: https://raw.githubusercontent.com/kedacore/keda/main/images/keda-logo-500x500-white.png
     kubeVersion: '>= 1.19.0-0'
@@ -35,4 +36,4 @@ entries:
     urls:
     - https://kedify.github.io/otel-add-on/otel-add-on-v0.0.0-1.tgz
     version: v0.0.0-1
-generated: "2024-10-16T17:53:52.829456795Z"
+generated: "2024-10-16T17:59:59.644452078Z"
