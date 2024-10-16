@@ -42,6 +42,11 @@ jobs:
           kubectl rollout status --timeout=300s deploy/otelcol
           echo -e "\n\n\n   pods:\n\n"
           kubectl get pods -A
+          sleep 5
+          echo -e "\n\n\n   logs:\n\n"
+          echo "::group::logs"
+          kubectl logs -lapp.kubernetes.io/name=otel-add-on --tail=-1
+          echo "::endgroup::"
 
   publish:
     runs-on: ubuntu-latest
@@ -55,9 +60,8 @@ jobs:
         uses: stefanprodan/helm-gh-pages@master
         with:
           token: ${{ secrets.PAT_TOKEN }}
-          charts_dir: "."
+          charts_dir: "helmchart"
       - name: Create k3s cluster
-        if: inputs.keda == 'true'
         uses: AbsaOSS/k3d-action@v2
         with:
           cluster-name: "test-cluster"
@@ -66,7 +70,6 @@ jobs:
             --no-lb
             --k3s-arg "--disable=traefik,servicelb,local-storage@server:*"
       - name: Smoke test helm installation
-        if: inputs.keda == 'true'
         run: |
           # exp-backoff - we wait for pages to become available here
           for i in $(seq 16)
@@ -91,6 +94,12 @@ jobs:
 
           echo -e "\n\n\n   pods:\n\n"
           kubectl get pods -A
+          
+          sleep 5
+          echo -e "\n\n\n   logs:\n\n"
+          echo "::group::logs"
+          kubectl logs -lapp.kubernetes.io/name=otel-add-on --tail=-1
+          echo "::endgroup::"
 
           echo "::group::values.yaml"
           helm get values -n keda otel-add-on

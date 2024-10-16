@@ -22,4 +22,10 @@ annotations:
       url: https://github.com/kedify/otel-add-on
     - name: helm repo
       url: https://kedify.github.io/otel-add-on
+  artifacthub.io/images: |
+    - name: scaler
+      image: ghcr.io/kedify/otel-add-on
+      platforms:
+        - linux/amd64
+        - linux/arm64
 
