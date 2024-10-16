@@ -94,7 +94,7 @@ help: ## Show this help.
 
 .PHONY: version
 version:
-	@echo $(VERSION)
+	@echo $(LATEST_TAG)
 
 ifndef NO_COLOR
 YELLOW=\033[0;33m
