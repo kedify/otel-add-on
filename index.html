@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Kedify - OTEL addon - Helm Chart</title>
+  </head>
+  <body>
+    <h2>How to install</h2>
+    <pre>
+      helm repo add kedify-otel https://kedify.github.io/otel-add-on
+      helm repo update
+      helm -n keda upgrade -i keda-otel-addon kedify-otel/otel-add-on --create-namespace
+    </pre>
+    <br/></br/>
+    <ul>
+      <li><a href="/otel-add-on/index.yaml">index.yaml</a></li>
+      <li><a href="https://kedify.io">kedify.io</a></li>
+    </ul>
+  </body>
+</html>
+
