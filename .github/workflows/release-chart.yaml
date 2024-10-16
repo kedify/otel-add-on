@@ -33,6 +33,7 @@ jobs:
       - name: Smoke test helm rendering and deployability (otel addon chart)
         run: |
           set -o pipefail
+          pushd ./helmchart/otel-add-on && helm dependency build && popd
           helm template ./helmchart/otel-add-on | kubectl apply -f -
           sleep 10
           kubectl rollout status --timeout=300s deploy/otel-add-on-scaler
