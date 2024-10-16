@@ -39,7 +39,7 @@ jobs:
         uses: peter-evans/create-pull-request@b4d51739f96fca8047ad065eccef63442d8e99f7 # tag=v4
         id: cpr
         with:
-          title: "Update webpage"
+          title: "Update chart.yaml"
           branch: chart-yaml-update
           token: ${{ secrets.PAT_TOKEN }}
           commit-message: "[post-release] Updating Chart.yaml: ${{ steps.version.outputs.oldVersion }} -> ${{ steps.version.outputs.newVersion }}"

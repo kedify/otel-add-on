@@ -105,7 +105,10 @@ func startInternalMetricsServer(ctx context.Context, cfg *scaler.Config) error {
 	}()
 	m := metric.Metrics()
 	m.Init()
-	m.Register()
+	if err := m.Register(); err != nil {
+		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
+	}
 	m.SetRuntimeInfo(cfg)
 	return nil
 }
