@@ -92,6 +92,10 @@ help: ## Show this help.
 #		HELPERS
 ###############################
 
+.PHONY: version
+version:
+	@echo $(VERSION)
+
 ifndef NO_COLOR
 YELLOW=\033[0;33m
 # no color
