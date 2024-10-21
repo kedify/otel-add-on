@@ -61,7 +61,7 @@ OTTL lang:
 - [spec](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/pkg/ottl/LANGUAGE.md)
 - [functions](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/pkg/ottl/ottlfuncs)
 
-- If the simple metric query is not enough and one requires to combine multiple metric vectors into one or perform simple
+If the simple metric query is not enough and one requires to combine multiple metric vectors into one or perform simple
 arithmetic operations on the metrics, there is the [Metrics Generation Processor](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/metricsgenerationprocessor)
 available as an option
 
