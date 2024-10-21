@@ -6,7 +6,6 @@ import (
 	"math"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -16,44 +15,40 @@ import (
 )
 
 type ms struct {
-	store              map[types.MetricName]types.StoredMetrics
+	store              *types.Map[types.MetricName, *types.Map[types.LabelsHash, types.MetricData]]
 	stalePeriodSeconds int
-	lock               sync.RWMutex
 }
 
 func (m ms) Get(unescapedName types.MetricName, searchLabels types.Labels, timeOp types.OperationOverTime, defaultAggregation types.AggregationOverVectors) (float64, types.Found, error) {
 	now := time.Now().Unix()
 	name := escapeName(unescapedName)
-	m.lock.Lock()
-	defer func() {
-		m.lock.Unlock()
-	}()
-	if _, found := m.store[name]; !found {
-		// not found
-		return -1., false, nil
-	}
 	if err := util.CheckTimeOp(timeOp); err != nil {
 		return -1., false, err
 	}
 	if err := checkDefaultAggregation(defaultAggregation); err != nil {
 		return -1., false, err
 	}
-	storedMetrics := m.store[name]
-	if md, found := storedMetrics[hashOfMap(searchLabels)]; found {
+	storedMetrics, found := m.store.Load(name)
+	if !found {
+		// not found
+		return -1., false, nil
+	}
+	if md, f := storedMetrics.Load(hashOfMap(searchLabels)); f {
 		// found exact label match
 		if !m.isStale(md.LastUpdate, now) {
-			ret, found := md.AggregatesOverTime[timeOp]
-			if !found {
+			ret, f := md.AggregatesOverTime.Load(timeOp)
+			if !f {
 				return -1., false, fmt.Errorf("unknown OperationOverTime: %s", timeOp)
 			}
 			return ret, true, nil
 		}
-		return md.AggregatesOverTime[timeOp], true, nil
+		v, _ := md.AggregatesOverTime.Load(timeOp)
+		return v, true, nil
 	}
 	// multiple metric vectors match the search criteria
 	var accumulator float64
 	counter := 0
-	for _, md := range storedMetrics {
+	storedMetrics.Range(func(_ types.LabelsHash, md types.MetricData) bool {
 		match := true
 		for searchLabelName, searchLabelVal := range searchLabels {
 			if v, found := md.Labels[searchLabelName]; found && v != searchLabelVal {
@@ -63,15 +58,16 @@ func (m ms) Get(unescapedName types.MetricName, searchLabels types.Labels, timeO
 		}
 		if match {
 			if !m.isStale(md.LastUpdate, now) {
-				val, found := md.AggregatesOverTime[timeOp]
+				val, found := md.AggregatesOverTime.Load(timeOp)
 				if !found {
-					return -1., false, fmt.Errorf("unknown OperationOverTime: %s", timeOp)
+					return true
 				}
 				counter += 1
 				accumulator = m.calculateAggregate(val, counter, accumulator, defaultAggregation)
 			}
 		}
-	}
+		return true
+	})
 	return accumulator, true, nil
 }
 
@@ -87,20 +83,10 @@ func checkDefaultAggregation(aggregation types.AggregationOverVectors) error {
 func (m ms) Put(entry types.NewMetricEntry) {
 	name := escapeName(entry.Name)
 	now := time.Now().Unix()
-	m.lock.Lock()
-	defer func() {
-		m.lock.Unlock()
-	}()
-	if _, found := m.store[name]; !found {
-		m.store[name] = make(map[types.LabelsHash]types.MetricData)
-	}
 	labelsH := hashOfMap(entry.Labels)
-	if _, found := m.store[name][labelsH]; !found {
-		// new MetricData
-		m.store[name][labelsH] = newMetricDatapoint(entry)
-	} else {
-		// found
-		md := m.store[name][labelsH]
+	metrics, _ := m.store.LoadOrStore(name, &types.Map[types.LabelsHash, types.MetricData]{})
+	md, found := metrics.LoadOrStore(labelsH, newMetricDatapoint(entry))
+	if found {
 		notStale := util.Filter(md.Data, func(val types.ObservedValue) bool {
 			return !m.isStale(val.Time, now)
 		})
@@ -110,8 +96,9 @@ func (m ms) Put(entry types.NewMetricEntry) {
 		})
 		m.updateAggregatesOverTime(md)
 		md.LastUpdate = entry.Time
-		m.store[name][labelsH] = md
 	}
+	metrics.Store(labelsH, md)
+	m.store.Store(name, metrics)
 }
 
 func escapeName(name types.MetricName) types.MetricName {
@@ -120,9 +107,8 @@ func escapeName(name types.MetricName) types.MetricName {
 
 func NewMetricStore(stalePeriodSeconds int) types.MemStore {
 	return ms{
-		store:              make(map[types.MetricName]types.StoredMetrics),
+		store:              &types.Map[types.MetricName, *types.Map[types.LabelsHash, types.MetricData]]{},
 		stalePeriodSeconds: stalePeriodSeconds,
-		lock:               sync.RWMutex{},
 	}
 }
 
@@ -172,7 +158,7 @@ func (m ms) calculateAggregate(value float64, counter int, accumulator float64, 
 }
 
 func newMetricDatapoint(entry types.NewMetricEntry) types.MetricData {
-	return types.MetricData{
+	md := types.MetricData{
 		Labels:     entry.Labels,
 		LastUpdate: entry.Time,
 		Data: []types.ObservedValue{
@@ -181,32 +167,28 @@ func newMetricDatapoint(entry types.NewMetricEntry) types.MetricData {
 				Value: entry.Value,
 			},
 		},
-		AggregatesOverTime: map[types.OperationOverTime]float64{
-			types.OpMin:     entry.Value,
-			types.OpMax:     entry.Value,
-			types.OpAvg:     entry.Value,
-			types.OpLastOne: entry.Value,
-			types.OpCount:   1,
-			types.OpRate:    0,
-		},
+		AggregatesOverTime: types.Map[types.OperationOverTime, float64]{},
 	}
+	md.AggregatesOverTime.Store(types.OpMin, entry.Value)
+	md.AggregatesOverTime.Store(types.OpMax, entry.Value)
+	md.AggregatesOverTime.Store(types.OpAvg, entry.Value)
+	md.AggregatesOverTime.Store(types.OpLastOne, entry.Value)
+	md.AggregatesOverTime.Store(types.OpCount, 1)
+	md.AggregatesOverTime.Store(types.OpRate, 0)
+	return md
 }
 
 func (m ms) updateAggregatesOverTime(md types.MetricData) {
-	m.lock.Lock()
-	defer func() {
-		m.lock.Unlock()
-	}()
 	for _, op := range []types.OperationOverTime{types.OpMin, types.OpMax, types.OpAvg} {
-		acc := md.AggregatesOverTime[op]
+		acc, _ := md.AggregatesOverTime.Load(op)
 		for i := 0; i < len(md.Data); i++ {
 			acc = m.calculateAggregate(md.Data[i].Value, i+1, acc, types.AggregationOverVectors(op))
 		}
-		md.AggregatesOverTime[op] = acc
+		md.AggregatesOverTime.Store(op, acc)
 	}
-	md.AggregatesOverTime[types.OpRate] = (md.Data[len(md.Data)-1].Value - md.Data[0].Value) / float64(md.Data[len(md.Data)-1].Time-md.Data[0].Time)
-	md.AggregatesOverTime[types.OpCount] = float64(len(md.Data))
-	md.AggregatesOverTime[types.OpLastOne] = md.Data[len(md.Data)-1].Value
+	md.AggregatesOverTime.Store(types.OpRate, (md.Data[len(md.Data)-1].Value-md.Data[0].Value)/float64(md.Data[len(md.Data)-1].Time-md.Data[0].Time))
+	md.AggregatesOverTime.Store(types.OpCount, float64(len(md.Data)))
+	md.AggregatesOverTime.Store(types.OpLastOne, md.Data[len(md.Data)-1].Value)
 }
 
 // enforce iface impl

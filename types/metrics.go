@@ -17,12 +17,11 @@ type Found bool
 type MetricName string
 type Labels map[string]any
 type LabelsHash string
-type AggregatesOverTime map[OperationOverTime]float64
 type MetricData struct {
 	Name               MetricName
 	Labels             Labels
 	Data               []ObservedValue
-	AggregatesOverTime AggregatesOverTime
+	AggregatesOverTime Map[OperationOverTime, float64]
 	LastUpdate         pcommon.Timestamp
 }
 
@@ -32,7 +31,6 @@ type ObservedValue struct {
 	// timestamp of last update
 	Time pcommon.Timestamp
 }
-type StoredMetrics map[LabelsHash]MetricData
 
 const (
 	// following aggregations can be applied across multiple metric series. This automatically happens if provided
