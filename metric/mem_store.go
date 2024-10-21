@@ -90,12 +90,13 @@ func (m ms) Put(entry types.NewMetricEntry) {
 		notStale := util.Filter(md.Data, func(val types.ObservedValue) bool {
 			return !m.isStale(val.Time, now)
 		})
+		timeInSeconds := timestampToSeconds(entry.MeasurementTime)
 		md.Data = append(notStale, types.ObservedValue{
-			Time:  entry.Time,
-			Value: entry.Value,
+			Time:  timeInSeconds,
+			Value: entry.MeasurementValue,
 		})
 		m.updateAggregatesOverTime(md)
-		md.LastUpdate = entry.Time
+		md.LastUpdate = timeInSeconds
 	}
 	metrics.Store(labelsH, md)
 	m.store.Store(name, metrics)
@@ -103,6 +104,19 @@ func (m ms) Put(entry types.NewMetricEntry) {
 
 func escapeName(name types.MetricName) types.MetricName {
 	return types.MetricName(strings.ReplaceAll(string(name), "/", "_"))
+}
+
+func timestampToSeconds(timestamp pcommon.Timestamp) uint32 {
+	if timestamp > 1729508567000000000 { // nanos -> seconds
+		return uint32(timestamp / (1000 * 1000 * 1000))
+	}
+	if timestamp > 1729508567000000 { // micros -> seconds
+		return uint32(timestamp / (1000 * 1000))
+	}
+	if timestamp > 1729508567000 { // millis -> seconds
+		return uint32(timestamp / 1000)
+	}
+	return uint32(timestamp)
 }
 
 func NewMetricStore(stalePeriodSeconds int) types.MemStore {
@@ -131,7 +145,7 @@ func hashOfMap(m types.Labels) types.LabelsHash {
 	return types.LabelsHash(fmt.Sprintf("%x", h.Sum(nil)))
 }
 
-func (m ms) isStale(datapoint pcommon.Timestamp, now int64) bool {
+func (m ms) isStale(datapoint uint32, now int64) bool {
 	return now-int64(m.stalePeriodSeconds) > int64(datapoint)
 }
 
@@ -158,21 +172,22 @@ func (m ms) calculateAggregate(value float64, counter int, accumulator float64, 
 }
 
 func newMetricDatapoint(entry types.NewMetricEntry) types.MetricData {
+	timeInSeconds := timestampToSeconds(entry.MeasurementTime)
 	md := types.MetricData{
 		Labels:     entry.Labels,
-		LastUpdate: entry.Time,
+		LastUpdate: timeInSeconds,
 		Data: []types.ObservedValue{
 			{
-				Time:  entry.Time,
-				Value: entry.Value,
+				Time:  timeInSeconds,
+				Value: entry.MeasurementValue,
 			},
 		},
 		AggregatesOverTime: types.Map[types.OperationOverTime, float64]{},
 	}
-	md.AggregatesOverTime.Store(types.OpMin, entry.Value)
-	md.AggregatesOverTime.Store(types.OpMax, entry.Value)
-	md.AggregatesOverTime.Store(types.OpAvg, entry.Value)
-	md.AggregatesOverTime.Store(types.OpLastOne, entry.Value)
+	md.AggregatesOverTime.Store(types.OpMin, entry.MeasurementValue)
+	md.AggregatesOverTime.Store(types.OpMax, entry.MeasurementValue)
+	md.AggregatesOverTime.Store(types.OpAvg, entry.MeasurementValue)
+	md.AggregatesOverTime.Store(types.OpLastOne, entry.MeasurementValue)
 	md.AggregatesOverTime.Store(types.OpCount, 1)
 	md.AggregatesOverTime.Store(types.OpRate, 0)
 	return md
@@ -186,7 +201,11 @@ func (m ms) updateAggregatesOverTime(md types.MetricData) {
 		}
 		md.AggregatesOverTime.Store(op, acc)
 	}
-	md.AggregatesOverTime.Store(types.OpRate, (md.Data[len(md.Data)-1].Value-md.Data[0].Value)/float64(md.Data[len(md.Data)-1].Time-md.Data[0].Time))
+	valuesDelta := md.Data[len(md.Data)-1].Value - md.Data[0].Value
+	timeDelta := float64(md.Data[len(md.Data)-1].Time - md.Data[0].Time)
+	perMin := timeDelta / 60.
+
+	md.AggregatesOverTime.Store(types.OpRate, (valuesDelta/timeDelta)*perMin)
 	md.AggregatesOverTime.Store(types.OpCount, float64(len(md.Data)))
 	md.AggregatesOverTime.Store(types.OpLastOne, md.Data[len(md.Data)-1].Value)
 }

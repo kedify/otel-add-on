@@ -19,11 +19,9 @@ func TestMemStorePutOneAndGetOne(t *testing.T) {
 	// setup
 	ms := NewMetricStore(5)
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 42.,
-			Time:  pcommon.Timestamp(time.Now().Unix()),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 42.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "2",
@@ -39,11 +37,9 @@ func TestMemStoreErr(t *testing.T) {
 	// setup
 	ms := NewMetricStore(5)
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 42.,
-			Time:  pcommon.Timestamp(time.Now().Unix()),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 42.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "2",
@@ -61,11 +57,9 @@ func TestMemStoreGetNotFound(t *testing.T) {
 	// setup
 	ms := NewMetricStore(5)
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 42.,
-			Time:  pcommon.Timestamp(time.Now().Unix()),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 42.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "2",
@@ -93,22 +87,18 @@ func TestMemStoreOperationLastOne(t *testing.T) {
 	// setup
 	ms := NewMetricStore(5)
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 42.,
-			Time:  pcommon.Timestamp(time.Now().Unix() - 1),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix() - 1),
+		MeasurementValue: 42.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "2",
 		},
 	})
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 45.,
-			Time:  pcommon.Timestamp(time.Now().Unix()),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 45.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "2",
@@ -124,22 +114,18 @@ func TestMemStorePutTwoAndGetTwo(t *testing.T) {
 	// setup
 	ms := NewMetricStore(5)
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 42.,
-			Time:  pcommon.Timestamp(time.Now().Unix() - 1),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix() - 1),
+		MeasurementValue: 42.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "2",
 		},
 	})
 	ms.Put(types.NewMetricEntry{
-		Name: "metric2",
-		ObservedValue: types.ObservedValue{
-			Value: 45.,
-			Time:  pcommon.Timestamp(time.Now().Unix()),
-		},
+		Name:             "metric2",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 45.,
 		Labels: map[string]any{
 			"aa": "10",
 			"bb": "20",
@@ -158,11 +144,9 @@ func TestMemStoreSumAcrossDifferentMetrics(t *testing.T) {
 	// setup
 	ms := NewMetricStore(5)
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 1.,
-			Time:  pcommon.Timestamp(time.Now().Unix() - 1),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix() - 1),
+		MeasurementValue: 1.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "1",
@@ -170,11 +154,9 @@ func TestMemStoreSumAcrossDifferentMetrics(t *testing.T) {
 		},
 	})
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 2.,
-			Time:  pcommon.Timestamp(time.Now().Unix()),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 2.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "2",
@@ -182,11 +164,9 @@ func TestMemStoreSumAcrossDifferentMetrics(t *testing.T) {
 		},
 	})
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 3.,
-			Time:  pcommon.Timestamp(time.Now().Unix()),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 3.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "3",
@@ -194,11 +174,9 @@ func TestMemStoreSumAcrossDifferentMetrics(t *testing.T) {
 		},
 	})
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 4.,
-			Time:  pcommon.Timestamp(time.Now().Unix()),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 4.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "4",
@@ -206,11 +184,9 @@ func TestMemStoreSumAcrossDifferentMetrics(t *testing.T) {
 		},
 	})
 	ms.Put(types.NewMetricEntry{
-		Name: "metric2",
-		ObservedValue: types.ObservedValue{
-			Value: 5.,
-			Time:  pcommon.Timestamp(time.Now().Unix()),
-		},
+		Name:             "metric2",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 5.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "4",
@@ -233,11 +209,9 @@ func TestMemStoreAvg(t *testing.T) {
 	// setup
 	ms := NewMetricStore(5)
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 1.,
-			Time:  pcommon.Timestamp(time.Now().Unix() - 1),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix() - 1),
+		MeasurementValue: 1.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "1",
@@ -245,11 +219,9 @@ func TestMemStoreAvg(t *testing.T) {
 		},
 	})
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 2.,
-			Time:  pcommon.Timestamp(time.Now().Unix()),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 2.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "2",
@@ -257,11 +229,9 @@ func TestMemStoreAvg(t *testing.T) {
 		},
 	})
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 3.,
-			Time:  pcommon.Timestamp(time.Now().Unix()),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 3.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "3",
@@ -269,11 +239,9 @@ func TestMemStoreAvg(t *testing.T) {
 		},
 	})
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 4.,
-			Time:  pcommon.Timestamp(time.Now().Unix()),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 4.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "4",
@@ -281,11 +249,9 @@ func TestMemStoreAvg(t *testing.T) {
 		},
 	})
 	ms.Put(types.NewMetricEntry{
-		Name: "metric2",
-		ObservedValue: types.ObservedValue{
-			Value: 5.,
-			Time:  pcommon.Timestamp(time.Now().Unix()),
-		},
+		Name:             "metric2",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 5.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "4",
@@ -308,11 +274,9 @@ func TestMemStoreMinMax(t *testing.T) {
 	// setup
 	ms := NewMetricStore(5)
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 1.,
-			Time:  pcommon.Timestamp(time.Now().Unix() - 1),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix() - 1),
+		MeasurementValue: 1.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "1",
@@ -320,11 +284,9 @@ func TestMemStoreMinMax(t *testing.T) {
 		},
 	})
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 2.,
-			Time:  pcommon.Timestamp(time.Now().Unix()),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 2.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "2",
@@ -332,11 +294,9 @@ func TestMemStoreMinMax(t *testing.T) {
 		},
 	})
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 3.,
-			Time:  pcommon.Timestamp(time.Now().Unix()),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 3.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "3",
@@ -344,11 +304,9 @@ func TestMemStoreMinMax(t *testing.T) {
 		},
 	})
 	ms.Put(types.NewMetricEntry{
-		Name: "metric1",
-		ObservedValue: types.ObservedValue{
-			Value: 4.,
-			Time:  pcommon.Timestamp(time.Now().Unix()),
-		},
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 4.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "4",
@@ -356,11 +314,9 @@ func TestMemStoreMinMax(t *testing.T) {
 		},
 	})
 	ms.Put(types.NewMetricEntry{
-		Name: "metric2",
-		ObservedValue: types.ObservedValue{
-			Value: 5.,
-			Time:  pcommon.Timestamp(time.Now().Unix()),
-		},
+		Name:             "metric2",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 5.,
 		Labels: map[string]any{
 			"a": "1",
 			"b": "4",
@@ -515,12 +471,10 @@ func setupMetrics(store types.MemStore, name string, secondsStep int64, labels m
 	now := time.Now().Unix()
 	for i, v := range vals {
 		store.Put(types.NewMetricEntry{
-			Name: types.MetricName(name),
-			ObservedValue: types.ObservedValue{
-				Value: v,
-				Time:  pcommon.Timestamp(now - int64(len(vals))*secondsStep + int64(i)*secondsStep),
-			},
-			Labels: labels,
+			Name:             types.MetricName(name),
+			MeasurementTime:  pcommon.Timestamp(now - int64(len(vals))*secondsStep + int64(i)*secondsStep),
+			MeasurementValue: v,
+			Labels:           labels,
 		})
 	}
 }

@@ -3,11 +3,13 @@ package types
 import "go.opentelemetry.io/collector/pdata/pcommon"
 
 type NewMetricEntry struct {
-	ObservedValue
 	// metric name
 	Name MetricName
 	// labels further identifies the collected data points (introducing new dimensions and storing also metadata) ~ tags
 	Labels Labels
+	// observed value
+	MeasurementValue float64
+	MeasurementTime  pcommon.Timestamp
 }
 
 type AggregationOverVectors string
@@ -22,14 +24,14 @@ type MetricData struct {
 	Labels             Labels
 	Data               []ObservedValue
 	AggregatesOverTime Map[OperationOverTime, float64]
-	LastUpdate         pcommon.Timestamp
+	LastUpdate         uint32
 }
 
 type ObservedValue struct {
 	// observed value
 	Value float64
-	// timestamp of last update
-	Time pcommon.Timestamp
+	// timestamp of last update (in seconds)
+	Time uint32
 }
 
 const (
