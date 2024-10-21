@@ -11,6 +11,7 @@ spec:
     - type: external
       metadata:
         scalerAddress: "keda-otel-scaler.default.svc:4318"
+#        scalerAddress: "host.k3d.internal:4318"
 
         # required - no default
         # PromQL-like query identifying exactly one metric name
@@ -30,9 +31,8 @@ spec:
         #  - label selector do not support advanced operators like != or =~ (only simple = denoting exact match is supported atm.)
         #  - it's not supported to combine different metric names here
         #  - no arithmetic
-        metricQuery: "sum(http_server_request_count{app_id=nodeapp, method=GET, path=/v1.0/state/statestore})"
+        metricQuery: "avg(http_server_request_count{app_id=nodeapp, method=GET, path=/v1.0/state/statestore})"
 
-        # todo
         targetValue: "5"
 
         # optional - default no limit
@@ -51,4 +51,12 @@ spec:
         #   - avg       ...   3    2    1    6    3    2    3    ->   round(20/7)=7
         #   - rate      ...   1    2    3    4    5    6    7    ->   1 (provided, measurements were taken each second)
         #   - count     ...   3    2    1    6    3    2    3    ->   7
-        operationOverTime: "last_one"
+        operationOverTime: "rate"
+  # for faster reaction - debug
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 10
+        scaleUp:
+          stabilizationWindowSeconds: 10

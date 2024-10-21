@@ -141,7 +141,7 @@ func (e *impl) GetMetricSpec(
 	res := &externalscaler.GetMetricSpecResponse{
 		MetricSpecs: []*externalscaler.MetricSpec{
 			{
-				MetricName: string(metricName),
+				MetricName: metricName,
 				TargetSize: targetValue,
 			},
 		},
@@ -183,7 +183,7 @@ func (e *impl) GetMetrics(
 	res := &externalscaler.GetMetricsResponse{
 		MetricValues: []*externalscaler.MetricValue{
 			{
-				MetricName:  string(metricName),
+				MetricName:  metricRequest.GetMetricName(),
 				MetricValue: int64(math.Round(value)),
 			},
 		},

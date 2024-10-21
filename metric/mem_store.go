@@ -6,6 +6,7 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -17,11 +18,16 @@ import (
 type ms struct {
 	store              map[types.MetricName]types.StoredMetrics
 	stalePeriodSeconds int
+	lock               sync.RWMutex
 }
 
 func (m ms) Get(unescapedName types.MetricName, searchLabels types.Labels, timeOp types.OperationOverTime, defaultAggregation types.AggregationOverVectors) (float64, types.Found, error) {
 	now := time.Now().Unix()
 	name := escapeName(unescapedName)
+	m.lock.Lock()
+	defer func() {
+		m.lock.Unlock()
+	}()
 	if _, found := m.store[name]; !found {
 		// not found
 		return -1., false, nil
@@ -80,10 +86,14 @@ func checkDefaultAggregation(aggregation types.AggregationOverVectors) error {
 
 func (m ms) Put(entry types.NewMetricEntry) {
 	name := escapeName(entry.Name)
+	now := time.Now().Unix()
+	m.lock.Lock()
+	defer func() {
+		m.lock.Unlock()
+	}()
 	if _, found := m.store[name]; !found {
 		m.store[name] = make(map[types.LabelsHash]types.MetricData)
 	}
-	now := time.Now().Unix()
 	labelsH := hashOfMap(entry.Labels)
 	if _, found := m.store[name][labelsH]; !found {
 		// new MetricData
@@ -112,6 +122,7 @@ func NewMetricStore(stalePeriodSeconds int) types.MemStore {
 	return ms{
 		store:              make(map[types.MetricName]types.StoredMetrics),
 		stalePeriodSeconds: stalePeriodSeconds,
+		lock:               sync.RWMutex{},
 	}
 }
 
@@ -182,10 +193,16 @@ func newMetricDatapoint(entry types.NewMetricEntry) types.MetricData {
 }
 
 func (m ms) updateAggregatesOverTime(md types.MetricData) {
-	for i := 0; i < len(md.Data); i++ {
-		for _, op := range []types.OperationOverTime{types.OpMin, types.OpMax, types.OpAvg} {
-			md.AggregatesOverTime[op] = m.calculateAggregate(md.Data[i].Value, i+1, md.AggregatesOverTime[op], types.AggregationOverVectors(op))
+	m.lock.Lock()
+	defer func() {
+		m.lock.Unlock()
+	}()
+	for _, op := range []types.OperationOverTime{types.OpMin, types.OpMax, types.OpAvg} {
+		acc := md.AggregatesOverTime[op]
+		for i := 0; i < len(md.Data); i++ {
+			acc = m.calculateAggregate(md.Data[i].Value, i+1, acc, types.AggregationOverVectors(op))
 		}
+		md.AggregatesOverTime[op] = acc
 	}
 	md.AggregatesOverTime[types.OpRate] = (md.Data[len(md.Data)-1].Value - md.Data[0].Value) / float64(md.Data[len(md.Data)-1].Time-md.Data[0].Time)
 	md.AggregatesOverTime[types.OpCount] = float64(len(md.Data))
