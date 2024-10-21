@@ -37,7 +37,7 @@ spec:
 
         # optional - default no limit
         # lower integer bound for the value calculated by the scaler (~min replicas)
-        clampMin: "1"
+        clampMin: "0"
 
         # optional - default no limit
         # upper integer bound for the value calculated by the scaler (~max replicas)
