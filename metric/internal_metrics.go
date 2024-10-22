@@ -12,13 +12,13 @@ import (
 	crm "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/kedify/otel-add-on/build"
-	"github.com/kedify/otel-add-on/scaler"
 	"github.com/kedify/otel-add-on/util"
 )
 
 const (
 	Prefix                            = "keda_otel_scaler_"
-	KedaOtelScalerValue               = Prefix + "metric_points_value"
+	KedaOtelScalerValue               = Prefix + "metric_value"
+	KedaOtelScalerValueClamped        = Prefix + "metric_value_clamped"
 	KedaOtelScalerMetricPointsWritten = Prefix + "metric_points_written"
 	KedaOtelScalerMetricPointsRead    = Prefix + "metric_points_read"
 	KedaOtelScalerRuntimeInfo         = Prefix + "runtime_info"
@@ -33,6 +33,7 @@ var (
 // collectors contains list of metrics.
 type collectors struct {
 	KedaOtelScalerValue               *prometheus.GaugeVec
+	KedaOtelScalerValueClamped        *prometheus.GaugeVec
 	KedaOtelScalerMetricPointsWritten *prometheus.CounterVec
 	KedaOtelScalerMetricPointsRead    *prometheus.CounterVec
 	KedaOtelScalerRuntimeInfo         *prometheus.GaugeVec
@@ -90,7 +91,7 @@ func (m *InternalMetrics) Init() {
 				Name: KedaOtelScalerRuntimeInfo,
 				Help: "KEDA OTEL scaler runtime info.",
 			},
-			[]string{"version", "go_version", "arch", "os", "git_sha", "retention_seconds", "scaler_port", "otlp_port"},
+			[]string{"version", "goVersion", "arch", "os", "gitSha", "retentionSeconds", "scalerPort", "otlpPort"},
 		)
 		m.metrics.KedaOtelScalerMetricPointsRead = prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -106,13 +107,19 @@ func (m *InternalMetrics) Init() {
 			},
 			[]string{"name"},
 		)
-
 		m.metrics.KedaOtelScalerValue = prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: KedaOtelScalerValue,
-				Help: "Gslb status count for Failover strategy.",
+				Help: "Last value of the metric that was read by the scaler.",
 			},
-			[]string{"name", "query", "time_op", "aggregation"},
+			[]string{"name", "labels", "timeOp", "aggregation"},
+		)
+		m.metrics.KedaOtelScalerValueClamped = prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: KedaOtelScalerValueClamped,
+				Help: "Last value of the metric that was read by the scaler within clampMin and clampMax bounds",
+			},
+			[]string{"name", "labels", "timeOp", "aggregation", "scaledObject", "namespace"},
 		)
 	})
 }
@@ -125,11 +132,22 @@ func (m *InternalMetrics) IncMetricWrite(name string) {
 	m.metrics.KedaOtelScalerMetricPointsWritten.With(prometheus.Labels{"name": name}).Inc()
 }
 
-func (m *InternalMetrics) SetMetricValue(name, query, timeOp, aggregation string) {
-	m.metrics.KedaOtelScalerValue.With(prometheus.Labels{"name": name, "query": query, "time_op": timeOp, "aggregation": aggregation}).Inc()
+func (m *InternalMetrics) SetMetricValue(name, labels, timeOp, aggregation string, value float64) {
+	m.metrics.KedaOtelScalerValue.With(prometheus.Labels{"name": name, "labels": labels, "timeOp": timeOp, "aggregation": aggregation}).Set(value)
 }
 
-func (m *InternalMetrics) SetRuntimeInfo(cfg *scaler.Config) {
+func (m *InternalMetrics) SetMetricValueClamped(name, labels, timeOp, aggregation, scaledObject, namespace string, value float64) {
+	m.metrics.KedaOtelScalerValueClamped.With(prometheus.Labels{
+		"name":         name,
+		"labels":       labels,
+		"timeOp":       timeOp,
+		"aggregation":  aggregation,
+		"scaledObject": scaledObject,
+		"namespace":    namespace,
+	}).Set(value)
+}
+
+func (m *InternalMetrics) SetRuntimeInfo(cfg *util.Config) {
 	firstN := func(value string, n int) string {
 		if len(value) < n {
 			return value
@@ -142,16 +160,15 @@ func (m *InternalMetrics) SetRuntimeInfo(cfg *scaler.Config) {
 		}
 		return value
 	}
-	// labels: "version", "go_version", "arch", "os", "git_sha", "retention_seconds", "scaler_port", "otlp_port"
 	m.metrics.KedaOtelScalerRuntimeInfo.With(
 		prometheus.Labels{
-			"version":           fallBack(build.Version(), "unknown"),
-			"go_version":        runtime.Version(),
-			"arch":              runtime.GOARCH,
-			"os":                runtime.GOOS,
-			"git_sha":           fallBack(firstN(build.GitCommit(), 7), "unknown"),
-			"retention_seconds": fmt.Sprintf("%d", cfg.MetricStoreRetentionSeconds),
-			"scaler_port":       fmt.Sprintf("%d", cfg.KedaExternalScalerPort),
-			"otlp_port":         fmt.Sprintf("%d", cfg.OTLPReceiverPort),
+			"version":          fallBack(build.Version(), "unknown"),
+			"goVersion":        runtime.Version(),
+			"arch":             runtime.GOARCH,
+			"os":               runtime.GOOS,
+			"gitSha":           fallBack(firstN(build.GitCommit(), 7), "unknown"),
+			"retentionSeconds": fmt.Sprintf("%d", cfg.MetricStoreRetentionSeconds),
+			"scalerPort":       fmt.Sprintf("%d", cfg.KedaExternalScalerPort),
+			"otlpPort":         fmt.Sprintf("%d", cfg.OTLPReceiverPort),
 		}).Set(1)
 }

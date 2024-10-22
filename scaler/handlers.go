@@ -13,6 +13,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 
+	"github.com/kedify/otel-add-on/metric"
 	"github.com/kedify/otel-add-on/types"
 	"github.com/kedify/otel-add-on/util"
 
@@ -31,9 +32,10 @@ func init() {
 }
 
 type impl struct {
-	lggr         logr.Logger
-	metricStore  types.MemStore
-	metricParser types.Parser
+	lggr            logr.Logger
+	metricStore     types.MemStore
+	metricParser    types.Parser
+	metricsExporter *metric.InternalMetrics
 	//soInformer   informersv1alpha1.ScaledObjectInformer
 	//targetMetric int64
 	externalscaler.UnimplementedExternalScalerServer
@@ -45,9 +47,10 @@ func New(
 	metricParser types.Parser,
 ) *impl {
 	return &impl{
-		lggr:         lggr,
-		metricStore:  metricStore,
-		metricParser: metricParser,
+		lggr:            lggr,
+		metricStore:     metricStore,
+		metricParser:    metricParser,
+		metricsExporter: metric.Metrics(),
 		//soInformer:   soInformer,
 		//targetMetric: defaultTargetMetric,
 	}
@@ -146,8 +149,7 @@ func (e *impl) GetMetricSpec(
 			},
 		},
 	}
-	fmt.Printf("GetMetricSpec: %v", res)
-	fmt.Printf("GetMetricSpec: name: %v target: %v", string(metricName), targetValue)
+	lggr.V(1).Info("got metric value: ", "GetMetricSpecResponse", res)
 	return res, nil
 }
 
@@ -155,7 +157,6 @@ func (e *impl) GetMetrics(
 	ctx context.Context,
 	metricRequest *externalscaler.GetMetricsRequest,
 ) (*externalscaler.GetMetricsResponse, error) {
-	fmt.Println("called GetMetrics")
 	lggr := e.lggr.WithName("GetMetrics")
 	sor := metricRequest.ScaledObjectRef
 
@@ -170,7 +171,6 @@ func (e *impl) GetMetrics(
 
 	opOverTime := util.GetOperationOvertTime(lggr, scalerMetadata)
 	value, found, err := e.metricStore.Get(metricName, labels, opOverTime, agg)
-	//lggr.V(1).Info("got metric value: ", "value", value, "found", found, "error", err)
 	lggr.Info("got metric value: ", "name", metricName, "labels", labels, "value", value, "found", found, "error", err)
 	if !found {
 		return nil, fmt.Errorf("not found")
@@ -179,6 +179,7 @@ func (e *impl) GetMetrics(
 		return nil, err
 	}
 	value = util.ClampValue(lggr, value, scalerMetadata)
+	e.metricsExporter.SetMetricValueClamped(string(metricName), fmt.Sprint(labels), string(opOverTime), string(agg), sor.GetName(), sor.GetNamespace(), value)
 
 	res := &externalscaler.GetMetricsResponse{
 		MetricValues: []*externalscaler.MetricValue{
@@ -189,8 +190,6 @@ func (e *impl) GetMetrics(
 		},
 	}
 
-	//fmt.Printf("GetMetrics: %v", res)
-	//fmt.Printf("GetMetrics: name: %v target: %v", string(metricName), targetValue)
 	return res, nil
 }
 

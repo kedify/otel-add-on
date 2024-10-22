@@ -42,7 +42,7 @@ type otlpReceiver struct {
 	debug          bool
 }
 
-// newOtlpReceiver just creates the OpenTelemetry receiver services. It is the caller's
+// NewOtlpReceiver just creates the OpenTelemetry receiver services. It is the caller's
 // responsibility to invoke the respective Start*Reception methods as well
 // as the various Stop*Reception methods to end it.
 func NewOtlpReceiver(cfg *otlpreceiver.Config, set *receiver.Settings, memStore types.MemStore, debug bool) (*otlpReceiver, error) {

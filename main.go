@@ -43,7 +43,7 @@ var (
 )
 
 func main() {
-	cfg := scaler.MustParseConfig()
+	cfg := util.MustParseConfig()
 	otlpReceiverPort := cfg.OTLPReceiverPort
 	kedaExternalScalerPort := cfg.KedaExternalScalerPort
 	metricStoreRetentionSeconds := cfg.MetricStoreRetentionSeconds
@@ -86,7 +86,7 @@ func main() {
 	setupLog.Info("Bye!")
 }
 
-func startInternalMetricsServer(ctx context.Context, cfg *scaler.Config) error {
+func startInternalMetricsServer(ctx context.Context, cfg *util.Config) error {
 	addr := fmt.Sprintf("0.0.0.0:%d", cfg.InternalMetricsPort)
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Metrics: server.Options{

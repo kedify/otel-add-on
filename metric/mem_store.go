@@ -17,11 +17,29 @@ import (
 type ms struct {
 	store              *types.Map[types.MetricName, *types.Map[types.LabelsHash, types.MetricData]]
 	stalePeriodSeconds int
+	metricsExporter    *InternalMetrics
+}
+
+func NewMetricStore(stalePeriodSeconds int) types.MemStore {
+	return ms{
+		store:              &types.Map[types.MetricName, *types.Map[types.LabelsHash, types.MetricData]]{},
+		stalePeriodSeconds: stalePeriodSeconds,
+		metricsExporter:    Metrics(),
+	}
 }
 
 func (m ms) Get(unescapedName types.MetricName, searchLabels types.Labels, timeOp types.OperationOverTime, defaultAggregation types.AggregationOverVectors) (float64, types.Found, error) {
-	now := time.Now().Unix()
 	name := escapeName(unescapedName)
+	value, found, err := m.get(name, searchLabels, timeOp, defaultAggregation)
+	if err == nil {
+		m.metricsExporter.IncMetricRead(string(name))
+		m.metricsExporter.SetMetricValue(string(name), fmt.Sprint(searchLabels), string(timeOp), string(defaultAggregation), value)
+	}
+	return value, found, err
+}
+
+func (m ms) get(name types.MetricName, searchLabels types.Labels, timeOp types.OperationOverTime, defaultAggregation types.AggregationOverVectors) (float64, types.Found, error) {
+	now := time.Now().Unix()
 	if err := util.CheckTimeOp(timeOp); err != nil {
 		return -1., false, err
 	}
@@ -82,6 +100,7 @@ func checkDefaultAggregation(aggregation types.AggregationOverVectors) error {
 
 func (m ms) Put(entry types.NewMetricEntry) {
 	name := escapeName(entry.Name)
+	m.metricsExporter.IncMetricWrite(string(name))
 	now := time.Now().Unix()
 	labelsH := hashOfMap(entry.Labels)
 	metrics, _ := m.store.LoadOrStore(name, &types.Map[types.LabelsHash, types.MetricData]{})
@@ -117,13 +136,6 @@ func timestampToSeconds(timestamp pcommon.Timestamp) uint32 {
 		return uint32(timestamp / 1000)
 	}
 	return uint32(timestamp)
-}
-
-func NewMetricStore(stalePeriodSeconds int) types.MemStore {
-	return ms{
-		store:              &types.Map[types.MetricName, *types.Map[types.LabelsHash, types.MetricData]]{},
-		stalePeriodSeconds: stalePeriodSeconds,
-	}
 }
 
 func hashOfMap(m types.Labels) types.LabelsHash {
