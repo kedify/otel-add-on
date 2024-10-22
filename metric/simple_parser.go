@@ -62,7 +62,8 @@ func (p p) ParseLabels(labelsQuery string) (types.Labels, error) {
 		if len(labelRaw) != 2 {
 			return nil, fmt.Errorf("unable to parse labels, labels are expected at form {key1=val1, key2=val2}, but got: %s", lq)
 		}
-		labels[strings.TrimSpace(labelRaw[0])] = strings.TrimSpace(labelRaw[1])
+
+		labels[strings.Trim(labelRaw[0], "\" '")] = strings.Trim(labelRaw[1], "\" '")
 	}
 	return labels, nil
 }

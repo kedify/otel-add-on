@@ -16,6 +16,12 @@ func TestSimpleParserOk(t *testing.T) {
 	if name != "metric_foo_bar" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{"b": "2", "a": "1"}) || agg != types.VecAvg || err != nil {
 		t.Errorf("expected: [metric_foo_bar, map[a:1 b:2], avg, <nil>], got: [%s, %v, %v, %v]", name, labels, agg, err)
 	}
+
+	// check
+	name2, labels2, agg2, err2 := p.Parse("avg(metric_foo_bar{a=\"1\", b=\"2\"})")
+	if name2 != "metric_foo_bar" || fmt.Sprint(labels2) != fmt.Sprint(map[string]any{"b": "2", "a": "1"}) || agg2 != types.VecAvg || err2 != nil {
+		t.Errorf("expected: [metric_foo_bar, map[a:1 b:2], avg, <nil>], got: [%s, %v, %v, %v]", name2, labels2, agg2, err2)
+	}
 }
 
 func TestSimpleParserFail(t *testing.T) {

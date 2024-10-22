@@ -412,38 +412,62 @@ func TestMemStoreCountsOverTime(t *testing.T) {
 
 func TestMemStoreRateOverTime1(t *testing.T) {
 	// setup
-	ms := NewMetricStore(80)
+	ms := NewMetricStore(200)
 	labels := map[string]any{
 		"a": "1",
 	}
 	name := "m3t/r1c"
-	setupMetrics(ms, name, 1, labels, 1., 2., 3., 4., 5., 6.)
+	setupMetrics(ms, name, 10, labels, 0., 10., 20., 30., 40., 50., 60.)
 	val, found, err := ms.Get(types.MetricName(name), labels, types.OpRate, types.VecSum)
 	assertMetricFound(t, val, found, err, 1.)
 }
 
 func TestMemStoreRateOverTime2(t *testing.T) {
 	// setup
-	ms := NewMetricStore(80)
+	ms := NewMetricStore(200)
 	labels := map[string]any{
 		"a": "1",
 	}
 	name := "m3t/r1c"
-	setupMetrics(ms, name, 2, labels, 1., 2., 3., 4., 5., 6.)
+	setupMetrics(ms, name, 20, labels, 0., 10., 20., 30., 40., 50., 60., 70.)
 	val, found, err := ms.Get(types.MetricName(name), labels, types.OpRate, types.VecSum)
 	assertMetricFound(t, val, found, err, .5)
 }
 
 func TestMemStoreRateOverTime3(t *testing.T) {
 	// setup
-	ms := NewMetricStore(80)
+	ms := NewMetricStore(200)
 	labels := map[string]any{
 		"a": "1",
 	}
 	name := "m3t/r1c"
-	setupMetrics(ms, name, 1, labels, 1., 3., 5., 7., 9., 11.)
+	setupMetrics(ms, name, 10, labels, 10., 30., 50., 70., 90., 110.)
 	val, found, err := ms.Get(types.MetricName(name), labels, types.OpRate, types.VecSum)
 	assertMetricFound(t, val, found, err, 2.)
+}
+
+func TestMemStoreRateOverTime4(t *testing.T) {
+	// setup
+	ms := NewMetricStore(500)
+	labels := map[string]any{
+		"a": "1",
+	}
+	name := "m3t/r1c"
+	setupMetrics(ms, name, 30, labels, 0., 100., 200., 300., 400., 500.)
+	val, found, err := ms.Get(types.MetricName(name), labels, types.OpRate, types.VecSum)
+	assertMetricFound(t, val, found, err, 3.333)
+}
+
+func TestMemStoreRateOverTimeForgetOld(t *testing.T) {
+	// setup
+	ms := NewMetricStore(60)
+	labels := map[string]any{
+		"a": "1",
+	}
+	name := "m3t/r1c"
+	setupMetrics(ms, name, 10, labels, 0., 100., 300., 310., 320., 330., 340., 350.)
+	val, found, err := ms.Get(types.MetricName(name), labels, types.OpRate, types.VecSum)
+	assertMetricFound(t, val, found, err, 1.)
 }
 
 func TestMemStoreSumOverAverages(t *testing.T) {

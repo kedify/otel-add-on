@@ -119,8 +119,8 @@ opentelemetry-collector:
     exporters:
       otlp:
         # make sure this is the same hostname and port as .service
-#        endpoint: keda-otel-scaler:4317
-        endpoint: host.k3d.internal:4317
+        endpoint: keda-otel-scaler:4317
+#        endpoint: host.k3d.internal:4317
         compression: "none"
         tls:
           insecure: true
