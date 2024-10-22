@@ -84,6 +84,7 @@ tolerations: []
 affinity: {}
 
 #otel collector helm chart:
+# https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/charts/opentelemetry-collector/values.yaml
 #--------------------------
 opentelemetry-collector:
   enabled: true

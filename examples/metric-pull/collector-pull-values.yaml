@@ -1,0 +1,71 @@
+settings:
+  metricStoreRetentionSeconds: 60
+  logs:
+    logLvl: debug
+
+opentelemetry-collector:
+  ports:
+    metrics:
+      enabled: true
+  clusterRole:
+    create: true
+    rules:
+     - apiGroups:
+       - ''
+       resources:
+       - 'services'
+       verbs:
+       - 'get'
+       - 'list'
+       - 'watch'
+  config:
+    receivers:
+      opencensus: null
+      # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/prometheusreceiver/README.md
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: 'otelcol'
+              scrape_interval: 5s
+              static_configs:
+                - targets: ['0.0.0.0:8888']
+            - job_name: k8s
+              kubernetes_sd_configs:
+                - role: service
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+                  regex: "true"
+                  action: keep
+                - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+                  action: replace
+                  target_label: __metrics_path__
+                  regex: (.+)
+      zipkin: null
+      jaeger: null
+      otlp: null
+    processors:
+      filter/ottl:
+        error_mode: ignore
+        metrics:
+          # runtime/service_invocation/req_sent_total
+          metric:
+            - | # drop all other metrics that are not whitelisted here
+              name != "http_request_duration_seconds_count"
+            - resource.attributes["method"] == "GET"
+            - resource.attributes["path"] == "delay"
+
+    service:
+      telemetry:
+        metrics:
+          address: 0.0.0.0:8888
+      pipelines:
+        traces: null
+        logs: null
+        metrics:
+          receivers:
+            - prometheus
+          processors:
+            - filter/ottl
+          exporters:
+            - debug
+            - otlp
