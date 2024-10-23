@@ -6,9 +6,9 @@ then forwarding the filtered metrics into OTLP receiver in our scaler.
 Prepare helm chart repos:
 
 ```bash
-helm repo add kedacore https://kedacore.github.io/charts
 helm repo add podinfo https://stefanprodan.github.io/podinfo
-helm repo add kedify-otel https://kedify.github.io/otel-add-on/
+helm repo add kedify https://kedify.github.io/charts
+helm repo add kedify-otel https://kedify.github.io/otel-add-on
 helm repo update
 ```
 
@@ -57,9 +57,9 @@ also modify the path where the metrics are exported using `prometheus.io/path=/m
 
 We set these two annotation in our service for podinfo [here](./podinfo-values.yaml).
 
-Install KEDA:
+Install KEDA by Kedify.io:
 ```bash
-helm upgrade -i keda kedacore/keda --namespace keda --create-namespace
+helm upgrade -i keda kedify/keda --namespace keda --create-namespace
 ```
 
 Create `ScaledObject`:
@@ -67,11 +67,17 @@ Create `ScaledObject`:
 kubectl apply -f podinfo-so.yaml
 ```
 
-```bash
-watch kubectl get pods -A
-```
+Podinfo exposes some basic metrics and one of them is `http_request_duration_seconds` histogram. We can take the `http_request_duration_seconds_count`,
+which is a monotonic counter that increases with each request and turn it into the metric that will determine
+how many replicas of pod we want.
 
-Create some traffic:
+
+Create some traffic. Podinfo has an endpoint that responds after a delay, in this case it's two seconds.
+We will be calling 20 requests per seconds from each worker (4 of them) - so 80 req/s. 
 ```bash
 hey -n 5000 -c 4 -q 20 -z 70s http://localhost:8080/delay/2
+```
+
+```bash
+watch kubectl get pods -A
 ```
