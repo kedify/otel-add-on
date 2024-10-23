@@ -1,0 +1,10 @@
+ui:
+  message: "Hello OTEL+KEDA"
+  color: "#222222"
+  logo: "https://kedify.io/assets/images/logo.svg"
+
+service:
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "9898"

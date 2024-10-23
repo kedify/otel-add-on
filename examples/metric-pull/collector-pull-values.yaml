@@ -1,0 +1,90 @@
+settings:
+  metricStoreRetentionSeconds: 60
+  logs:
+    logLvl: debug
+
+opentelemetry-collector:
+  ports:
+    metrics:
+      enabled: true
+  clusterRole:
+    create: true
+    # additional rbac for upstream otel collector to be able to find services w/ prometheus.io/scrape annotation
+    # not needed, when only static targets are used
+    rules:
+     - apiGroups:
+       - ''
+       resources:
+       - 'services'
+       verbs:
+       - 'get'
+       - 'list'
+       - 'watch'
+  config:
+    receivers:
+      opencensus: null
+      # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/prometheusreceiver/README.md
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: 'otelcol'
+              scrape_interval: 5s
+              static_configs:
+                - targets: ['0.0.0.0:8888']
+            - job_name: k8s
+              scrape_interval: 5s
+              kubernetes_sd_configs:
+                - role: service
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+                  regex: "true"
+                  action: keep
+                - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+                  action: replace
+                  target_label: __metrics_path__
+                  regex: (.+)
+                - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+                  action: replace
+                  target_label: __address__
+                  regex: (.+)(?::\d+);(\d+)
+                  replacement: $1:$2
+      zipkin: null
+      jaeger: null
+      otlp: null
+    exporters:
+      otlp:
+#        endpoint: keda-otel-scaler:4317
+        endpoint: 192.168.84.98:4317
+        compression: "none"
+        tls:
+          insecure: true
+      debug:
+        verbosity: detailed
+    processors:
+      filter/ottl:
+        error_mode: ignore
+        metrics:
+          # runtime/service_invocation/req_sent_total
+          metric:
+            - | # drop all other metrics that are not whitelisted here
+              name != "http_request_duration_seconds"
+#            - resource.attributes["method"] == "GET"
+#            - resource.attributes["path"] == "delay"
+
+    service:
+      pipelines:
+        traces: null
+        logs: null
+        metrics:
+          receivers:
+            - prometheus
+          processors:
+            - filter/ottl
+          exporters:
+            - debug
+            - otlp
+      telemetry:
+        logs:
+          level: DEBUG
+        metrics:
+          address: 0.0.0.0:8888

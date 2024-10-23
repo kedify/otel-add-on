@@ -1,0 +1,23 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: podinfo-pull-example
+spec:
+  scaleTargetRef:
+    name: podinfo
+  triggers:
+    - type: external
+      metadata:
+        scalerAddress: "keda-otel-scaler.default.svc:4318"
+        metricQuery: "avg(http_request_duration_seconds_count{path=delay, method=GET, status=200})"
+        operationOverTime: "rate"
+        targetValue: "10"
+        clampMax: "600"
+  minReplicaCount: 1
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 10
+        scaleUp:
+          stabilizationWindowSeconds: 10

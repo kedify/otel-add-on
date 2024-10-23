@@ -15,7 +15,7 @@ import (
 )
 
 type ms struct {
-	store              *types.Map[types.MetricName, *types.Map[types.LabelsHash, types.MetricData]]
+	store              *types.Map[types.MetricName, *types.Map[types.LabelsHash, *types.MetricData]]
 	stalePeriodSeconds int
 	metricsExporter    *InternalMetrics
 }
@@ -24,7 +24,7 @@ func NewMetricStore(stalePeriodSeconds int) types.MemStore {
 	m := Metrics()
 	m.Init()
 	return ms{
-		store:              &types.Map[types.MetricName, *types.Map[types.LabelsHash, types.MetricData]]{},
+		store:              &types.Map[types.MetricName, *types.Map[types.LabelsHash, *types.MetricData]]{},
 		stalePeriodSeconds: stalePeriodSeconds,
 		metricsExporter:    m,
 	}
@@ -68,7 +68,7 @@ func (m ms) get(name types.MetricName, searchLabels types.Labels, timeOp types.O
 	// multiple metric vectors match the search criteria
 	var accumulator float64
 	counter := 0
-	storedMetrics.Range(func(_ types.LabelsHash, md types.MetricData) bool {
+	storedMetrics.Range(func(_ types.LabelsHash, md *types.MetricData) bool {
 		match := true
 		for searchLabelName, searchLabelVal := range searchLabels {
 			if v, found := md.Labels[searchLabelName]; found && v != searchLabelVal {
@@ -105,7 +105,7 @@ func (m ms) Put(entry types.NewMetricEntry) {
 	m.metricsExporter.IncMetricWrite(string(name))
 	now := time.Now().Unix()
 	labelsH := hashOfMap(entry.Labels)
-	metrics, _ := m.store.LoadOrStore(name, &types.Map[types.LabelsHash, types.MetricData]{})
+	metrics, _ := m.store.LoadOrStore(name, &types.Map[types.LabelsHash, *types.MetricData]{})
 	md, found := metrics.LoadOrStore(labelsH, newMetricDatapoint(entry))
 	if found {
 		notStale := util.Filter(md.Data, func(val types.ObservedValue) bool {
@@ -185,7 +185,7 @@ func (m ms) calculateAggregate(value float64, counter int, accumulator float64, 
 	}
 }
 
-func newMetricDatapoint(entry types.NewMetricEntry) types.MetricData {
+func newMetricDatapoint(entry types.NewMetricEntry) *types.MetricData {
 	timeInSeconds := timestampToSeconds(entry.MeasurementTime)
 	md := types.MetricData{
 		Labels:     entry.Labels,
@@ -204,10 +204,10 @@ func newMetricDatapoint(entry types.NewMetricEntry) types.MetricData {
 	md.AggregatesOverTime.Store(types.OpLastOne, entry.MeasurementValue)
 	md.AggregatesOverTime.Store(types.OpCount, 1)
 	md.AggregatesOverTime.Store(types.OpRate, 0)
-	return md
+	return &md
 }
 
-func (m ms) updateAggregatesOverTime(md types.MetricData) {
+func (m ms) updateAggregatesOverTime(md *types.MetricData) {
 	for _, op := range []types.OperationOverTime{types.OpMin, types.OpMax, types.OpAvg} {
 		acc, _ := md.AggregatesOverTime.Load(op)
 		for i := 0; i < len(md.Data); i++ {

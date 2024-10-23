@@ -27,6 +27,8 @@ import (
 	"go.opentelemetry.io/collector/receiver/receiverhelper"
 )
 
+const countSuffix = "_count"
+
 // otlpReceiver is the type that exposes Trace and Metrics reception.
 type otlpReceiver struct {
 	cfg        *otlpreceiver.Config
@@ -165,27 +167,48 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 			for k := 0; k < mLen; k++ {
 				r.p("-  name: %+v\n", metrics.At(k).Name())
 				r.p("   type: %+v\n", metrics.At(k).Type())
+				metricName := metrics.At(k).Name()
 				var dataPoints pmetric.NumberDataPointSlice
 				switch metrics.At(k).Type() {
 				case pmetric.MetricTypeGauge:
 					dataPoints = metrics.At(k).Gauge().DataPoints()
+					r.storeDatapoints(metricName, dataPoints)
 				case pmetric.MetricTypeSum:
 					dataPoints = metrics.At(k).Sum().DataPoints()
+					r.storeDatapoints(metricName, dataPoints)
+				case pmetric.MetricTypeHistogram:
+					histograms := metrics.At(k).Histogram().DataPoints()
+					for m := 0; m < histograms.Len(); m++ {
+						histogram := histograms.At(m)
+						r.p("     - time: %+v\n", histogram.Timestamp())
+						r.p("       tags: %+v\n", histogram.Attributes().AsRaw())
+						r.p("       count: %+v\n", histogram.Count())
+						r.p("       sum: %+v\n", histogram.Sum())
+						r.metricMemStore.Put(types.NewMetricEntry{
+							Name:             types.MetricName(metrics.At(k).Name() + countSuffix),
+							MeasurementValue: float64(histogram.Count()),
+							MeasurementTime:  histogram.Timestamp(),
+							Labels:           histogram.Attributes().AsRaw(),
+						})
+					}
+				case pmetric.MetricTypeExponentialHistogram:
+					exHistograms := metrics.At(k).ExponentialHistogram().DataPoints()
+					for m := 0; m < exHistograms.Len(); m++ {
+						exHistogram := exHistograms.At(m)
+						r.p("     - time: %+v\n", exHistogram.Timestamp())
+						r.p("       tags: %+v\n", exHistogram.Attributes().AsRaw())
+						r.p("       count: %+v\n", exHistogram.Count())
+						r.p("       sum: %+v\n", exHistogram.Sum())
+						r.metricMemStore.Put(types.NewMetricEntry{
+							Name:             types.MetricName(metrics.At(k).Name() + countSuffix),
+							MeasurementValue: float64(exHistogram.Count()),
+							MeasurementTime:  exHistogram.Timestamp(),
+							Labels:           exHistogram.Attributes().AsRaw(),
+						})
+					}
 				default:
-					// ignore others
-				}
-				for l := 0; l < dataPoints.Len(); l++ {
-					datapoint := dataPoints.At(l)
-					r.p("     - time: %+v\n", datapoint.Timestamp())
-					r.p("       tags: %+v\n", datapoint.Attributes().AsRaw())
-					value := math.Max(datapoint.DoubleValue(), float64(datapoint.IntValue()))
-					r.p("       value: %+v\n", value)
-					r.metricMemStore.Put(types.NewMetricEntry{
-						Name:             types.MetricName(metrics.At(k).Name()),
-						MeasurementValue: value,
-						MeasurementTime:  datapoint.Timestamp(),
-						Labels:           datapoint.Attributes().AsRaw(),
-					})
+					// ignore others (MetricTypeEmpty & MetricTypeSummary)
+					return pmetricotlp.NewExportResponse(), nil
 				}
 			}
 		}
@@ -205,6 +228,22 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 func (r *Receiver) p(format string, a ...any) {
 	if r.debug {
 		fmt.Printf(format, a...)
+	}
+}
+
+func (r *Receiver) storeDatapoints(name string, dataPoints pmetric.NumberDataPointSlice) {
+	for l := 0; l < dataPoints.Len(); l++ {
+		datapoint := dataPoints.At(l)
+		r.p("     - time: %+v\n", datapoint.Timestamp())
+		r.p("       tags: %+v\n", datapoint.Attributes().AsRaw())
+		value := math.Max(datapoint.DoubleValue(), float64(datapoint.IntValue()))
+		r.p("       value: %+v\n", value)
+		r.metricMemStore.Put(types.NewMetricEntry{
+			Name:             types.MetricName(name),
+			MeasurementValue: value,
+			MeasurementTime:  datapoint.Timestamp(),
+			Labels:           datapoint.Attributes().AsRaw(),
+		})
 	}
 }
 

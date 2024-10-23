@@ -77,7 +77,7 @@ jobs:
             _sec=$(echo "1.5^$i" | bc)
             echo "Waiting ${_sec} seconds.."
             sleep ${_sec}
-            helm repo add kedify-otel https://kedify.github.io/otel-add-on || continue
+            helm repo add kedify-otel https://kedify.github.io/otel-add-on/ || continue
             helm repo update
             set -x
             helm upgrade -i keda-otel-add-on kedify-otel/otel-add-on \
