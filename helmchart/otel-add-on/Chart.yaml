@@ -2,8 +2,8 @@ apiVersion: v2
 name: otel-add-on
 description: A Helm chart for KEDA otel-add-on
 type: application
-version: v0.0.0-1
-appVersion: v0.0.0-1
+version: v0.0.1-0
+appVersion: v0.0.1-0
 kubeVersion: ">= 1.19.0-0"
 icon: https://raw.githubusercontent.com/kedacore/keda/main/images/keda-logo-500x500-white.png
 dependencies:
@@ -29,4 +29,3 @@ annotations:
         - linux/amd64
         - linux/arm64
   artifacthub.io/license: Apache-2.0
-
