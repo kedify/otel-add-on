@@ -83,7 +83,7 @@ helm upgrade -i keda kedacore/keda --namespace keda --create-namespace
 ```bash
 helm repo add kedify-otel https://kedify.github.io/otel-add-on/
 helm repo update
-helm upgrade -i keda-otel kedify-otel/otel-add-on --version=v0.0.0-1
+helm upgrade -i keda-otel kedify-otel/otel-add-on --version=v0.0.1-0
 ```
 
 ### Create an example scaled object

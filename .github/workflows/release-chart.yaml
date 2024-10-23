@@ -17,7 +17,7 @@ jobs:
         run: echo "noop, because of 'The workflow must contain at least one job with no dependencies'"
   test:
     runs-on: ubuntu-latest
-    if: startsWith(github.event.head_commit.message, '[post-release]')
+    if: startsWith(github.event.head_commit.message, '[post-release]') || contains(github.event.head_commit.message, 'kedify/chart-yaml-update')
     steps:
       - uses: actions/checkout@v4
         with:
@@ -50,7 +50,7 @@ jobs:
 
   publish:
     runs-on: ubuntu-latest
-    if: startsWith(github.event.head_commit.message, '[post-release]')
+    if: startsWith(github.event.head_commit.message, '[post-release]') || contains(github.event.head_commit.message, 'kedify/chart-yaml-update')
     needs: [test]
     steps:
       - uses: actions/checkout@v4

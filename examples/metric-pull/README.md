@@ -12,16 +12,23 @@ helm repo add kedify-otel https://kedify.github.io/otel-add-on
 helm repo update
 ```
 
+Any Kubernetes cluster will do:
+```bash
+k3d cluster create metric-pull -p "8181:31198@server:0"
+```
+
 Install demo webapp:
 
 ```bash
 helm upgrade -i podinfo podinfo/podinfo -f podinfo-values.yaml
-kubectl -n default port-forward deploy/podinfo 8080:9898
+# check if the app is running
+open http://localhost:8181
+open http://localhost:8181/metrics
 ```
 
 Install this addon:
 ```bash
-helm upgrade -i kedify-otel kedify-otel/otel-add-on --version=v0.0.0-1 -f collector-pull-values.yaml
+helm upgrade -i kedify-otel kedify-otel/otel-add-on --version=v0.0.1-0 -f collector-pull-values.yaml
 ```
 
 Note the following section in the helm chart values that configures the OTEL collector to scrape targets:
@@ -86,4 +93,9 @@ Observer how number of replicas of Podinfo deployment is reacting on the load.
 
 ```bash
 watch kubectl get pods -A
+```
+
+Once finished, clean the cluster:
+```bash
+k3d cluster delete metric-pull
 ```
