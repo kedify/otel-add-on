@@ -86,7 +86,7 @@ how many replicas of pod we want. Scaler supports `rate` "function over time" si
 
 Finally, create some traffic. Podinfo has an endpoint that responds after a delay, in this case it's two seconds.
 ```bash
-hey -n 5000 -z 120s http://localhost:8080/delay/2
+hey -n 5000 -z 120s http://localhost:8181/delay/2
 ```
 
 Observer how number of replicas of Podinfo deployment is reacting on the load.
