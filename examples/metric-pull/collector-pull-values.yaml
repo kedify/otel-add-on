@@ -53,8 +53,7 @@ opentelemetry-collector:
       otlp: null
     exporters:
       otlp:
-#        endpoint: keda-otel-scaler:4317
-        endpoint: 192.168.84.98:4317
+        endpoint: keda-otel-scaler:4317
         compression: "none"
         tls:
           insecure: true
