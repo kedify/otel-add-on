@@ -9,6 +9,8 @@ opentelemetry-collector:
       enabled: true
   clusterRole:
     create: true
+    # additional rbac for upstream otel collector to be able to find services w/ prometheus.io/scrape annotation
+    # not needed, when only static targets are used
     rules:
      - apiGroups:
        - ''
@@ -30,6 +32,7 @@ opentelemetry-collector:
               static_configs:
                 - targets: ['0.0.0.0:8888']
             - job_name: k8s
+              scrape_interval: 5s
               kubernetes_sd_configs:
                 - role: service
               relabel_configs:
@@ -40,9 +43,23 @@ opentelemetry-collector:
                   action: replace
                   target_label: __metrics_path__
                   regex: (.+)
+                - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+                  action: replace
+                  target_label: __address__
+                  regex: (.+)(?::\d+);(\d+)
+                  replacement: $1:$2
       zipkin: null
       jaeger: null
       otlp: null
+    exporters:
+      otlp:
+#        endpoint: keda-otel-scaler:4317
+        endpoint: 192.168.84.98:4317
+        compression: "none"
+        tls:
+          insecure: true
+      debug:
+        verbosity: detailed
     processors:
       filter/ottl:
         error_mode: ignore
@@ -50,14 +67,11 @@ opentelemetry-collector:
           # runtime/service_invocation/req_sent_total
           metric:
             - | # drop all other metrics that are not whitelisted here
-              name != "http_request_duration_seconds_count"
-            - resource.attributes["method"] == "GET"
-            - resource.attributes["path"] == "delay"
+              name != "http_request_duration_seconds"
+#            - resource.attributes["method"] == "GET"
+#            - resource.attributes["path"] == "delay"
 
     service:
-      telemetry:
-        metrics:
-          address: 0.0.0.0:8888
       pipelines:
         traces: null
         logs: null
@@ -69,3 +83,8 @@ opentelemetry-collector:
           exporters:
             - debug
             - otlp
+      telemetry:
+        logs:
+          level: DEBUG
+        metrics:
+          address: 0.0.0.0:8888

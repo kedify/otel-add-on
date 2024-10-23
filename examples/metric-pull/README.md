@@ -49,6 +49,11 @@ Note the following section in the helm chart values that configures the OTEL col
                   action: replace
                   target_label: __metrics_path__
                   regex: (.+)
+                - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+                  action: replace
+                  target_label: __address__
+                  regex: (.+)(?::\d+);(\d+)
+                  replacement: $1:$2
 ...
 ```
 We are adding one static target - the metrics from the OTEL collector itself, just for demo purposes, these
@@ -67,16 +72,17 @@ Create `ScaledObject`:
 kubectl apply -f podinfo-so.yaml
 ```
 
-Podinfo exposes some basic metrics and one of them is `http_request_duration_seconds` histogram. We can take the `http_request_duration_seconds_count`,
+`Podinfo` exposes some basic metrics and one of them is `http_request_duration_seconds` histogram. We can take the `http_request_duration_seconds_count`,
 which is a monotonic counter that increases with each request and turn it into the metric that will determine
-how many replicas of pod we want.
+how many replicas of pod we want. Scaler supports `rate` "function over time" similar to the 
+[one](https://prometheus.io/docs/prometheus/latest/querying/functions/#rate) from PromQL.
 
-
-Create some traffic. Podinfo has an endpoint that responds after a delay, in this case it's two seconds.
-We will be calling 20 requests per seconds from each worker (4 of them) - so 80 req/s. 
+Finally, create some traffic. Podinfo has an endpoint that responds after a delay, in this case it's two seconds.
 ```bash
-hey -n 5000 -c 4 -q 20 -z 70s http://localhost:8080/delay/2
+hey -n 5000 -z 120s http://localhost:8080/delay/2
 ```
+
+Observer how number of replicas of Podinfo deployment is reacting on the load.
 
 ```bash
 watch kubectl get pods -A

@@ -17,7 +17,6 @@ ifeq ($(ARCH), x86_64)
 endif
 CGO        ?=0
 TARGET_OS  ?=linux
-LOCAL_ENDPOINT ?= host.k3d.internal
 
 GO_BUILD_VARS= GO111MODULE=on CGO_ENABLED=$(CGO) GOOS=$(TARGET_OS) GOARCH=$(ARCH)
 
@@ -63,7 +62,7 @@ deploy-helm:  ## Deploys helm chart with otel-collector and otel scaler.
 	@$(call say,Deploy helm chart to current k8s context)
 	cd helmchart/otel-add-on && \
 	helm dependency build && \
-	helm upgrade -i keda-otel .
+	helm upgrade -i kedify-otel .
 
 .PHONY: logs
 logs:
