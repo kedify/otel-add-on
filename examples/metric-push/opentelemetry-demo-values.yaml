@@ -1,0 +1,24 @@
+# https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/charts/opentelemetry-demo/values.yaml
+components:
+  frontendProxy:
+    service:
+      type: NodePort
+      nodePort: 31198
+opentelemetry-collector:
+  config:
+    exporters:
+      # this is the original exporter, we just rename it from otlp to otlp/jaeger to preserve it
+      otlp/jaeger:
+        endpoint: '{{ include "otel-demo.name" . }}-jaeger-collector:4317'
+        tls:
+          insecure: true
+      otlp/keda:
+        endpoint: keda-otel-scaler:4317
+        tls:
+          insecure: true
+    service:
+      pipelines:
+        traces:
+          exporters: [otlp/jaeger, debug, spanmetrics]
+        metrics:
+          exporters: [ otlp/keda, otlphttp/prometheus, debug ]

@@ -125,7 +125,6 @@ opentelemetry-collector:
         compression: "none"
         tls:
           insecure: true
-        # endpoint: otel-add-on:4317
         #   tls:
         #     cert_file: file.cert
         #     key_file: file.key

@@ -22,7 +22,7 @@ opentelemetry-collector:
        - 'watch'
   config:
     receivers:
-      opencensus: null
+      opencensus:
       # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/prometheusreceiver/README.md
       prometheus:
         config:
@@ -48,9 +48,9 @@ opentelemetry-collector:
                   target_label: __address__
                   regex: (.+)(?::\d+);(\d+)
                   replacement: $1:$2
-      zipkin: null
-      jaeger: null
-      otlp: null
+      zipkin:
+      jaeger:
+      otlp:
     exporters:
       otlp:
         endpoint: keda-otel-scaler:4317
@@ -72,8 +72,8 @@ opentelemetry-collector:
 
     service:
       pipelines:
-        traces: null
-        logs: null
+        traces:
+        logs:
         metrics:
           receivers:
             - prometheus

@@ -124,7 +124,7 @@ func (m ms) Put(entry types.NewMetricEntry) {
 }
 
 func escapeName(name types.MetricName) types.MetricName {
-	return types.MetricName(strings.ReplaceAll(string(name), "/", "_"))
+	return types.MetricName(strings.ReplaceAll(strings.ReplaceAll(string(name), "/", "_"), ".", "_"))
 }
 
 func timestampToSeconds(timestamp pcommon.Timestamp) uint32 {

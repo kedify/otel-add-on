@@ -1,0 +1,47 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: recommendationservice
+spec:
+  scaleTargetRef:
+    name: my-otel-demo-recommendationservice
+  triggers:
+    - type: external
+      metadata:
+        scalerAddress: "keda-otel-scaler.default.svc:4318"
+        metricQuery: "avg(app_frontend_requests{target=/api/recommendations, method=GET, status=200})"
+        operationOverTime: "rate"
+        targetValue: "10"
+        clampMax: "600"
+  minReplicaCount: 1
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 10
+        scaleUp:
+          stabilizationWindowSeconds: 10
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: my-otel-demo-productcatalogservice
+spec:
+  scaleTargetRef:
+    name: podinfo
+  triggers:
+    - type: external
+      metadata:
+        scalerAddress: "keda-otel-scaler.default.svc:4318"
+        metricQuery: "avg(app_frontend_requests{target=/api/products, method=GET, status=200})"
+        operationOverTime: "rate"
+        targetValue: "10"
+        clampMax: "600"
+  minReplicaCount: 1
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 10
+        scaleUp:
+          stabilizationWindowSeconds: 10

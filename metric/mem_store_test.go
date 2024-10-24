@@ -33,6 +33,36 @@ func TestMemStorePutOneAndGetOne(t *testing.T) {
 	assertMetricFound(t, val, found, err, 42.)
 }
 
+func TestMemStoreEscapeMetrics(t *testing.T) {
+	// setup
+	ms := NewMetricStore(5)
+	ms.Put(types.NewMetricEntry{
+		Name:             "metric/one",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 42.,
+		Labels: map[string]any{
+			"a": "1",
+			"b": "2",
+		},
+	})
+	ms.Put(types.NewMetricEntry{
+		Name:             "metric.two",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 43.,
+		Labels: map[string]any{
+			"a": "2",
+		},
+	})
+
+	// checks
+	val1, found1, err1 := ms.Get("metric_one", map[string]any{"b": "2", "a": "1"}, types.OpLastOne, types.VecSum)
+	assertMetricFound(t, val1, found1, err1, 42.)
+	val2, found2, err2 := ms.Get("metric.one", map[string]any{"b": "2", "a": "1"}, types.OpLastOne, types.VecSum)
+	assertMetricFound(t, val2, found2, err2, 42.)
+	val3, found3, err3 := ms.Get("metric_two", map[string]any{"a": "2"}, types.OpLastOne, types.VecSum)
+	assertMetricFound(t, val3, found3, err3, 43.)
+}
+
 func TestMemStoreErr(t *testing.T) {
 	// setup
 	ms := NewMetricStore(5)
