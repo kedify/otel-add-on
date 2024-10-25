@@ -11,7 +11,7 @@ spec:
         scalerAddress: "keda-otel-scaler.default.svc:4318"
         metricQuery: "avg(app_frontend_requests{target=/api/recommendations, method=GET, status=200})"
         operationOverTime: "rate"
-        targetValue: "10"
+        targetValue: "1"
         clampMax: "600"
   minReplicaCount: 1
   advanced:
@@ -25,17 +25,17 @@ spec:
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
-  name: my-otel-demo-productcatalogservice
+  name: productcatalogservice
 spec:
   scaleTargetRef:
-    name: podinfo
+    name: my-otel-demo-productcatalogservice
   triggers:
     - type: external
       metadata:
         scalerAddress: "keda-otel-scaler.default.svc:4318"
         metricQuery: "avg(app_frontend_requests{target=/api/products, method=GET, status=200})"
         operationOverTime: "rate"
-        targetValue: "10"
+        targetValue: "1"
         clampMax: "600"
   minReplicaCount: 1
   advanced:

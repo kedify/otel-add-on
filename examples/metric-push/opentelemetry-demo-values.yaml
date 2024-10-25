@@ -1,9 +1,41 @@
 # https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/charts/opentelemetry-demo/values.yaml
 components:
+  flagd:
+    enabled: false
   frontendProxy:
     service:
       type: NodePort
       nodePort: 31198
+  loadgenerator:
+    enabled: true
+    useDefault:
+      env: true
+    service:
+      port: 8089
+    env:
+      - name: LOCUST_WEB_PORT
+        value: "8089"
+      # max number of user
+      - name: LOCUST_USERS
+        value: "20"
+      - name: LOCUST_SPAWN_RATE
+        value: "2"
+      - name: LOCUST_HOST
+        value: 'http://{{ include "otel-demo.name" . }}-frontendproxy:8080'
+      - name: LOCUST_HEADLESS
+        value: "false"
+      - name: LOCUST_AUTOSTART
+        value: "true"
+      - name: LOCUST_BROWSER_TRAFFIC_ENABLED
+        value: "true"
+      - name: PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION
+        value: python
+      - name: FLAGD_HOST
+        value: '{{ include "otel-demo.name" . }}-flagd'
+      - name: FLAGD_PORT
+        value: "8013"
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: http://$(OTEL_COLLECTOR_NAME):4317
 opentelemetry-collector:
   config:
     exporters:

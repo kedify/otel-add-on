@@ -20,7 +20,6 @@ type MetricName string
 type Labels map[string]any
 type LabelsHash string
 type MetricData struct {
-	Name               MetricName
 	Labels             Labels
 	Data               []ObservedValue
 	AggregatesOverTime Map[OperationOverTime, float64]

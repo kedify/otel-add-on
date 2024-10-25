@@ -15,7 +15,7 @@ import (
 )
 
 type ms struct {
-	store              *types.Map[types.MetricName, *types.Map[types.LabelsHash, *types.MetricData]]
+	store              *types.Map[string, *types.Map[types.LabelsHash, *types.MetricData]]
 	stalePeriodSeconds int
 	metricsExporter    *InternalMetrics
 }
@@ -24,7 +24,7 @@ func NewMetricStore(stalePeriodSeconds int) types.MemStore {
 	m := Metrics()
 	m.Init()
 	return ms{
-		store:              &types.Map[types.MetricName, *types.Map[types.LabelsHash, *types.MetricData]]{},
+		store:              &types.Map[string, *types.Map[types.LabelsHash, *types.MetricData]]{},
 		stalePeriodSeconds: stalePeriodSeconds,
 		metricsExporter:    m,
 	}
@@ -48,7 +48,7 @@ func (m ms) get(name types.MetricName, searchLabels types.Labels, timeOp types.O
 	if err := checkDefaultAggregation(defaultAggregation); err != nil {
 		return -1., false, err
 	}
-	storedMetrics, found := m.store.Load(name)
+	storedMetrics, found := m.store.Load(string(name))
 	if !found {
 		// not found
 		return -1., false, nil
@@ -105,7 +105,7 @@ func (m ms) Put(entry types.NewMetricEntry) {
 	m.metricsExporter.IncMetricWrite(string(name))
 	now := time.Now().Unix()
 	labelsH := hashOfMap(entry.Labels)
-	metrics, _ := m.store.LoadOrStore(name, &types.Map[types.LabelsHash, *types.MetricData]{})
+	metrics, _ := m.store.LoadOrStore(string(name), &types.Map[types.LabelsHash, *types.MetricData]{})
 	md, found := metrics.LoadOrStore(labelsH, newMetricDatapoint(entry))
 	if found {
 		notStale := util.Filter(md.Data, func(val types.ObservedValue) bool {
@@ -120,7 +120,7 @@ func (m ms) Put(entry types.NewMetricEntry) {
 		md.LastUpdate = timeInSeconds
 	}
 	metrics.Store(labelsH, md)
-	m.store.Store(name, metrics)
+	m.store.Store(string(name), metrics)
 }
 
 func escapeName(name types.MetricName) types.MetricName {
