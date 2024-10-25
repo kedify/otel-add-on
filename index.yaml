@@ -16,6 +16,41 @@ entries:
         - name: helm repo
           url: https://kedify.github.io/otel-add-on
     apiVersion: v2
+    appVersion: v0.0.1-1
+    created: "2024-10-25T09:57:22.40421752Z"
+    dependencies:
+    - condition: opentelemetry-collector.enabled
+      name: opentelemetry-collector
+      repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+      version: 0.108.0
+    description: A Helm chart for KEDA otel-add-on
+    digest: 0b795261480f7b8618c69a3fcc62842524065cd5dc16781904d5d64220bcc719
+    home: https://github.com/kedify/otel-add-on
+    icon: https://raw.githubusercontent.com/kedacore/keda/main/images/keda-logo-500x500-white.png
+    kubeVersion: '>= 1.19.0-0'
+    name: otel-add-on
+    sources:
+    - https://github.com/kedify/otel-add-on
+    - https://github.com/open-telemetry/opentelemetry-helm-charts
+    type: application
+    urls:
+    - https://kedify.github.io/otel-add-on/otel-add-on-v0.0.1-1.tgz
+    version: v0.0.1-1
+  - annotations:
+      artifacthub.io/category: networking
+      artifacthub.io/images: |
+        - name: scaler
+          image: ghcr.io/kedify/otel-add-on
+          platforms:
+            - linux/amd64
+            - linux/arm64
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: gh repo
+          url: https://github.com/kedify/otel-add-on
+        - name: helm repo
+          url: https://kedify.github.io/otel-add-on
+    apiVersion: v2
     appVersion: v0.0.1-0
     created: "2024-10-23T14:47:26.275815776Z"
     dependencies:
@@ -71,4 +106,4 @@ entries:
     urls:
     - https://kedify.github.io/otel-add-on/otel-add-on-v0.0.0-1.tgz
     version: v0.0.0-1
-generated: "2024-10-23T14:47:26.272845883Z"
+generated: "2024-10-25T09:57:22.40097376Z"
