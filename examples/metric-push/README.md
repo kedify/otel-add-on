@@ -1,4 +1,4 @@
-# Use-case: pull metrics
+# Use-case: push metrics
 
 This use-case demonstrates how OTEL collector can be used as a scraper of another metric endpoints and
 then forwarding the filtered metrics into OTLP receiver in our scaler.
