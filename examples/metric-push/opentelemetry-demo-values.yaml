@@ -15,11 +15,11 @@ components:
     env:
       - name: LOCUST_WEB_PORT
         value: "8089"
-      # max number of user
+      # max number of users
       - name: LOCUST_USERS
-        value: "20"
+        value: "40"
       - name: LOCUST_SPAWN_RATE
-        value: "2"
+        value: "5"
       - name: LOCUST_HOST
         value: 'http://{{ include "otel-demo.name" . }}-frontendproxy:8080'
       - name: LOCUST_HEADLESS

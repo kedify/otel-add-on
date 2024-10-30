@@ -87,7 +87,7 @@ func CheckTimeOp(op types.OperationOverTime) error {
 	case types.OpLastOne, types.OpRate, types.OpCount, types.OpAvg, types.OpMin, types.OpMax:
 		return nil
 	default:
-		return fmt.Errorf("unknown OperationOverTime:%s", op)
+		return fmt.Errorf("unknown operationOverTime:%s", op)
 	}
 }
 

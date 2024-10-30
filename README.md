@@ -35,7 +35,14 @@ ScaledObject CR, and it provides a limited subset of features as PromQL.
 
 ### Architecture
 ![diagram](./diagram.png "Diagram")
-([link](https://excalidraw.com/#json=BFpuLVxcOLFI9IAdzbFJR,dsy1xOMnHVXe996fOx2RZQ))
+- ([diagram link](https://excalidraw.com/#json=P5ptHj7eQHF3qpCyDDehT,gVJvYLtm0qVR2sStjUlapA))
+- [1] [OTLP format](https://pkg.go.dev/go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc)
+- [2] [OTLP metric receiver](https://github.com/open-telemetry/opentelemetry-collector/blob/d17559b6e89a6f97b6800a6538bbf82430d94678/receiver/otlpreceiver/otlp.go#L101)
+- [3] [processors](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor)
+- [4] https://opencensus.io - obsolete, will be replaced by OTEL
+- [5] [OpenCensus receiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/opencensusreceiver)
+- [6] [Prometheus receiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/prometheusreceiver)
+- [7] [OTLP exporter](https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/otlpexporter/README.md)
 
 ### Example use-cases
 
@@ -83,7 +90,7 @@ helm upgrade -i keda kedacore/keda --namespace keda --create-namespace
 ```bash
 helm repo add kedify-otel https://kedify.github.io/otel-add-on/
 helm repo update
-helm upgrade -i keda-otel kedify-otel/otel-add-on --version=v0.0.1-0
+helm upgrade -i keda-otel kedify-otel/otel-add-on --version=v0.0.1-2
 ```
 
 ### Create an example scaled object

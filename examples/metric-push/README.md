@@ -29,7 +29,7 @@ open http://localhost:8080
 
 Install this addon:
 ```bash
-helm upgrade -i kedify-otel kedify-otel/otel-add-on --version=v0.0.1-1 -f scaler-only-push-values.yaml
+helm upgrade -i kedify-otel kedify-otel/otel-add-on --version=v0.0.1-2 -f scaler-only-push-values.yaml
 ```
 
 In this scenario, we don't install OTEL collector using the `kedify-otel/otel-add-on` helm chart, because
@@ -75,12 +75,22 @@ Create `ScaledObject`s:
 kubectl apply -f sos.yaml
 ```
 
-The demo application contains a load generator that can be further tweaked on http://localhost:8080/loadgen endpoint and by
+The demo application contains a load generator that can be further tweaked on http://localhost:8080/loadgen/ endpoint and by
 default, creates a lot of traffic in the eshop. So there is no need to create further load from our side and we can just
 observe the effects of autoscaling:
 
 ```bash
 watch kubectl get deploy my-otel-demo-recommendationservice my-otel-demo-productcatalogservice
+```
+
+If the load is still too low, you can help each microservice individually by:
+```bash
+hey http://localhost:8080/api/recommendations
+
+hey http://localhost:8080/api/products
+
+#k port-forward svc/my-otel-demo-imageprovider 8282:8081
+#hey -z 50s http://localhost:8282/Banner.png
 ```
 
 Once finished, clean the cluster:

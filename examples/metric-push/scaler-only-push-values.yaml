@@ -1,7 +1,7 @@
 settings:
   metricStoreRetentionSeconds: 60
-  logs:
-    logLvl: debug
+#  logs:
+#    logLvl: debug
 
 # otel collector will be installed from another helm chart
 opentelemetry-collector:

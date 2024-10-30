@@ -45,3 +45,30 @@ spec:
           stabilizationWindowSeconds: 10
         scaleUp:
           stabilizationWindowSeconds: 10
+---
+# doesn't work, tl;dr apples & oranges - because when new pod is spawned, it overwrites the metric counter (start from zero again). So that the vector looks like:
+# 200 220 240 0 260 20 280 40 We need to have the pod name as the tag on the metric.
+# so that correct rate is calculated for each pod and then we do an average among the rates.
+#apiVersion: keda.sh/v1alpha1
+#kind: ScaledObject
+#metadata:
+#  name: imageprovider
+#spec:
+#  scaleTargetRef:
+#    name: my-otel-demo-imageprovider
+#  triggers:
+#    - type: external
+#      metadata:
+#        scalerAddress: "keda-otel-scaler.default.svc:4318"
+#        metricQuery: "avg(calls{service.name=imageprovider,span.kind=SPAN_KIND_SERVER,span.name=imageprovider,status.code=STATUS_CODE_UNSET})"
+#        operationOverTime: "rate"
+#        targetValue: "2"
+#        clampMax: "600"
+#  minReplicaCount: 1
+#  advanced:
+#    horizontalPodAutoscalerConfig:
+#      behavior:
+#        scaleDown:
+#          stabilizationWindowSeconds: 10
+#        scaleUp:
+#          stabilizationWindowSeconds: 10
