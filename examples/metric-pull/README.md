@@ -49,22 +49,25 @@ Note the following section in the helm chart values that configures the OTEL col
               kubernetes_sd_configs:
                 - role: service
               relabel_configs:
-                - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+                - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
                   regex: "true"
                   action: keep
-                - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+                - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
                   action: replace
                   target_label: __metrics_path__
                   regex: (.+)
-                - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+                - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
                   action: replace
                   target_label: __address__
                   regex: (.+)(?::\d+);(\d+)
                   replacement: $1:$2
+                - source_labels: [__meta_kubernetes_pod_name]
+                  action: replace
+                  target_label: pod_name
 ...
 ```
 We are adding one static target - the metrics from the OTEL collector itself, just for demo purposes, these
-won't be used for scaling decision. And also any service annotated with `prometheus.io/scrape=true`. One can
+won't be used for scaling decision. And also any pod annotated with `prometheus.io/scrape=true`. One can
 also modify the path where the metrics are exported using `prometheus.io/path=/metrics`.
 
 We set these two annotation in our service for podinfo [here](./podinfo-values.yaml).

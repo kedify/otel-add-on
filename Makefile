@@ -53,6 +53,11 @@ test:  ## Runs golang unit tests.
 	@$(call say,Running golang unit tests)
 	go test -race -v ./...
 
+.PHONY: e2e-test
+e2e-test:  ## Runs end to end tests. This will spawn a k3d cluster.
+	@$(call say,Running end to end tests)
+	cd e2e-tests && go test -race -v ./...
+
 codegen: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile='hack/boilerplate.go.txt' paths='./...'
 	./hack/update-codegen.sh
