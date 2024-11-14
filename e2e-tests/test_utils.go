@@ -3,6 +3,7 @@ package e2e_tests
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -46,6 +47,7 @@ var (
 		"kedify":      "keda",
 		"kedify-otel": "otel-add-on",
 	}
+	otelScalerVersion, _ = os.LookupEnv("OTEL_SCALER_VERSION")
 )
 
 type TestContext struct {

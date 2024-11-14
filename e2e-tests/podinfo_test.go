@@ -76,9 +76,11 @@ var _ = Describe("Helm chart", func() {
 		Expect(err).NotTo(HaveOccurred(), "helm upgrade -i failed: %s", err)
 	})
 	It("kedify-otel should be possible to install", func() {
-		// latest released chart
-		//err := helmChartInstall("kedify-otel", "--version=v0.0.1-2 -f ./testdata/scaler-values.yaml")
-		err := execCmdE(fmt.Sprintf("helm upgrade -i kedify-otel ../helmchart/otel-add-on -f ./testdata/scaler-values.yaml"))
+		cmd := "helm upgrade -i kedify-otel ../helmchart/otel-add-on -f ./testdata/scaler-values.yaml"
+		if len(otelScalerVersion) > 0 {
+			cmd += fmt.Sprintf(" --set image.tag=%s", otelScalerVersion)
+		}
+		err := execCmdE(cmd)
 		Expect(err).NotTo(HaveOccurred(), "helm upgrade -i failed: %s", err)
 	})
 	It("kedify/keda should be possible to install", func() {
