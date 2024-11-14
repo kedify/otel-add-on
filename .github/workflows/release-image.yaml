@@ -7,12 +7,25 @@ on:
         type: string
         required: true
         description: "git tag to checkout and create the release"
+      releaseWithGoReleaser:
+        description: "use GoReleaser for full workflow of the releaser (without --snapshot and retagging)"
+        required: false
+        default: true
+        type: choice
+        options:
+          - true
+          - false
   workflow_call:
     inputs:
       tag:
         type: string
         required: true
         description: "git tag to checkout and create the release"
+      releaseWithGoReleaser:
+        description: "use GoReleaser for full workflow of the releaser (without --snapshot and retagging)"
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   build-and-publish-images:
@@ -65,8 +78,9 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Release with goreleaser
+        if: "${{ inputs.releaseWithGoReleaser == true }}"
         timeout-minutes: 90
-        uses: goreleaser/goreleaser-action@v4
+        uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
           version: '~> v1'
@@ -74,3 +88,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGE_TAG: ${{ inputs.tag }}
+
+      - name: Run snapshot GoReleaser
+        if: "${{ inputs.releaseWithGoReleaser != true }}"
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          version: v1.24.0
+          args: release --clean --snapshot --skip=validate --skip=publish --skip=sbom --skip=sign --skip=announce --release-notes /dev/null
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_TAG: ${{ inputs.tag }}
+
+      - name: Retag and push
+        if: "${{ inputs.releaseWithGoReleaser != true }}"
+        run: |
+          docker images
+          docker tag ghcr.io/${{ github.actor }}/otel-add-on:${{ inputs.tag }}-amd64 ghcr.io/${{ github.actor }}/otel-add-on:${{ inputs.tag }}
+          docker push ghcr.io/${{ github.actor }}/otel-add-on:${{ inputs.tag }}
+          echo "New container image has been published: \`ghcr.io/${{ github.actor }}/otel-add-on:${{ inputs.tag }}\` | tee -a ${GITHUB_STEP_SUMMARY}

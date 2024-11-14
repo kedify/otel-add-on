@@ -12,6 +12,7 @@ jobs:
     uses: ./.github/workflows/release-image.yaml
     with:
       tag: ${{ github.ref_name }}
+      releaseWithGoReleaser: true
 
   post-release-work:
     runs-on: ubuntu-latest
