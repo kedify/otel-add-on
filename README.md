@@ -1,4 +1,4 @@
-## `OTEL <--> KEDA` add-on
+## `OTEL <--> KEDA` add-0n
 
 ### Description
 
