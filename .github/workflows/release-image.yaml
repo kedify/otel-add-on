@@ -65,7 +65,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
+          username: kedify
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up QEMU # required for multi-arch builds by GoReleaser
@@ -103,6 +103,6 @@ jobs:
         if: "${{ inputs.releaseWithGoReleaser != true }}"
         run: |
           docker images
-          docker tag ghcr.io/${{ github.actor }}/otel-add-on:${{ inputs.tag }}-amd64 ghcr.io/${{ github.actor }}/otel-add-on:${{ inputs.tag }}
-          docker push ghcr.io/${{ github.actor }}/otel-add-on:${{ inputs.tag }}
-          echo "New container image has been published: \`ghcr.io/${{ github.actor }}/otel-add-on:${{ inputs.tag }}\` | tee -a ${GITHUB_STEP_SUMMARY}
+          docker tag ghcr.io/kedify/otel-add-on:${{ inputs.tag }}-amd64 ghcr.io/kedify/otel-add-on:${{ inputs.tag }}
+          docker push ghcr.io/kedify/otel-add-on:${{ inputs.tag }}
+          echo "New container image has been published: \`ghcr.io/kedify/otel-add-on:${{ inputs.tag }}\`" | tee -a ${GITHUB_STEP_SUMMARY}
