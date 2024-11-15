@@ -9,9 +9,10 @@ on:
 jobs:
   build-and-publish-images:
     secrets: inherit
-    uses: kedify/github-meta/.github/workflows/kedify-release.yml@main
+    uses: ./.github/workflows/release-image.yaml
     with:
       tag: ${{ github.ref_name }}
+      releaseWithGoReleaser: true
 
   post-release-work:
     runs-on: ubuntu-latest

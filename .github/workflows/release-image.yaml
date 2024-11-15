@@ -1,0 +1,108 @@
+name: 'Release the container image'
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        type: string
+        required: true
+        description: "git tag to checkout and create the release"
+      releaseWithGoReleaser:
+        description: "use GoReleaser for full workflow of the releaser (without --snapshot and retagging)"
+        required: false
+        default: true
+        type: choice
+        options:
+          - true
+          - false
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+        description: "git tag to checkout and create the release"
+      releaseWithGoReleaser:
+        description: "use GoReleaser for full workflow of the releaser (without --snapshot and retagging)"
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  build-and-publish-images:
+    timeout-minutes: 100
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      packages: write
+      id-token: write # needed for signing the images with GitHub OIDC Token
+
+    name: build-images
+    steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@v10
+        with:
+          overprovision-lvm: 'true'
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.2.0
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU # required for multi-arch builds by GoReleaser
+        uses: docker/setup-qemu-action@v3
+
+      - name: Install arm C compiler toolchain # for boring crypto
+        run: sudo apt-get update && sudo apt-get install -y gccgo-aarch64-linux-gnu
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Release with goreleaser
+        if: "${{ inputs.releaseWithGoReleaser == true }}"
+        timeout-minutes: 90
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: '~> v1'
+          args: release --clean --timeout 90m
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_TAG: ${{ inputs.tag }}
+
+      - name: Run snapshot GoReleaser
+        if: "${{ inputs.releaseWithGoReleaser != true }}"
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          version: v1.24.0
+          args: release --clean --snapshot --skip=validate --skip=publish --skip=sbom --skip=sign --skip=announce --release-notes /dev/null
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_TAG: ${{ inputs.tag }}
+
+      - name: Retag and push
+        if: "${{ inputs.releaseWithGoReleaser != true }}"
+        run: |
+          docker images
+          docker tag ghcr.io/${{ github.actor }}/otel-add-on:${{ inputs.tag }}-amd64 ghcr.io/${{ github.actor }}/otel-add-on:${{ inputs.tag }}
+          docker push ghcr.io/${{ github.actor }}/otel-add-on:${{ inputs.tag }}
+          echo "New container image has been published: \`ghcr.io/${{ github.actor }}/otel-add-on:${{ inputs.tag }}\` | tee -a ${GITHUB_STEP_SUMMARY}

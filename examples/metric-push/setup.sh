@@ -2,11 +2,13 @@
 DIR="${DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )}"
 DEMO_APP="${DEMO_APP:-my-otel-demo}"
 
+command -v figlet &> /dev/null && figlet Autoscaling OTEL demo
+
 # setup helm repos
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
 helm repo add kedify https://kedify.github.io/charts
 helm repo add kedify-otel https://kedify.github.io/otel-add-on
-helm repo update
+helm repo update open-telemetry kedify kedify-otel
 
 set -e
 # setup cluster

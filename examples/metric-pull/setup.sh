@@ -2,11 +2,13 @@
 
 DIR="${DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )}"
 
+command -v figlet &> /dev/null && figlet Autoscaling podinfo
+
 # setup helm repos
 helm repo add podinfo https://stefanprodan.github.io/podinfo
 helm repo add kedify https://kedify.github.io/charts
 helm repo add kedify-otel https://kedify.github.io/otel-add-on
-helm repo update
+helm repo update podinfo kedify kedify-otel
 set -e
 
 # setup cluster
