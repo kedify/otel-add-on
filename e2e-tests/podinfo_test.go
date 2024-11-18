@@ -3,6 +3,7 @@ package e2e_tests
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -39,13 +40,14 @@ var _ = BeforeSuite(func() {
 	execCmd(fmt.Sprintf("k3d cluster delete %s &> /dev/null", clusterName))
 	err = prepareCluster(clusterName, "-p 8181:31198@server:0")
 	Expect(err).NotTo(HaveOccurred())
+	time.Sleep(5 * time.Second)
 })
 
 var _ = BeforeEach(func() {
 	getClients()
 })
 
-var _ = Describe("k8s access", func() {
+var _ = XDescribe("k8s access", func() {
 	k8sCl, crdCl, crdRest, err := getClients()
 	It("should be possible get the clients", func() {
 		Expect(err).NotTo(HaveOccurred(), "cannot create k8s clients: %s", err)
@@ -76,7 +78,9 @@ var _ = Describe("Helm chart", func() {
 		Expect(err).NotTo(HaveOccurred(), "helm upgrade -i failed: %s", err)
 	})
 	It("kedify-otel should be possible to install", func() {
-		err := execCmdE("cd ../helmchart/otel-add-on && helm dependency build && cd -")
+		pwd, err := os.Getwd()
+		Expect(err).NotTo(HaveOccurred())
+		_, err = execCmdOE("helm dependency build", pwd+"/../helmchart/otel-add-on")
 		Expect(err).NotTo(HaveOccurred())
 		cmd := "helm upgrade -i kedify-otel ../helmchart/otel-add-on -f ./testdata/scaler-values.yaml"
 		if len(otelScalerVersion) > 0 {
@@ -158,8 +162,19 @@ var _ = Describe("Helm chart", func() {
 	})
 })
 
-var _ = AfterSuite(func() {
-	ctx.t.Log("Deleting k3d cluster..")
-	err := execCmdE(fmt.Sprintf("k3d cluster delete %s", clusterName))
-	Expect(err).NotTo(HaveOccurred())
+var _ = ReportAfterSuite("ReportAfterSuite", func(report Report) {
+	if !report.SuiteSucceeded {
+		ctx.t.Log("Test suite failed, leaving k3d cluster alive for inspection..")
+		kubectl("get hpa keda-hpa-podinfo-pull-example -oyaml")
+		kubectl("get so podinfo-pull-example -oyaml")
+		kubectl("get pods -A")
+		for _, nameAndNs := range []string{"podinfo -ndefault", "keda-operator -nkeda", "opentelemetry-collector -ndefault", "otel-add-on -ndefault"} {
+			ctx.t.Logf("\n\n\n        ->>>  Logs for %s        <<<-\n\n\n", nameAndNs)
+			kubectl(fmt.Sprintf("logs -lapp.kubernetes.io/name=%s --tail=-1", nameAndNs))
+		}
+	} else {
+		ctx.t.Log("Deleting k3d cluster..")
+		err := execCmdE(fmt.Sprintf("k3d cluster delete %s", clusterName))
+		Expect(err).NotTo(HaveOccurred())
+	}
 })

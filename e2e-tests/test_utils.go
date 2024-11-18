@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gruntwork-io/terratest/modules/logger"
 	"github.com/gruntwork-io/terratest/modules/shell"
 	"github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/typed/keda/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
@@ -36,9 +37,10 @@ var (
 	ctx TestContext
 	// repoName -> url mapping
 	helmChartRepos = map[string]string{
-		"podinfo":     "https://stefanprodan.github.io/podinfo",
-		"kedify":      "https://kedify.github.io/charts",
-		"kedify-otel": "https://kedify.github.io/otel-add-on",
+		"podinfo":                 "https://stefanprodan.github.io/podinfo",
+		"kedify":                  "https://kedify.github.io/charts",
+		"kedify-otel":             "https://kedify.github.io/otel-add-on",
+		"opentelemetry-collector": "https://open-telemetry.github.io/opentelemetry-helm-charts",
 	}
 
 	// repoName -> helmChartName mapping
@@ -59,29 +61,24 @@ type TestContext struct {
 }
 
 func kubectl(args string) (string, error) {
-	return execCmdOE("kubectl " + args)
+	return execCmdOE("kubectl "+args, "")
 }
 
 func kapply(path string) (string, error) {
 	return kubectl("apply -f" + path)
 }
 
-func execCmdOE(cmdWithArgs string, envVars ...EnvVar) (string, error) {
-	cmd := parseCommand(cmdWithArgs, envVars...)
+func execCmdOE(cmdWithArgs string, workDir string, envVars ...EnvVar) (string, error) {
+	cmd := parseCommand(cmdWithArgs, workDir, envVars...)
 	return shell.RunCommandAndGetOutputE(ctx.t, cmd)
 }
 
 func execCmd(cmdWithArgs string, envVars ...EnvVar) {
-	execCmdOE(cmdWithArgs, envVars...)
-}
-
-func execCmdO(cmdWithArgs string, envVars ...EnvVar) string {
-	o, _ := execCmdOE(cmdWithArgs, envVars...)
-	return o
+	execCmdOE(cmdWithArgs, "", envVars...)
 }
 
 func execCmdE(cmdWithArgs string, envVars ...EnvVar) error {
-	_, e := execCmdOE(cmdWithArgs, envVars...)
+	_, e := execCmdOE(cmdWithArgs, "", envVars...)
 	return e
 }
 
@@ -89,7 +86,7 @@ func hey(params string) error {
 	return execCmdE(fmt.Sprintf("%s %s", ctx.hey, params))
 }
 
-func parseCommand(cmdWithArgs string, envVars ...EnvVar) shell.Command {
+func parseCommand(cmdWithArgs string, workDir string, envVars ...EnvVar) shell.Command {
 	quoted := false
 	splitCmd := strings.FieldsFunc(cmdWithArgs, func(r rune) bool {
 		if r == '\'' {
@@ -109,11 +106,15 @@ func parseCommand(cmdWithArgs string, envVars ...EnvVar) shell.Command {
 		}
 	}
 
-	return shell.Command{
+	cmd := shell.Command{
 		Command: splitCmd[0],
 		Args:    splitCmd[1:],
 		Env:     envVarsMap,
 	}
+	if len(workDir) > 0 {
+		cmd.WorkingDir = workDir
+	}
+	return cmd
 }
 
 func getClients() (*kubernetes.Clientset, *v1alpha1.KedaV1alpha1Client, *rest.Config, error) {
@@ -178,7 +179,7 @@ func installK3d() error {
 }
 
 func installHey() error {
-	ctx.hey = "heey"
+	ctx.hey = "hey"
 	_, err := exec.LookPath(ctx.hey)
 	if err != nil {
 		ctx.hey = "./bin/hey"
@@ -192,14 +193,17 @@ func installHey() error {
 			require.NoErrorf(ctx.t, err, "cannot change permissions for hey binary: %s", err)
 		}
 	}
-	err = hey("-n 1 -c 1 http://google.com")
+	cmd := parseCommand(ctx.hey+" -n 1 -c 1 http://google.com", "")
+	cmd.Logger = logger.Discard
+	err = shell.RunCommandE(ctx.t, cmd)
+
 	require.NoErrorf(ctx.t, err, "cannot change permissions for hey binary: %s", err)
 	return err
 }
 
 func prepareCluster(name string, params string) error {
 	ctx.t.Log("Creating k3d cluster..")
-	out, err := execCmdOE(fmt.Sprintf("k3d cluster create %s %s", name, params))
+	out, err := execCmdOE(fmt.Sprintf("k3d cluster create %s %s", name, params), "")
 	if err != nil {
 		require.NoErrorf(ctx.t, err, "cannot create new k3d cluster: %s", out)
 	}
