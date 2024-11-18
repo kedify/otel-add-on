@@ -19,5 +19,9 @@ spec:
       targetPort: {{ .Values.settings.internalMetricsPort }}
       protocol: TCP
       name: internal-metrics
+    - port: {{ .Values.settings.restApiPort }}
+      targetPort: {{ .Values.settings.restApiPort }}
+      protocol: TCP
+      name: rest-api
   selector:
     {{- include "otel-add-on.selectorLabels" . | nindent 4 }}

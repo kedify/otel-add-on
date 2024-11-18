@@ -66,6 +66,9 @@ type MemStore interface {
 
 	// Put stores the value
 	Put(NewMetricEntry)
+
+	// GetStore returns the internal storage
+	GetStore() *Map[string, *Map[LabelsHash, *MetricData]]
 }
 
 type Parser interface {

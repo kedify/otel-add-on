@@ -17,6 +17,9 @@ settings:
   # internal (mostly golang) metrics will be exposed on :8080/metrics
   internalMetricsPort: 8080
 
+  # port where rest api should be listening
+  restApiPort: 9090
+
   logs:
     # Can be one of 'debug', 'info', 'error', or any integer value > 0
     # which corresponds to custom debug levels of increasing verbosity
