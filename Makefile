@@ -58,6 +58,16 @@ e2e-test:  ## Runs end to end tests. This will spawn a k3d cluster.
 	@$(call say,Running end to end tests)
 	cd e2e-tests && go test -race -v ./...
 
+.PHONY: generate
+generate: codegen-tags codegen ## Generate code DeepCopy, DeepCopyInto, and DeepCopyObject method implementations + json tags.
+	@$(call say,Generate code)
+
+.PHONY: codegen-tags
+codegen-tags: gomodifytags ## Generate json tags for certain structs.
+	$(GO_MODIFY_TAGS) -file rest/api.go -struct MetricDataPayload -add-tags json -transform camelcase -quiet -w
+	$(GO_MODIFY_TAGS) -file types/metrics.go -all -add-tags json -transform camelcase -quiet -w
+
+.PHONY: codegen
 codegen: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile='hack/boilerplate.go.txt' paths='./...'
 	./hack/update-codegen.sh
@@ -77,6 +87,10 @@ logs:
 CONTROLLER_GEN = ${HACK_BIN}/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	GOBIN=$(shell pwd)/bin go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.15.0
+
+GO_MODIFY_TAGS = ${HACK_BIN}/gomodifytags
+gomodifytags: ## Download gomodifytags locally if necessary.
+	GOBIN=$(shell pwd)/bin go install github.com/fatih/gomodifytags@v1.17.0
 
 .PHONY: help
 help: ## Show this help.

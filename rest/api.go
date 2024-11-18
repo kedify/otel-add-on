@@ -5,28 +5,32 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/kedify/otel-add-on/types"
 )
 
 type MetricDataPayload struct {
-	Labels             types.Labels
-	Data               []types.ObservedValue
-	AggregatesOverTime map[types.OperationOverTime]float64
-	LastUpdate         uint32
+	Labels             types.Labels                        `json:"labels"`
+	Data               []types.ObservedValue               `json:"data"`
+	AggregatesOverTime map[types.OperationOverTime]float64 `json:"aggregatesOverTime"`
+	LastUpdate         uint32                              `json:"lastUpdate"`
 }
 
 type api struct {
-	ms types.MemStore
+	ms   types.MemStore
+	info prometheus.Labels
 }
 
-func Init(restApiPort int, ms types.MemStore) {
+func Init(restApiPort int, info prometheus.Labels, ms types.MemStore) {
 	a := api{
-		ms: ms,
+		ms:   ms,
+		info: info,
 	}
 	router := gin.Default()
 	router.GET("/memstore/names", a.getMetricNames)
 	router.GET("/memstore/data", a.getMetricData)
+	router.GET("/info", a.getInfo)
 	router.Run(fmt.Sprintf(":%d", restApiPort))
 }
 
@@ -63,4 +67,8 @@ func (a api) getMetricData(c *gin.Context) {
 	})
 
 	c.IndentedJSON(http.StatusOK, metricData)
+}
+
+func (a api) getInfo(c *gin.Context) {
+	c.IndentedJSON(http.StatusOK, a.info)
 }

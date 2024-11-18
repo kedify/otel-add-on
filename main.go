@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/component/componenttest"
 	"go.opentelemetry.io/collector/config/configgrpc"
@@ -61,13 +62,14 @@ func main() {
 	ms := metric.NewMetricStore(metricStoreRetentionSeconds)
 	mp := metric.NewParser()
 
-	startRestServer(restApiPort, ms)
 	eg.Go(func() error {
 		var e error
-		if e = startInternalMetricsServer(ctx, cfg); !util.IsIgnoredErr(e) {
+		var info prometheus.Labels
+		if info, e = startInternalMetricsServer(ctx, cfg); !util.IsIgnoredErr(e) {
 			setupLog.Error(e, "metric server failed")
 			return e
 		}
+		startRestServer(restApiPort, info, ms)
 		if e = startReceiver(ctx, otlpReceiverPort, ms, lvl); !util.IsIgnoredErr(e) {
 			setupLog.Error(e, "grpc server failed (OTLP receiver)")
 			return e
@@ -89,13 +91,13 @@ func main() {
 	setupLog.Info("Bye!")
 }
 
-func startRestServer(restApiPort int, ms types.MemStore) {
+func startRestServer(restApiPort int, info prometheus.Labels, ms types.MemStore) {
 	go func() {
-		rest.Init(restApiPort, ms)
+		rest.Init(restApiPort, info, ms)
 	}()
 }
 
-func startInternalMetricsServer(ctx context.Context, cfg *util.Config) error {
+func startInternalMetricsServer(ctx context.Context, cfg *util.Config) (prometheus.Labels, error) {
 	addr := fmt.Sprintf("0.0.0.0:%d", cfg.InternalMetricsPort)
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Metrics: server.Options{
@@ -104,7 +106,7 @@ func startInternalMetricsServer(ctx context.Context, cfg *util.Config) error {
 		//HealthProbeBindAddress:        probeAddr,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	go func() {
 		if err := mgr.Start(ctx); err != nil {
@@ -118,8 +120,8 @@ func startInternalMetricsServer(ctx context.Context, cfg *util.Config) error {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
-	m.SetRuntimeInfo(cfg)
-	return nil
+	info := m.SetRuntimeInfo(cfg)
+	return info, nil
 }
 
 func startReceiver(ctx context.Context, otlpReceiverPort int, ms types.MemStore, lvl zapcore.LevelEnabler) error {
