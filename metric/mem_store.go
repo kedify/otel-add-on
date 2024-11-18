@@ -223,5 +223,9 @@ func (m ms) updateAggregatesOverTime(md *types.MetricData) {
 	md.AggregatesOverTime.Store(types.OpLastOne, md.Data[len(md.Data)-1].Value)
 }
 
+func (m ms) GetStore() *types.Map[string, *types.Map[types.LabelsHash, *types.MetricData]] {
+	return m.store
+}
+
 // enforce iface impl
 var _ types.MemStore = new(ms)

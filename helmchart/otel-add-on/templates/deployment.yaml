@@ -45,6 +45,8 @@ spec:
               value: {{ .Values.settings.isActivePollingIntervalMilliseconds | quote }}
             - name: INTERNAL_METRICS_PORT
               value: {{ .Values.settings.internalMetricsPort | quote }}
+            - name: REST_API_PORT
+              value: { { .Values.settings.restApiPort | quote } }
       {{- if .Values.settings.noColor }}
             - name: NO_COLOR
               value: {{ .Values.settings.logs.noColor | quote }}

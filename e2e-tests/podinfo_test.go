@@ -37,7 +37,7 @@ var _ = BeforeSuite(func() {
 	err = installHey()
 	Expect(err).NotTo(HaveOccurred())
 
-	execCmd(fmt.Sprintf("k3d cluster delete %s &> /dev/null", clusterName))
+	execCmd(fmt.Sprintf("k3d cluster delete %s", clusterName))
 	err = prepareCluster(clusterName, "-p 8181:31198@server:0")
 	Expect(err).NotTo(HaveOccurred())
 	time.Sleep(5 * time.Second)

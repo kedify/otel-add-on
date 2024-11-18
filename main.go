@@ -28,6 +28,7 @@ import (
 	"github.com/kedify/otel-add-on/build"
 	"github.com/kedify/otel-add-on/metric"
 	"github.com/kedify/otel-add-on/receiver"
+	"github.com/kedify/otel-add-on/rest"
 	"github.com/kedify/otel-add-on/scaler"
 	"github.com/kedify/otel-add-on/types"
 	"github.com/kedify/otel-add-on/util"
@@ -46,6 +47,7 @@ func main() {
 	cfg := util.MustParseConfig()
 	otlpReceiverPort := cfg.OTLPReceiverPort
 	kedaExternalScalerPort := cfg.KedaExternalScalerPort
+	restApiPort := cfg.RestApiPort
 	metricStoreRetentionSeconds := cfg.MetricStoreRetentionSeconds
 
 	lvl := util.SetupLog(cfg.NoColor)
@@ -59,6 +61,7 @@ func main() {
 	ms := metric.NewMetricStore(metricStoreRetentionSeconds)
 	mp := metric.NewParser()
 
+	startRestServer(restApiPort, ms)
 	eg.Go(func() error {
 		var e error
 		if e = startInternalMetricsServer(ctx, cfg); !util.IsIgnoredErr(e) {
@@ -84,6 +87,12 @@ func main() {
 	}
 
 	setupLog.Info("Bye!")
+}
+
+func startRestServer(restApiPort int, ms types.MemStore) {
+	go func() {
+		rest.Init(restApiPort, ms)
+	}()
 }
 
 func startInternalMetricsServer(ctx context.Context, cfg *util.Config) error {

@@ -18,7 +18,7 @@ dev-k3d: build-image  ## Builds the container image for current arch, imports it
 dev-local: ## Prepare the SO and otel collector for local debug
 	@$(call say,Prepare the conditions for local debug)
 	helm upgrade --reuse-values \
- 		keda-otel helmchart/otel-add-on \
+ 		kedify-otel helmchart/otel-add-on \
  		--set replicaCount=1 \
  		--set opentelemetry-collector.config.exporters.otlp.endpoint=$(LOCAL_ENDPOINT):4317
 	kubectl patch so $(SO_NAME) --type=json -p '[{"op":"replace","path":"/spec/triggers/0/metadata/scalerAddress","value":"$(LOCAL_ENDPOINT):4318"}]'
@@ -29,7 +29,7 @@ dev-local: ## Prepare the SO and otel collector for local debug
 undo-dev-local: ## Revers the SO and otel collector for local debug
 	@$(call say,Revert the conditions for local debug)
 	helm upgrade --reuse-values \
- 		keda-otel helmchart/otel-add-on \
+ 		kedify-otel helmchart/otel-add-on \
  		--set replicaCount=1 \
  		--set opentelemetry-collector.config.exporters.otlp.endpoint=keda-otel-scaler:4317
  	kubectl patch so $(SO_NAME) --type=json -p '[{"op":"replace","path":"/spec/triggers/0/metadata/scalerAddress","value":"keda-otel-scaler:4318"}]'
