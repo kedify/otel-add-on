@@ -1,0 +1,23 @@
+name: 'PR closed'
+on:
+  pull_request_target:
+    branches: [main]
+    types: [closed]
+
+jobs:
+  clean-image:
+    permissions:
+      contents: write
+      packages: write
+
+    name: Clean container image
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
+    steps:
+      - name: Delete image
+        uses: bots-house/ghcr-delete-image-action@v1.1.0
+        with:
+          owner: kedify
+          name: otel-add-on
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: pr-${{ github.event.pull_request.number }}

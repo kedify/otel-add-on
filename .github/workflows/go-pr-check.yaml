@@ -71,7 +71,7 @@ jobs:
     secrets: inherit
     uses: ./.github/workflows/release-image.yaml
     with:
-      tag: ${{ github.sha }}
+      tag: pr-${{ github.event.pull_request.number }}
       releaseWithGoReleaser: false
 
   run-e2e-tests:
@@ -84,5 +84,5 @@ jobs:
           fetch-depth: 1
       - name: Run the end to end tests
         env:
-          OTEL_SCALER_VERSION: ${{ github.sha }}
+          OTEL_SCALER_VERSION: pr-${{ github.event.pull_request.number }}
         run: make e2e-test
