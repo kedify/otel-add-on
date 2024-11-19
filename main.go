@@ -21,7 +21,6 @@ import (
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	rec "go.opentelemetry.io/collector/receiver"
 	"go.opentelemetry.io/collector/receiver/otlpreceiver"
-	"go.uber.org/zap/zapcore"
 	"golang.org/x/sync/errgroup"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -42,6 +41,7 @@ import (
 
 var (
 	setupLog = ctrl.Log.WithName("setup")
+	isDebug  bool
 )
 
 func main() {
@@ -52,6 +52,7 @@ func main() {
 	metricStoreRetentionSeconds := cfg.MetricStoreRetentionSeconds
 
 	lvl := util.SetupLog(cfg.NoColor)
+	isDebug = util.IsDebug(lvl)
 	if !cfg.NoBanner {
 		util.PrintBanner(cfg.NoColor)
 	}
@@ -69,8 +70,9 @@ func main() {
 			setupLog.Error(e, "metric server failed")
 			return e
 		}
-		startRestServer(restApiPort, info, ms)
-		if e = startReceiver(ctx, otlpReceiverPort, ms, lvl); !util.IsIgnoredErr(e) {
+		startRestServer(eg, restApiPort, info, ms)
+
+		if e = startReceiver(ctx, otlpReceiverPort, ms); !util.IsIgnoredErr(e) {
 			setupLog.Error(e, "grpc server failed (OTLP receiver)")
 			return e
 		}
@@ -91,10 +93,10 @@ func main() {
 	setupLog.Info("Bye!")
 }
 
-func startRestServer(restApiPort int, info prometheus.Labels, ms types.MemStore) {
-	go func() {
-		rest.Init(restApiPort, info, ms)
-	}()
+func startRestServer(eg *errgroup.Group, restApiPort int, info prometheus.Labels, ms types.MemStore) {
+	eg.Go(func() error {
+		return rest.Init(restApiPort, info, ms, isDebug)
+	})
 }
 
 func startInternalMetricsServer(ctx context.Context, cfg *util.Config) (prometheus.Labels, error) {
@@ -124,7 +126,7 @@ func startInternalMetricsServer(ctx context.Context, cfg *util.Config) (promethe
 	return info, nil
 }
 
-func startReceiver(ctx context.Context, otlpReceiverPort int, ms types.MemStore, lvl zapcore.LevelEnabler) error {
+func startReceiver(ctx context.Context, otlpReceiverPort int, ms types.MemStore) error {
 	addr := fmt.Sprintf("0.0.0.0:%d", otlpReceiverPort)
 	setupLog.Info("starting the grpc server for OTLP receiver", "address", addr)
 	conf := &otlpreceiver.Config{
@@ -151,7 +153,7 @@ func startReceiver(ctx context.Context, otlpReceiverPort int, ms types.MemStore,
 		BuildInfo:         component.NewDefaultBuildInfo(),
 		TelemetrySettings: componenttest.NewNopTelemetrySettings(),
 	}
-	r, e := receiver.NewOtlpReceiver(conf, settings, ms, util.IsDebug(lvl))
+	r, e := receiver.NewOtlpReceiver(conf, settings, ms, isDebug)
 	if e != nil {
 		setupLog.Error(e, "failed to create new OTLP receiver")
 		return e

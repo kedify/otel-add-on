@@ -22,16 +22,22 @@ type api struct {
 	info prometheus.Labels
 }
 
-func Init(restApiPort int, info prometheus.Labels, ms types.MemStore) {
+func Init(restApiPort int, info prometheus.Labels, ms types.MemStore, isDebug bool) error {
 	a := api{
 		ms:   ms,
 		info: info,
 	}
-	router := gin.Default()
+	if isDebug {
+		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+	}
+	router := gin.New()
+	router.SetTrustedProxies(nil)
 	router.GET("/memstore/names", a.getMetricNames)
 	router.GET("/memstore/data", a.getMetricData)
 	router.GET("/info", a.getInfo)
-	router.Run(fmt.Sprintf(":%d", restApiPort))
+	return router.Run(fmt.Sprintf(":%d", restApiPort))
 }
 
 func (a api) getMetricNames(c *gin.Context) {
