@@ -1,0 +1,83 @@
+definitions:
+  rest.MetricDataPayload:
+    properties:
+      aggregatesOverTime:
+        additionalProperties:
+          type: number
+        type: object
+      data:
+        items:
+          $ref: '#/definitions/types.ObservedValue'
+        type: array
+      labels:
+        $ref: '#/definitions/types.Labels'
+      lastUpdate:
+        type: integer
+    type: object
+  types.Labels:
+    additionalProperties: {}
+    type: object
+  types.ObservedValue:
+    properties:
+      time:
+        description: timestamp of last update (in seconds)
+        type: integer
+      value:
+        description: observed value
+        type: number
+    type: object
+info:
+  contact: {}
+paths:
+  /info:
+    get:
+      consumes:
+      - application/json
+      description: this will return versions, ports, ...
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: get basic info about the app
+      tags:
+      - info
+  /memstore/data:
+    get:
+      consumes:
+      - application/json
+      description: this will return detailed metrics, including all the datapoints
+        and calculated aggregates
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              items:
+                $ref: '#/definitions/rest.MetricDataPayload'
+              type: array
+            type: object
+      summary: get metrics dump
+      tags:
+      - metrics
+  /memstore/names:
+    get:
+      consumes:
+      - application/json
+      description: this will return the metric names of all tracked metric series
+        in the store
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+      summary: get metric names in the store
+      tags:
+      - metrics
+swagger: "2.0"
