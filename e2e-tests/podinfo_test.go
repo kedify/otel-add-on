@@ -165,14 +165,16 @@ var _ = Describe("Helm chart", func() {
 var _ = ReportAfterSuite("ReportAfterSuite", func(report Report) {
 	if !report.SuiteSucceeded {
 		ctx.t.Log("Test suite failed, leaving k3d cluster alive for inspection..")
-		kubectl("get hpa keda-hpa-podinfo-pull-example -oyaml")
-		kubectl("get so podinfo-pull-example -oyaml")
-		kubectl("get pods -A")
-		for _, nameAndNs := range []string{"podinfo -ndefault", "keda-operator -nkeda", "opentelemetry-collector -ndefault", "otel-add-on -ndefault"} {
-			ctx.t.Logf("\n\n\n        ->>>  Logs for %s        <<<-\n\n\n", nameAndNs)
-			kubectl(fmt.Sprintf("logs -lapp.kubernetes.io/name=%s --tail=-1", nameAndNs))
+		if printLogs == "true" {
+			kubectl("get hpa keda-hpa-podinfo-pull-example -oyaml")
+			kubectl("get so podinfo-pull-example -oyaml")
+			kubectl("get pods -A")
+			for _, nameAndNs := range []string{"podinfo -ndefault", "keda-operator -nkeda", "opentelemetry-collector -ndefault", "otel-add-on -ndefault"} {
+				ctx.t.Logf("\n\n\n        ->>>  Logs for %s        <<<-\n\n\n", nameAndNs)
+				kubectl(fmt.Sprintf("logs -lapp.kubernetes.io/name=%s --tail=-1", nameAndNs))
+			}
 		}
-	} else {
+	} else if deleteCluster != "false" {
 		ctx.t.Log("Deleting k3d cluster..")
 		err := execCmdE(fmt.Sprintf("k3d cluster delete %s", clusterName))
 		Expect(err).NotTo(HaveOccurred())

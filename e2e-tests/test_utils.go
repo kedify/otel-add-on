@@ -50,6 +50,8 @@ var (
 		"kedify-otel": "otel-add-on",
 	}
 	otelScalerVersion, _ = os.LookupEnv("OTEL_SCALER_VERSION")
+	printLogs, _         = os.LookupEnv("E2E_PRINT_LOGS")
+	deleteCluster, _     = os.LookupEnv("E2E_DELETE_CLUSTER")
 )
 
 type TestContext struct {
