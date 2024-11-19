@@ -1,0 +1,43 @@
+name: Helm docs
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'helmchart/otel-add-on/**'
+permissions:
+  contents: read
+
+jobs:
+  build-helm-doc:
+    permissions:
+      contents: write  # for peter-evans/create-pull-request to create branch
+      pull-requests: write  # for peter-evans/create-pull-request to create a PR
+    name: Update Helm Doc
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Generate docs for helm chart - helmchart/otel-add-on/README.md
+        uses: docker://jnorwood/helm-docs@sha256:7e562b49ab6b1dbc50c3da8f2dd6ffa8a5c6bba327b1c6335cc15ce29267979c
+        with:
+          args: --template-files=_helm-docs-template.gotmpl --sort-values-order=file --ignore-non-descriptions
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f # v7.0.5
+        id: cpr
+        with:
+          title: "Update Helm Docs"
+          branch: ci-helm-doc
+          delete-branch: true
+          base: main
+          signoff: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            :package: helmchart/otel-add-on/README.md update :package:
+            ### automated change
+            Running helm-docs tool on latest values.yaml.
+            This automated PR was created by [this action](https://github.com/kedify/otel-add-on/actions/runs/${{ github.run_id }}).
+      - name: Check PR
+        run: |
+          echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}" | tee -a "$GITHUB_STEP_SUMMARY"
