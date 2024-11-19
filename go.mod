@@ -11,6 +11,9 @@ require (
 	github.com/kedacore/keda/v2 v2.14.1-0.20240429185716-c55e306af94b
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/prometheus/client_golang v1.19.0
+	github.com/swaggo/files v1.0.1
+	github.com/swaggo/gin-swagger v1.6.0
+	github.com/swaggo/swag v1.16.4
 	go.opentelemetry.io/collector/component v0.110.0
 	go.opentelemetry.io/collector/component/componentstatus v0.110.0
 	go.opentelemetry.io/collector/config/configgrpc v0.110.0
@@ -39,7 +42,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.4 // indirect
 	github.com/cloudwego/iasm v0.2.0 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.12.0 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.0 // indirect
@@ -95,17 +97,11 @@ require (
 	github.com/prometheus/common v0.53.0 // indirect
 	github.com/prometheus/procfs v0.14.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
-	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/spf13/cobra v1.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/swaggo/files v1.0.1 // indirect
-	github.com/swaggo/gin-swagger v1.6.0 // indirect
-	github.com/swaggo/swag v1.16.4 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
-	github.com/urfave/cli/v2 v2.27.5 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
-	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	go.opentelemetry.io/collector v0.110.0 // indirect
 	go.opentelemetry.io/collector/client v1.16.0 // indirect
 	go.opentelemetry.io/collector/config/configauth v0.110.0 // indirect
