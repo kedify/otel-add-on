@@ -40,7 +40,9 @@ func Init(restApiPort int, info prometheus.Labels, ms types.MemStore, isDebug bo
 		gin.SetMode(gin.ReleaseMode)
 	}
 	router := gin.New()
-	router.SetTrustedProxies(nil)
+	if err := router.SetTrustedProxies(nil); err != nil {
+		a.lggr.Error(err, "Disabling trusted proxies failed")
+	}
 	docs.SwaggerInfo.BasePath = "/"
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 	router.GET("/memstore/names", a.getMetricNames)
