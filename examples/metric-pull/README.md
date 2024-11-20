@@ -8,8 +8,7 @@ Prepare helm chart repos:
 ```bash
 helm repo add podinfo https://stefanprodan.github.io/podinfo
 helm repo add kedify https://kedify.github.io/charts
-helm repo add kedify-otel https://kedify.github.io/otel-add-on
-helm repo update
+helm repo update podinfo kedify
 ```
 
 Any Kubernetes cluster will do:
@@ -28,7 +27,7 @@ open http://localhost:8181/metrics
 
 Install this addon:
 ```bash
-helm upgrade -i kedify-otel kedify-otel/otel-add-on --version=v0.0.1-2 -f scaler-with-collector-pull-values.yaml
+helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.1-2 -f scaler-with-collector-pull-values.yaml
 ```
 
 Note the following section in the helm chart values that configures the OTEL collector to scrape targets:

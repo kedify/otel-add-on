@@ -5,7 +5,7 @@ SHELL       = /bin/bash
 GH_REPO_ORG = kedify
 VERSION 		?= main
 GIT_COMMIT  ?= $(shell git rev-list -1 HEAD)
-LATEST_TAG ?= $(shell git fetch --force --tags &> /dev/null ; git describe --tags --abbrev=0)
+LATEST_TAG ?= $(shell git fetch --force --tags &> /dev/null ; git describe --tags $(git rev-list --tags --max-count=1))
 GO_LDFLAGS="-X github.com/${GH_REPO_ORG}/otel-add-on/build.version=${VERSION} -X github.com/${GH_REPO_ORG}/otel-add-on/build.gitCommit=${GIT_COMMIT}"
 BUILD_PLATFORMS ?= linux/amd64,linux/arm64
 
