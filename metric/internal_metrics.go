@@ -91,7 +91,7 @@ func (m *InternalMetrics) Init() {
 				Name: KedaOtelScalerRuntimeInfo,
 				Help: "KEDA OTEL scaler runtime info.",
 			},
-			[]string{"version", "goVersion", "arch", "os", "gitSha", "retentionSeconds", "scalerPort", "otlpPort"},
+			[]string{"version", "goVersion", "arch", "os", "gitSha", "retentionSeconds", "scalerPort", "otlpPort", "internalMetricsPort", "restApiPort"},
 		)
 		m.metrics.KedaOtelScalerMetricPointsRead = prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -147,7 +147,7 @@ func (m *InternalMetrics) SetMetricValueClamped(name, labels, timeOp, aggregatio
 	}).Set(value)
 }
 
-func (m *InternalMetrics) SetRuntimeInfo(cfg *util.Config) {
+func (m *InternalMetrics) SetRuntimeInfo(cfg *util.Config) prometheus.Labels {
 	firstN := func(value string, n int) string {
 		if len(value) < n {
 			return value
@@ -160,15 +160,18 @@ func (m *InternalMetrics) SetRuntimeInfo(cfg *util.Config) {
 		}
 		return value
 	}
-	m.metrics.KedaOtelScalerRuntimeInfo.With(
-		prometheus.Labels{
-			"version":          fallBack(build.Version(), "unknown"),
-			"goVersion":        runtime.Version(),
-			"arch":             runtime.GOARCH,
-			"os":               runtime.GOOS,
-			"gitSha":           fallBack(firstN(build.GitCommit(), 7), "unknown"),
-			"retentionSeconds": fmt.Sprintf("%d", cfg.MetricStoreRetentionSeconds),
-			"scalerPort":       fmt.Sprintf("%d", cfg.KedaExternalScalerPort),
-			"otlpPort":         fmt.Sprintf("%d", cfg.OTLPReceiverPort),
-		}).Set(1)
+	labels := prometheus.Labels{
+		"version":             fallBack(build.Version(), "unknown"),
+		"goVersion":           runtime.Version(),
+		"arch":                runtime.GOARCH,
+		"os":                  runtime.GOOS,
+		"gitSha":              fallBack(firstN(build.GitCommit(), 7), "unknown"),
+		"retentionSeconds":    fmt.Sprintf("%d", cfg.MetricStoreRetentionSeconds),
+		"scalerPort":          fmt.Sprintf("%d", cfg.KedaExternalScalerPort),
+		"otlpPort":            fmt.Sprintf("%d", cfg.OTLPReceiverPort),
+		"internalMetricsPort": fmt.Sprintf("%d", cfg.InternalMetricsPort),
+		"restApiPort":         fmt.Sprintf("%d", cfg.RestApiPort),
+	}
+	m.metrics.KedaOtelScalerRuntimeInfo.With(labels).Set(1)
+	return labels
 }

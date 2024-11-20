@@ -4,12 +4,12 @@ import "go.opentelemetry.io/collector/pdata/pcommon"
 
 type NewMetricEntry struct {
 	// metric name
-	Name MetricName
+	Name MetricName `json:"name"`
 	// labels further identifies the collected data points (introducing new dimensions and storing also metadata) ~ tags
-	Labels Labels
+	Labels Labels `json:"labels"`
 	// observed value
-	MeasurementValue float64
-	MeasurementTime  pcommon.Timestamp
+	MeasurementValue float64           `json:"measurementValue"`
+	MeasurementTime  pcommon.Timestamp `json:"measurementTime"`
 }
 
 type AggregationOverVectors string
@@ -20,17 +20,17 @@ type MetricName string
 type Labels map[string]any
 type LabelsHash string
 type MetricData struct {
-	Labels             Labels
-	Data               []ObservedValue
-	AggregatesOverTime Map[OperationOverTime, float64]
-	LastUpdate         uint32
+	Labels             Labels                          `json:"labels"`
+	Data               []ObservedValue                 `json:"data"`
+	AggregatesOverTime Map[OperationOverTime, float64] `json:"aggregatesOverTime"`
+	LastUpdate         uint32                          `json:"lastUpdate"`
 }
 
 type ObservedValue struct {
 	// observed value
-	Value float64
+	Value float64 `json:"value"`
 	// timestamp of last update (in seconds)
-	Time uint32
+	Time uint32 `json:"time"`
 }
 
 const (
