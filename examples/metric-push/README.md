@@ -8,8 +8,7 @@ Prepare helm chart repos:
 ```bash
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
 helm repo add kedify https://kedify.github.io/charts
-helm repo add kedify-otel https://kedify.github.io/otel-add-on
-helm repo update
+helm repo update open-telemetry kedify
 ```
 
 Any Kubernetes cluster will do:
@@ -29,7 +28,7 @@ open http://localhost:8080
 
 Install this addon:
 ```bash
-helm upgrade -i kedify-otel kedify-otel/otel-add-on --version=v0.0.1-2 -f scaler-only-push-values.yaml
+helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.1-2 -f scaler-only-push-values.yaml
 ```
 
 In this scenario, we don't install OTEL collector using the `kedify-otel/otel-add-on` helm chart, because

@@ -7,8 +7,7 @@ command -v figlet &> /dev/null && figlet Autoscaling OTEL demo
 # setup helm repos
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
 helm repo add kedify https://kedify.github.io/charts
-helm repo add kedify-otel https://kedify.github.io/otel-add-on
-helm repo update open-telemetry kedify kedify-otel
+helm repo update open-telemetry kedify
 
 set -e
 # setup cluster
@@ -17,8 +16,9 @@ k3d cluster create metric-push -p "8080:31198@server:0"
 
 # deploy stuff
 helm upgrade -i my-otel-demo open-telemetry/opentelemetry-demo -f ${DIR}/opentelemetry-demo-values.yaml
-helm upgrade -i kedify-otel kedify-otel/otel-add-on --version=v0.0.1-2 -f ${DIR}/scaler-only-push-values.yaml
+helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.1-2 -f ${DIR}/scaler-only-push-values.yaml
 helm upgrade -i keda kedify/keda --namespace keda --create-namespace
+
 kubectl rollout status -n keda --timeout=300s deploy/keda-operator
 kubectl rollout status -n keda --timeout=300s deploy/keda-operator-metrics-apiserver
 for d in \

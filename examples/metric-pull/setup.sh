@@ -7,8 +7,7 @@ command -v figlet &> /dev/null && figlet Autoscaling podinfo
 # setup helm repos
 helm repo add podinfo https://stefanprodan.github.io/podinfo
 helm repo add kedify https://kedify.github.io/charts
-helm repo add kedify-otel https://kedify.github.io/otel-add-on
-helm repo update podinfo kedify kedify-otel
+helm repo update podinfo kedify
 set -e
 
 # setup cluster
@@ -17,7 +16,7 @@ k3d cluster create metric-pull -p "8181:31198@server:0"
 
 # deploy stuff
 helm upgrade -i podinfo podinfo/podinfo -f ${DIR}/podinfo-values.yaml
-helm upgrade -i kedify-otel kedify-otel/otel-add-on --version=v0.0.1-2 -f ${DIR}/scaler-with-collector-pull-values.yaml
+helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.1-2 -f ${DIR}/scaler-with-collector-pull-values.yaml
 helm upgrade -i keda kedify/keda --namespace keda --create-namespace
 
 kubectl rollout status -n keda --timeout=300s deploy/keda-operator

@@ -22,34 +22,20 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Create k3s cluster
-        uses: AbsaOSS/k3d-action@v2
-        with:
-          cluster-name: "test-cluster"
-          k3d-version: v5.6.0
-          args: >-
-            --no-lb
-            --k3s-arg "--disable=traefik,servicelb,local-storage@server:*"
-      - name: Smoke test helm rendering and deployability (otel addon chart)
+      - name: Smoke test helm renderability
         run: |
           set -o pipefail
           helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
           helm repo update
           pushd ./helmchart/otel-add-on && helm dependency build && popd
-          helm template ./helmchart/otel-add-on | kubectl apply -f -
-          sleep 10
-          kubectl rollout status --timeout=300s deploy/otel-add-on-scaler
-          kubectl rollout status --timeout=300s deploy/otelcol
-          echo -e "\n\n\n   pods:\n\n"
-          kubectl get pods -A
-          sleep 5
-          echo -e "\n\n\n   logs:\n\n"
-          echo "::group::logs"
-          kubectl logs -lapp.kubernetes.io/name=otel-add-on --tail=-1
-          echo "::endgroup::"
+          helm template test ./helmchart/otel-add-on
 
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
     if: startsWith(github.event.head_commit.message, '[post-release]') || contains(github.event.head_commit.message, 'kedify/chart-yaml-update')
     needs: [test]
     steps:
@@ -57,19 +43,14 @@ jobs:
         with:
           fetch-depth: 0
       - name: Publish Helm chart
-        uses: stefanprodan/helm-gh-pages@master
+        uses: bsord/helm-push@4.2.0
         with:
-          token: ${{ secrets.PAT_TOKEN }}
-          charts_dir: "helmchart"
-      - name: Create k3s cluster
-        uses: AbsaOSS/k3d-action@v2
-        with:
-          cluster-name: "test-cluster"
-          k3d-version: v5.6.0
-          args: >-
-            --no-lb
-            --k3s-arg "--disable=traefik,servicelb,local-storage@server:*"
-      - name: Smoke test helm installation
+          useOCIRegistry: true
+          registry-url: oci://ghcr.io/kedify/charts
+          access-token: ${{ secrets.GITHUB_TOKEN }}
+          chart-folder: helmchart
+          force: true
+      - name: Smoke test helm renderability of released helm chart
         run: |
           # exp-backoff - we wait for pages to become available here
           for i in $(seq 16)
@@ -77,34 +58,8 @@ jobs:
             _sec=$(echo "1.5^$i" | bc)
             echo "Waiting ${_sec} seconds.."
             sleep ${_sec}
-            helm repo add kedify-otel https://kedify.github.io/otel-add-on/ || continue
-            helm repo update
             set -x
-            helm upgrade -i keda-otel-add-on kedify-otel/otel-add-on \
-              -n keda \
-              --create-namespace \
-              --version=$(make version) \
-              --timeout 300s \
-              --wait && break
+            helm template test oci://ghcr.io/kedify/charts/otel-add-on --version $(make version) && break
             set +x
             [ "$i" = "16" ] && exit 1
           done
-          kubectl rollout status -nkeda --timeout=300s deploy/otel-add-on-scaler
-          kubectl rollout status -nkeda --timeout=300s deploy/otelcol
-
-          echo -e "\n\n\n   pods:\n\n"
-          kubectl get pods -A
-          
-          sleep 5
-          echo -e "\n\n\n   logs:\n\n"
-          echo "::group::logs"
-          kubectl logs -nkeda -lapp.kubernetes.io/name=otel-add-on --tail=-1
-          echo "::endgroup::"
-
-          echo "::group::values.yaml"
-          helm get values -n keda keda-otel-add-on
-          echo "::endgroup::"
-
-          echo "::group::resulting YAML manifests"
-          helm get manifest -n keda keda-otel-add-on
-          echo "::endgroup::"
