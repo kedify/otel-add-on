@@ -1,0 +1,39 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base",
+  ],
+  "labels": ["renovate"],
+  "prConcurrentLimit": 2,
+  // ignore everything except those that are white-listed
+  "packageRules": [
+    {
+      "packagePatterns": ["*"],
+      "enabled": false,
+    },
+    {
+      "packageNames": [
+        "ghcr.io/kedify/charts/otel-add-on",
+      ],
+      "enabled": true,
+    },
+  ],
+  "regexManagers": [
+    {
+      "fileMatch": [
+        "^.*/README.md$",
+        "^examples/.*/setup.sh$"
+      ],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "ghcr.io/kedify/charts/otel-add-on",
+      "extractVersionTemplate": "^(?<version>.*)$",
+      "matchStrings": [
+        "oci://ghcr.io/kedify/charts/otel-add-on \\s* --version=(?<currentValue>\\S+)",
+      ],
+    },
+  ],
+  "reviewers": ["team:all"],
+  "prBodyNotes": [
+    "Bump some versions we have inside our code",
+  ],
+}

@@ -63,14 +63,16 @@ podLabels: {}
 # -- details: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod
 podSecurityContext: {}
 
-# -- details: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container
 securityContext:
-   capabilities:
-     drop:
-     - ALL
-   readOnlyRootFilesystem: true
-   runAsNonRoot: true
-   runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+  # -- details: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  readOnlyRootFilesystem: true
+  # -- details: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#implicit-group-memberships-defined-in-etc-group-in-the-container-image
+  runAsNonRoot: true
+  # -- details: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#implicit-group-memberships-defined-in-etc-group-in-the-container-image
+  runAsUser: 1000
 
 service:
   # -- Under this service, the otel add on needs to be reachable by KEDA operator and OTEL collector,
@@ -83,12 +85,16 @@ service:
 
 # -- https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 resources:
-   limits:
-     cpu: 500m
-     memory: 256Mi
-   requests:
-     cpu: 500m
-     memory: 128Mi
+  limits:
+    # -- cpu limit for the pod, enforced by cgroups
+    cpu: 500m
+    # -- memory limit for the pod, used by oomkiller
+    memory: 256Mi
+  requests:
+    # -- cpu request for the pod, used by k8s scheduler
+    cpu: 500m
+    # -- memory request for the pod, used by k8s scheduler
+    memory: 128Mi
 
 volumes: []
 # - name: foo
