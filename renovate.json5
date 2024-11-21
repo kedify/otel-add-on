@@ -21,8 +21,12 @@
   "regexManagers": [
     {
       "fileMatch": [
-        "^.*/README.md$",
-        "^examples/.*/setup.sh$"
+        "^/README.md$",
+        "^/examples/metric-pull/README.md$",
+        "^/examples/metric-pull/setup.sh$",
+        "^/examples/metric-push/README.md$",
+        "^/examples/metric-push/setup.sh$",
+        "^/helmchart/otel-add-on/README.md$"
       ],
       "datasourceTemplate": "docker",
       "depTypeTemplate": "helm_release",
