@@ -58,7 +58,6 @@ jobs:
           registry: ghcr.io
           registry_username: kedify
           registry_password: ${{ secrets.GITHUB_TOKEN }}
-          update_dependencies: 'true'
       - name: Smoke test helm renderability of released helm chart
         run: |
           # exp-backoff - we wait for pages to become available here
