@@ -28,6 +28,7 @@ jobs:
         with:
           title: "Update Helm Docs"
           branch: ci-helm-doc
+          labels: skip-ci
           delete-branch: true
           base: main
           signoff: true

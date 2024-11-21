@@ -25,7 +25,7 @@
         "^examples/.*/setup.sh$"
       ],
       "datasourceTemplate": "docker",
-      "depType": "helm_release",
+      "depTypeTemplate": "helm_release",
       "depNameTemplate": "ghcr.io/kedify/charts/otel-add-on",
       "extractVersionTemplate": "^(?<version>.*)$",
       "matchStrings": [

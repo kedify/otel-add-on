@@ -42,6 +42,7 @@ jobs:
         with:
           title: "Update chart.yaml"
           branch: chart-yaml-update
+          labels: skip-ci
           token: ${{ secrets.PAT_TOKEN }}
           commit-message: "[post-release] Updating Chart.yaml: ${{ steps.version.outputs.oldVersion }} -> ${{ steps.version.outputs.newVersion }}"
           delete-branch: true
