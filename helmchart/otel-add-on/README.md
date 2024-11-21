@@ -27,6 +27,18 @@ A Helm chart for KEDA otel-add-on
 
 **Homepage:** <https://github.com/kedify/otel-add-on>
 
+## Usage
+
+Check available version in OCI repo:
+```
+crane ls ghcr.io/kedify/charts/otel-add-on | grep -E '^v?[0-9]'
+```
+
+Install specific version:
+```
+helm upgrade -i oci://ghcr.io/kedify/charts/otel-add-on --version=<vx.y.z>
+```
+
 ## Source Code
 
 * <https://github.com/kedify/otel-add-on>
@@ -71,11 +83,17 @@ or [docs](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/
 | podAnnotations | object | `{}` | additional custom pod annotations that will be used for pod |
 | podLabels | object | `{}` | additional custom pod labels that will be used for pod |
 | podSecurityContext | object | `{}` | details: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod |
-| securityContext | object | `{"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true,"runAsNonRoot":true,"runAsUser":1000}` | details: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container |
+| securityContext.readOnlyRootFilesystem | bool | `true` | details: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/ |
+| securityContext.runAsNonRoot | bool | `true` | details: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#implicit-group-memberships-defined-in-etc-group-in-the-container-image |
+| securityContext.runAsUser | int | `1000` | details: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#implicit-group-memberships-defined-in-etc-group-in-the-container-image |
 | service.type | string | `"ClusterIP"` | Under this service, the otel add on needs to be reachable by KEDA operator and OTEL collector, details: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types |
 | service.otlpReceiverPort | int | `4317` | OTLP receiver will be opened on this port. OTEL exporter configured in the OTEL collector needs to have this value set. |
 | service.kedaExternalScalerPort | int | `4318` | KEDA external scaler will be opened on this port. ScaledObject's `.spec.triggers[].metadata.scalerAddress` needs to be set to this svc and this port. |
 | resources | object | `{"limits":{"cpu":"500m","memory":"256Mi"},"requests":{"cpu":"500m","memory":"128Mi"}}` | https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
+| resources.limits.cpu | string | `"500m"` | cpu limit for the pod, enforced by cgroups |
+| resources.limits.memory | string | `"256Mi"` | memory limit for the pod, used by oomkiller |
+| resources.requests.cpu | string | `"500m"` | cpu request for the pod, used by k8s scheduler |
+| resources.requests.memory | string | `"128Mi"` | memory request for the pod, used by k8s scheduler |
 | nodeSelector | object | `{}` | details: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector |
 | tolerations | list | `[]` | details: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
 | affinity | object | `{}` | details: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity |
