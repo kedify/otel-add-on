@@ -5,7 +5,7 @@ replicaCount: 1
 image:
   # -- Image to use for the Deployment
   repository: ghcr.io/kedify/otel-add-on
-  # -- Image pull policy, consult https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy
+  # -- Image pull policy, consult [docs](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy)
   pullPolicy: Always
   # -- Image version to use for the Deployment, if not specified, it defaults to `.Chart.AppVersion`
   tag: ""
@@ -40,7 +40,7 @@ settings:
 # -- should the ascii logo be printed when this helm chart is installed
 asciiArt: true
 
-# -- details: https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
+# -- [details](https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod)
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
@@ -60,40 +60,38 @@ podAnnotations: {}
 # -- additional custom pod labels that will be used for pod
 podLabels: {}
 
-# -- details: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod
+# -- [details](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
 podSecurityContext: {}
 
 securityContext:
   capabilities:
     drop:
       - ALL
-  # -- details: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+  # -- [details](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/)
   readOnlyRootFilesystem: true
-  # -- details: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#implicit-group-memberships-defined-in-etc-group-in-the-container-image
+  # -- [details](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#implicit-group-memberships-defined-in-etc-group-in-the-container-image)
   runAsNonRoot: true
-  # -- details: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#implicit-group-memberships-defined-in-etc-group-in-the-container-image
+  # -- [details](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#implicit-group-memberships-defined-in-etc-group-in-the-container-image)
   runAsUser: 1000
 
 service:
-  # -- Under this service, the otel add on needs to be reachable by KEDA operator and OTEL collector,
-  # details: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
+  # -- Under this service, the otel add on needs to be reachable by KEDA operator and OTEL collector ([details](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types))
   type: ClusterIP
   # -- OTLP receiver will be opened on this port. OTEL exporter configured in the OTEL collector needs to have this value set.
   otlpReceiverPort: 4317
   # -- KEDA external scaler will be opened on this port. ScaledObject's `.spec.triggers[].metadata.scalerAddress` needs to be set to this svc and this port.
   kedaExternalScalerPort: 4318
 
-# -- https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 resources:
   limits:
-    # -- cpu limit for the pod, enforced by cgroups
+    # -- cpu limit for the pod, enforced by cgroups ([details](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/))
     cpu: 500m
-    # -- memory limit for the pod, used by oomkiller
+    # -- memory limit for the pod, used by oomkiller ([details](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/))
     memory: 256Mi
   requests:
-    # -- cpu request for the pod, used by k8s scheduler
+    # -- cpu request for the pod, used by k8s scheduler ([details](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/))
     cpu: 500m
-    # -- memory request for the pod, used by k8s scheduler
+    # -- memory request for the pod, used by k8s scheduler ([details](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/))
     memory: 128Mi
 
 volumes: []
@@ -107,13 +105,13 @@ volumeMounts: []
 #   mountPath: "/etc/foo"
 #   readOnly: true
 
-# -- details: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+# -- [details](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector)
 nodeSelector: {}
 
-# -- details: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+# -- [details](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
 tolerations: []
 
-# -- details: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
+# -- [details](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity)
 affinity: {}
 
 #otel collector helm chart:
