@@ -18,6 +18,9 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
       - name: Generate docs for helm chart - helmchart/otel-add-on/README.md
         uses: docker://jnorwood/helm-docs@sha256:7e562b49ab6b1dbc50c3da8f2dd6ffa8a5c6bba327b1c6335cc15ce29267979c
         with:
