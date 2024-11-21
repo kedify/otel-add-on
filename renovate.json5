@@ -5,6 +5,7 @@
   ],
   "labels": ["renovate"],
   "prConcurrentLimit": 2,
+  "ignorePaths": ["**/vendor/**"],
   // ignore everything except those that are white-listed
   "packageRules": [
     {
@@ -15,18 +16,20 @@
       "packageNames": [
         "ghcr.io/kedify/charts/otel-add-on",
       ],
+      "labels": ["skip-ci", "renovate"],
       "enabled": true,
     },
   ],
   "regexManagers": [
     {
+      // bump helm chart version if there is a release
       "fileMatch": [
-        "^/README.md$",
-        "^/examples/metric-pull/README.md$",
-        "^/examples/metric-pull/setup.sh$",
-        "^/examples/metric-push/README.md$",
-        "^/examples/metric-push/setup.sh$",
-        "^/helmchart/otel-add-on/README.md$"
+        "(^|/)README.md$",
+        "(^|/)examples/metric-pull/README.md$",
+        "(^|/)examples/metric-pull/setup.sh$",
+        "(^|/)examples/metric-push/README.md$",
+        "(^|/)examples/metric-push/setup.sh$",
+        "(^|/)helmchart/otel-add-on/README.md$",
       ],
       "datasourceTemplate": "docker",
       "depTypeTemplate": "helm_release",
