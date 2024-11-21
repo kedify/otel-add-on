@@ -1,0 +1,8 @@
+# Artifact Hub repository metadata file
+# used for claiming the ownership
+# oras push ghcr.io/kedify/charts/otel-add-on:artifacthub.io --config /dev/null:application/vnd.cncf.artifacthub.config.v1+yaml artifacthub-repo.yml:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml
+repositoryID: b037647e-edd8-47ba-9c34-96b7bbb4c0cd
+owners: # (optional, used to claim repository ownership)
+  - name: jkremser
+    email: jiri.kremser@email.com
+

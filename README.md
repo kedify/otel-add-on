@@ -1,5 +1,7 @@
 ## `OTEL <--> KEDA` add-on
 
+[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/otel-add-on)](https://artifacthub.io/packages/search?repo=otel-add-on)
+
 ### Description
 
 This is an external scaler for KEDA that intergrates with OpenTelemetry (OTEL) collector. The helm chart deploys also OTEL

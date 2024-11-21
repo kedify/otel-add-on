@@ -25,10 +25,11 @@
         "^examples/.*/setup.sh$"
       ],
       "datasourceTemplate": "docker",
+      "depType": "helm_release",
       "depNameTemplate": "ghcr.io/kedify/charts/otel-add-on",
       "extractVersionTemplate": "^(?<version>.*)$",
       "matchStrings": [
-        "oci://ghcr.io/kedify/charts/otel-add-on \\s*--version=(?<currentValue>\\S+)",
+        ".* oci://ghcr.io/kedify/charts/otel-add-on \\s*--version=(?<currentValue>\\S+).*\n",
       ],
     },
   ],
