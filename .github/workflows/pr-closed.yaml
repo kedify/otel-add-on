@@ -16,8 +16,12 @@ jobs:
     steps:
       - name: Delete image
         uses: bots-house/ghcr-delete-image-action@v1.1.0
+        continue-on-error: true
+        id: del
         with:
           owner: kedify
           name: otel-add-on
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: pr-${{ github.event.pull_request.number }}
+      - run: echo "OK, image not found"
+        if: job.steps.del.status == failure()
