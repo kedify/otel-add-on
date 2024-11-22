@@ -1,0 +1,48 @@
+name: Helm deps
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'helmchart/otel-add-on/Chart.yaml'
+permissions:
+  contents: read
+
+jobs:
+  build-helm-deps:
+    permissions:
+      contents: write  # for peter-evans/create-pull-request to create branch
+      pull-requests: write  # for peter-evans/create-pull-request to create a PR
+    name: Update Helm Deps
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Rebuild the lock file for chart dependencies
+        run: |
+          helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+          helm repo update open-telemetry
+          pushd ./helmchart/otel-add-on && helm dependency build && popd
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f # v7.0.5
+        id: cpr
+        with:
+          title: "Update Helm Chart.lock"
+          branch: ci-helm-deps
+          delete-branch: true
+          base: main
+          signoff: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            :package: helmchart/otel-add-on/Chart.lock update :package:
+            ### automated change
+            Running helm dependency build on updated sub-chart versions.
+            Check the result of e2e tests if latest release of `opentelemetry-collector` didn't break the scaler.
+            If so, pls revert the change from renovate.
+            
+            This automated PR was created by [this action](https://github.com/kedify/otel-add-on/actions/runs/${{ github.run_id }}).
+      - name: Check PR
+        run: |
+          echo "Pull Request Number - ${{ steps.cpr.outputs.pull-request-number }}" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Pull Request URL - ${{ steps.cpr.outputs.pull-request-url }}" | tee -a "$GITHUB_STEP_SUMMARY"

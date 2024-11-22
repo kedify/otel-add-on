@@ -75,7 +75,8 @@ securityContext:
   runAsUser: 1000
 
 service:
-  # -- Under this service, the otel add on needs to be reachable by KEDA operator and OTEL collector ([details](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types))
+  # -- Under this service, the otel add on needs to be reachable by KEDA operator and OTEL collector
+  # ([details](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types))
   type: ClusterIP
   # -- OTLP receiver will be opened on this port. OTEL exporter configured in the OTEL collector needs to have this value set.
   otlpReceiverPort: 4317
@@ -114,9 +115,10 @@ tolerations: []
 # -- [details](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity)
 affinity: {}
 
-#otel collector helm chart:
-# https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/charts/opentelemetry-collector/values.yaml
+# otel collector helm chart:
+# https://github.com/open-telemetry/opentelemetry-helm-charts/tree/opentelemetry-collector-0.110.0/charts/opentelemetry-collector/values.yaml
 #--------------------------
+# example configuration of otel collector to work as an opencensus receiver and forwarder to otel-add-on
 opentelemetry-collector:
   enabled: true
   mode: deployment
@@ -125,12 +127,6 @@ opentelemetry-collector:
   fullnameOverride: otelcol
 
   ports:
-    jaeger-compact: null
-    jaeger-thrift: null
-    jaeger-grpc: null
-    zipkin: null
-    otlp: null
-    otlp-http: null
     opencensus:
       enabled: true
       containerPort: 55678
@@ -138,16 +134,12 @@ opentelemetry-collector:
       hostPort: 55678
       protocol: TCP
 
-  config:
+  alternateConfig:
     receivers:
       # https://grafana.com/docs/alloy/latest/reference/components/otelcol/otelcol.receiver.opencensus/
       opencensus:
         endpoint: 0.0.0.0:55678
         include_metadata: true
-      prometheus: null
-      zipkin: null
-      jaeger: null
-      otlp: null
     exporters:
       otlp:
         # make sure this is the same hostname and port as .service
@@ -175,7 +167,8 @@ opentelemetry-collector:
             - resource.attributes["app_id"] == "nodeapp" # drop all metrics w/o the app_id = nodeapp tag on them
 
             # - not (IsMatch(name, "http/client/*")) # drop all metrics that don't start w/ http/client/
-            # more here: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/pkg/ottl/LANGUAGE.md & https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/pkg/ottl/ottlfuncs
+            # more here: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/pkg/ottl/LANGUAGE.md
+            # & https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/pkg/ottl/ottlfuncs
             # - 'type != METRIC_DATA_TYPE_GAUGE' # drop all non-gauges
 
     # debug/profiling
@@ -188,8 +181,6 @@ opentelemetry-collector:
     service:
       # extensions: [pprof, zpages]
       pipelines:
-        traces: null
-        logs: null
         metrics:
           receivers:
             - opencensus

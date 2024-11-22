@@ -19,16 +19,20 @@
       "labels": ["skip-ci", "renovate"],
       "enabled": true,
     },
+    {
+      "packageNames": [
+        "open-telemetry/opentelemetry-helm-charts",
+      ],
+      "labels": ["skip-ci", "renovate"],
+      "enabled": true,
+    }
   ],
   "regexManagers": [
     {
       // bump helm chart version if there is a release
       "fileMatch": [
         "(^|/)README.md$",
-        "(^|/)examples/metric-pull/README.md$",
-        "(^|/)examples/metric-pull/setup.sh$",
-        "(^|/)examples/metric-push/README.md$",
-        "(^|/)examples/metric-push/setup.sh$",
+        "(^|/)examples/metric-pu(ll|sh)/(README.md|setup.sh)$",
         "(^|/)helmchart/otel-add-on/README.md$",
         "(^|/)helmchart/otel-add-on/_helm-docs-template.gotmpl$",
       ],
@@ -40,6 +44,31 @@
         ".* oci://ghcr.io/kedify/charts/otel-add-on \\s*--version=(?<currentValue>\\S+).*\n",
       ],
     },
+
+    // bump helm chart version of opentelemetry-collector if there is a release
+    {
+      "fileMatch": [
+        "(^|/)helmchart/otel-add-on/README.md$",
+        "(^|/)helmchart/otel-add-on/values.schema.json$",
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "open-telemetry/opentelemetry-helm-charts",
+      "extractVersionTemplate": "^opentelemetry-collector-(?<version>.*)$",
+      "matchStrings": [
+        ".*/(tree|tags)/opentelemetry-collector-(?<currentValue>[^/]+).*\n",
+      ],
+    },
+    {
+      "fileMatch": [
+        "(^|/)helmchart/otel-add-on/Chart.yaml$"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "open-telemetry/opentelemetry-helm-charts",
+      "extractVersionTemplate": "^opentelemetry-collector-(?<version>.*)$",
+      "matchStrings": [
+        ".*/opentelemetry-helm-charts\n\\s+version:\\s+(?<currentValue>[^\\S]+).*\n",
+      ],
+    }
   ],
   "reviewers": ["team:all"],
   "prBodyNotes": [
