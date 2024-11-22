@@ -32,10 +32,7 @@
       // bump helm chart version if there is a release
       "fileMatch": [
         "(^|/)README.md$",
-        "(^|/)examples/metric-pull/README.md$",
-        "(^|/)examples/metric-pull/setup.sh$",
-        "(^|/)examples/metric-push/README.md$",
-        "(^|/)examples/metric-push/setup.sh$",
+        "(^|/)examples/metric-pu(ll|sh)/(README.md|setup.sh)$",
         "(^|/)helmchart/otel-add-on/README.md$",
         "(^|/)helmchart/otel-add-on/_helm-docs-template.gotmpl$",
       ],
