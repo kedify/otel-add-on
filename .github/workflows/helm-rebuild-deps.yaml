@@ -23,7 +23,7 @@ jobs:
         run: |
           helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
           helm repo update open-telemetry
-          pushd ./helmchart/otel-add-on && helm dependency build && popd
+          pushd ./helmchart/otel-add-on && helm dependency update . && helm dependency build . && popd
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f # v7.0.5
         id: cpr
