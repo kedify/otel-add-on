@@ -96,3 +96,8 @@ Once finished, clean the cluster:
 ```bash
 k3d cluster delete metric-push
 ```
+
+> [!TIP]
+> In general, when instrumenting the application using OTEL sdk, you can call the 
+> [ForceFlush](https://opentelemetry.io/docs/specs/otel/metrics/sdk/#forceflush-1)
+> to further decrease the delay between a metric change and scaling trigger.
