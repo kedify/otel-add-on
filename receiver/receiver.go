@@ -27,7 +27,10 @@ import (
 	"go.opentelemetry.io/collector/receiver/receiverhelper"
 )
 
-const countSuffix = "_count"
+const (
+	countSuffix = "_count"
+	hostName    = "host.name"
+)
 
 // otlpReceiver is the type that exposes Trace and Metrics reception.
 type otlpReceiver struct {
@@ -160,6 +163,10 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 	resLen := md.ResourceMetrics().Len()
 	for i := 0; i < resLen; i++ {
 		sm := md.ResourceMetrics().At(i).ScopeMetrics()
+		pod, podFound := md.ResourceMetrics().At(i).Resource().Attributes().AsRaw()[hostName]
+		if !podFound {
+			pod, podFound = md.ResourceMetrics().At(i).Resource().Attributes().AsRaw()["pod"]
+		}
 		smLen := sm.Len()
 		for j := 0; j < smLen; j++ {
 			mLen := sm.At(j).Metrics().Len()
@@ -172,10 +179,10 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 				switch metrics.At(k).Type() {
 				case pmetric.MetricTypeGauge:
 					dataPoints = metrics.At(k).Gauge().DataPoints()
-					r.storeDatapoints(metricName, dataPoints)
+					r.storeDatapoints(metricName, dataPoints, pod, podFound)
 				case pmetric.MetricTypeSum:
 					dataPoints = metrics.At(k).Sum().DataPoints()
-					r.storeDatapoints(metricName, dataPoints)
+					r.storeDatapoints(metricName, dataPoints, pod, podFound)
 				case pmetric.MetricTypeHistogram:
 					histograms := metrics.At(k).Histogram().DataPoints()
 					for m := 0; m < histograms.Len(); m++ {
@@ -188,7 +195,7 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 							Name:             types.MetricName(metrics.At(k).Name() + countSuffix),
 							MeasurementValue: float64(histogram.Count()),
 							MeasurementTime:  histogram.Timestamp(),
-							Labels:           histogram.Attributes().AsRaw(),
+							Labels:           addPodLabel(histogram.Attributes().AsRaw(), pod, podFound),
 						})
 					}
 				case pmetric.MetricTypeExponentialHistogram:
@@ -203,7 +210,7 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 							Name:             types.MetricName(metrics.At(k).Name() + countSuffix),
 							MeasurementValue: float64(exHistogram.Count()),
 							MeasurementTime:  exHistogram.Timestamp(),
-							Labels:           exHistogram.Attributes().AsRaw(),
+							Labels:           addPodLabel(exHistogram.Attributes().AsRaw(), pod, podFound),
 						})
 					}
 				default:
@@ -231,7 +238,14 @@ func (r *Receiver) p(format string, a ...any) {
 	}
 }
 
-func (r *Receiver) storeDatapoints(name string, dataPoints pmetric.NumberDataPointSlice) {
+func addPodLabel(orig map[string]any, name any, found bool) map[string]any {
+	if found {
+		orig[hostName] = name
+	}
+	return orig
+}
+
+func (r *Receiver) storeDatapoints(name string, dataPoints pmetric.NumberDataPointSlice, podName any, podFound bool) {
 	for l := 0; l < dataPoints.Len(); l++ {
 		datapoint := dataPoints.At(l)
 		r.p("     - time: %+v\n", datapoint.Timestamp())
@@ -242,7 +256,7 @@ func (r *Receiver) storeDatapoints(name string, dataPoints pmetric.NumberDataPoi
 			Name:             types.MetricName(name),
 			MeasurementValue: value,
 			MeasurementTime:  datapoint.Timestamp(),
-			Labels:           datapoint.Attributes().AsRaw(),
+			Labels:           addPodLabel(datapoint.Attributes().AsRaw(), podName, podFound),
 		})
 	}
 }

@@ -133,7 +133,6 @@ opentelemetry-collector:
       servicePort: 55678
       hostPort: 55678
       protocol: TCP
-
   alternateConfig:
     receivers:
       # https://grafana.com/docs/alloy/latest/reference/components/otelcol/otelcol.receiver.opencensus/
@@ -144,48 +143,23 @@ opentelemetry-collector:
       otlp:
         # make sure this is the same hostname and port as .service
         endpoint: keda-otel-scaler:4317
-#        endpoint: host.k3d.internal:4317
         compression: "none"
         tls:
           insecure: true
-        #   tls:
-        #     cert_file: file.cert
-        #     key_file: file.key
       debug:
         verbosity: detailed
-    processors:
-      filter/ottl:
-        error_mode: ignore
-        metrics:
-          # runtime/service_invocation/req_sent_total
-          metric:
-            - | # drop all other metrics that are not whitelisted here
-              name != "http/client/completed_count" and
-              name != "http/server/request_count" and
-              name != "runtime/service_invocation/res_sent_total"
-
-            - resource.attributes["app_id"] == "nodeapp" # drop all metrics w/o the app_id = nodeapp tag on them
-
-            # - not (IsMatch(name, "http/client/*")) # drop all metrics that don't start w/ http/client/
-            # more here: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/pkg/ottl/LANGUAGE.md
-            # & https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/pkg/ottl/ottlfuncs
-            # - 'type != METRIC_DATA_TYPE_GAUGE' # drop all non-gauges
-
-    # debug/profiling
-    # extensions:
-    #   pprof:
-    #     endpoint: :1888
-    #   zpages:
-    #     endpoint: :55679
 
     service:
-      # extensions: [pprof, zpages]
+      extensions:
+        - health_check
       pipelines:
         metrics:
           receivers:
             - opencensus
-          processors:
-            - filter/ottl
           exporters:
             - debug
             - otlp
+
+    extensions:
+      health_check:
+        endpoint: ${env:MY_POD_IP}:13133
