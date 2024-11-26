@@ -1,6 +1,7 @@
 name: Helm Publish
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - 'main'
@@ -17,7 +18,7 @@ jobs:
         run: echo "noop, because of 'The workflow must contain at least one job with no dependencies'"
   test:
     runs-on: ubuntu-latest
-    if: startsWith(github.event.head_commit.message, '[post-release]') || contains(github.event.head_commit.message, 'kedify/chart-yaml-update')
+    if: startsWith(github.event.head_commit.message, '[post-release]') || contains(github.event.head_commit.message, 'kedify/chart-yaml-update') || startsWith(github.event.head_commit.message, 'Update chart.yaml') || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,7 +37,6 @@ jobs:
       contents: write
       packages: write
       id-token: write
-    if: startsWith(github.event.head_commit.message, '[post-release]') || contains(github.event.head_commit.message, 'kedify/chart-yaml-update')
     needs: [test]
     steps:
       - uses: actions/checkout@v4
