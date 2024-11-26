@@ -14,6 +14,26 @@ definitions:
       lastUpdate:
         type: integer
     type: object
+  rest.OperationResult:
+    properties:
+      error:
+        type: string
+      ok:
+        type: boolean
+      operation:
+        type: string
+      value:
+        type: number
+    type: object
+  rest.QueryRequest:
+    properties:
+      operationOverTime:
+        example: rate
+        type: string
+      query:
+        example: avg(runtime_service_invocation_req_recv_total{app_id=nodeapp,src_app_id=pythonapp})
+        type: string
+    type: object
   types.Labels:
     additionalProperties: {}
     type: object
@@ -80,4 +100,43 @@ paths:
       summary: get metric names in the store
       tags:
       - metrics
+  /memstore/query:
+    post:
+      consumes:
+      - application/json
+      description: evaluates provided query on top of internal metric storage
+      parameters:
+      - description: QueryRequest
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/rest.QueryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.OperationResult'
+        "500":
+          description: Internal Server Error
+      summary: queries the metric storage
+      tags:
+      - metrics
+  /memstore/reset:
+    post:
+      consumes:
+      - application/json
+      description: deletes all the data in the internal metric store
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/rest.OperationResult'
+      summary: resets mem storage
+      tags:
+      - ops
 swagger: "2.0"

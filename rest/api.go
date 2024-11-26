@@ -12,7 +12,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/kedify/otel-add-on/docs"
+	"github.com/kedify/otel-add-on/metric"
 	"github.com/kedify/otel-add-on/types"
+	"github.com/kedify/otel-add-on/util"
 )
 
 type MetricDataPayload struct {
@@ -20,6 +22,18 @@ type MetricDataPayload struct {
 	Data               []types.ObservedValue               `json:"data"`
 	AggregatesOverTime map[types.OperationOverTime]float64 `json:"aggregatesOverTime"`
 	LastUpdate         uint32                              `json:"lastUpdate"`
+}
+
+type QueryRequest struct {
+	OperationOverTime string `json:"operationOverTime" example:"rate"`
+	Query             string `json:"query" example:"avg(runtime_service_invocation_req_recv_total{app_id=nodeapp,src_app_id=pythonapp})"`
+}
+
+type OperationResult struct {
+	Ok        bool    `json:"ok"`
+	Operation string  `json:"operation"`
+	Error     string  `json:"error"`
+	Value     float64 `json:"value"`
 }
 
 type api struct {
@@ -47,9 +61,83 @@ func Init(restApiPort int, info prometheus.Labels, ms types.MemStore, isDebug bo
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 	router.GET("/memstore/names", a.getMetricNames)
 	router.GET("/memstore/data", a.getMetricData)
+	router.POST("/memstore/query", a.query)
+	router.POST("/memstore/reset", a.reset)
 	router.GET("/info", a.getInfo)
 	a.lggr.Info(fmt.Sprintf("Swagger docs available at: http://localhost:%d/swagger/index.html", restApiPort))
 	return router.Run(fmt.Sprintf(":%d", restApiPort))
+}
+
+// @BasePath /
+// @Summary resets mem storage
+// @Schemes http
+// @Description deletes all the data in the internal metric store
+// @Tags ops
+// @Accept json
+// @Produce json
+// @Success 200 {object} OperationResult
+// @Router /memstore/reset [post]
+func (a api) reset(c *gin.Context) {
+	metricNames := a.getMetricNamesInternal()
+	for _, m := range metricNames {
+		a.ms.GetStore().Delete(m)
+	}
+
+	c.IndentedJSON(http.StatusOK, OperationResult{
+		Operation: "reset",
+		Ok:        true,
+	})
+}
+
+// @BasePath /
+// @Summary queries the metric storage
+// @Schemes http
+// @Description evaluates provided query on top of internal metric storage
+// @Tags metrics
+// @Accept json
+// @Param request body QueryRequest true "QueryRequest")
+// @Produce json
+// @Success 200 {object} OperationResult
+// @Failure	500
+// @Router /memstore/query [post]
+func (a api) query(c *gin.Context) {
+	request := &QueryRequest{}
+	if err := c.ShouldBindJSON(request); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	p := metric.NewParser()
+	name, labels, aggregationOverVectors, err := p.Parse(request.Query)
+	if err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	opOverTime := types.OperationOverTime(request.OperationOverTime)
+	if err = util.CheckTimeOp(opOverTime); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	value, found, err := a.ms.Get(name, labels, opOverTime, aggregationOverVectors)
+	if err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if !found {
+		c.IndentedJSON(http.StatusOK, OperationResult{
+			Operation: "query",
+			Ok:        true,
+			Value:     -1,
+			Error:     "Metric not found",
+		})
+		return
+	}
+
+	c.IndentedJSON(http.StatusOK, OperationResult{
+		Operation: "query",
+		Ok:        true,
+		Value:     value,
+	})
 }
 
 // @BasePath /
@@ -62,13 +150,17 @@ func Init(restApiPort int, info prometheus.Labels, ms types.MemStore, isDebug bo
 // @Success 200 {array} string
 // @Router /memstore/names [get]
 func (a api) getMetricNames(c *gin.Context) {
+	c.IndentedJSON(http.StatusOK, a.getMetricNamesInternal())
+}
+
+func (a api) getMetricNamesInternal() []string {
 	var metricNames []string
 	a.ms.GetStore().Range(func(k1 string, v1 *types.Map[types.LabelsHash, *types.MetricData]) bool {
 		metricNames = append(metricNames, k1)
 		return true
 	})
 
-	c.IndentedJSON(http.StatusOK, metricNames)
+	return metricNames
 }
 
 // @BasePath /
