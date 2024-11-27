@@ -32,12 +32,12 @@ var _ = BeforeSuite(func() {
 	if len(otelScalerVersion) > 0 {
 		thisVersion = otelScalerVersion
 	}
-	out, err := execCmdOE("git show --summary", "")
+	out, err := execCmdOE("git show --summary --oneline", "")
 	fmt.Printf("---------------------------------\nOTEL_SCALER_VERSION: %s\n", thisVersion)
 	fmt.Printf("E2E_PRINT_LOGS: %s\n", printLogs)
 	fmt.Printf("E2E_DELETE_CLUSTER: %s\n", deleteCluster)
-	fmt.Printf("CI: %s", isCI)
-	fmt.Printf("current commit:\n%s---------------------------------\n\n", out)
+	fmt.Printf("CI: %s\n", isCI)
+	fmt.Printf("current commit:\n%s\n---------------------------------\n\n", out)
 
 	Expect(err).NotTo(HaveOccurred())
 

@@ -15,7 +15,7 @@ builds:
       - amd64
       - arm64
     ldflags: &ldflags
-      - -X github.com/{{ .Env.GH_REPO_ORG }}/{{ .ProjectName }}/build.gitCommit={{ .Commit }}
+      - -X github.com/{{ .Env.GH_REPO_ORG }}/{{ .ProjectName }}/build.gitCommit={{ .Commit }} -X github.com/{{ .Env.GH_REPO_ORG }}/{{ .ProjectName }}/build.version={{ .Env.IMAGE_TAG }}
   - &HARDENED_BUILD
     <<: *BASE_BUILD
     id: hardened
