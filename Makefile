@@ -65,6 +65,8 @@ generate: codegen-tags codegen ## Generate code DeepCopy, DeepCopyInto, and Deep
 .PHONY: codegen-tags
 codegen-tags: gomodifytags ## Generate json tags for certain structs.
 	$(GO_MODIFY_TAGS) -file rest/api.go -struct MetricDataPayload -add-tags json -transform camelcase -quiet -w
+	$(GO_MODIFY_TAGS) -file rest/api.go -struct OperationResult -add-tags json -transform camelcase -quiet -w
+	$(GO_MODIFY_TAGS) -file rest/api.go -struct QueryRequest -add-tags json -transform camelcase -quiet -w
 	$(GO_MODIFY_TAGS) -file types/metrics.go -all -add-tags json -transform camelcase -quiet -w
 
 .PHONY: codegen

@@ -89,6 +89,66 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/memstore/query": {
+            "post": {
+                "description": "evaluates provided query on top of internal metric storage",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "metrics"
+                ],
+                "summary": "queries the metric storage",
+                "parameters": [
+                    {
+                        "description": "QueryRequest",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/rest.QueryRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/rest.OperationResult"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/memstore/reset": {
+            "post": {
+                "description": "deletes all the data in the internal metric store",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ops"
+                ],
+                "summary": "resets mem storage",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/rest.OperationResult"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -112,6 +172,36 @@ const docTemplate = `{
                 },
                 "lastUpdate": {
                     "type": "integer"
+                }
+            }
+        },
+        "rest.OperationResult": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "ok": {
+                    "type": "boolean"
+                },
+                "operation": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                }
+            }
+        },
+        "rest.QueryRequest": {
+            "type": "object",
+            "properties": {
+                "operationOverTime": {
+                    "type": "string",
+                    "example": "rate"
+                },
+                "query": {
+                    "type": "string",
+                    "example": "avg(runtime_service_invocation_req_recv_total{app_id=nodeapp,src_app_id=pythonapp})"
                 }
             }
         },

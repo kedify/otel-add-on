@@ -61,6 +61,10 @@ func (m ms) get(name types.MetricName, searchLabels types.Labels, timeOp types.O
 				return -1., false, fmt.Errorf("unknown OperationOverTime: %s", timeOp)
 			}
 			return ret, true, nil
+		} else {
+			defer func() {
+				storedMetrics.Delete(hashOfMap(searchLabels))
+			}()
 		}
 		v, _ := md.AggregatesOverTime.Load(timeOp)
 		return v, true, nil
@@ -84,6 +88,10 @@ func (m ms) get(name types.MetricName, searchLabels types.Labels, timeOp types.O
 				}
 				counter += 1
 				accumulator = m.calculateAggregate(val, counter, accumulator, defaultAggregation)
+			} else {
+				defer func() {
+					storedMetrics.Delete(hashOfMap(searchLabels))
+				}()
 			}
 		}
 		return true
