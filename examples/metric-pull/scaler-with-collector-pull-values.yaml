@@ -20,7 +20,7 @@ opentelemetry-collector:
        - 'get'
        - 'list'
        - 'watch'
-  config:
+  alternateConfig:
     receivers:
       opencensus:
       # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/prometheusreceiver/README.md
@@ -56,9 +56,6 @@ opentelemetry-collector:
                 - source_labels: [__meta_kubernetes_pod_name]
                   action: replace
                   target_label: pod_name
-      zipkin:
-      jaeger:
-      otlp:
     exporters:
       otlp:
         endpoint: keda-otel-scaler:4317
@@ -71,7 +68,6 @@ opentelemetry-collector:
       filter/ottl:
         error_mode: ignore
         metrics:
-          # runtime/service_invocation/req_sent_total
           metric:
             - | # drop all other metrics that are not whitelisted here
               name != "http_request_duration_seconds"
@@ -80,8 +76,6 @@ opentelemetry-collector:
 
     service:
       pipelines:
-        traces:
-        logs:
         metrics:
           receivers:
             - prometheus

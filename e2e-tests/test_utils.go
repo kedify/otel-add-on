@@ -52,6 +52,7 @@ var (
 	otelScalerVersion, _ = os.LookupEnv("OTEL_SCALER_VERSION")
 	printLogs, _         = os.LookupEnv("E2E_PRINT_LOGS")
 	deleteCluster, _     = os.LookupEnv("E2E_DELETE_CLUSTER")
+	isCI, _              = os.LookupEnv("CI")
 )
 
 type TestContext struct {
