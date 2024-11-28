@@ -24,19 +24,19 @@ func ClampValue(lggr logr.Logger, value float64, metadata map[string]string) flo
 	clampMin, minFound := metadata[MetadataClampMin]
 	clampMax, maxFound := metadata[MetadataClampMax]
 	if minFound {
-		mi, e := strconv.Atoi(clampMin)
+		mi, e := strconv.ParseFloat(clampMin, 64)
 		if e != nil {
 			lggr.Info("  warning: cannot convert "+MetadataClampMin, MetadataClampMin, clampMin, "error", e)
 		} else {
-			value = math.Max(value, float64(mi))
+			value = math.Max(value, mi)
 		}
 	}
 	if maxFound {
-		ma, e := strconv.Atoi(clampMax)
+		ma, e := strconv.ParseFloat(clampMax, 64)
 		if e != nil {
 			lggr.Info("  warning: cannot convert "+MetadataClampMax, MetadataClampMax, clampMax, "error", e)
 		} else {
-			value = math.Min(value, float64(ma))
+			value = math.Min(value, ma)
 		}
 	}
 	return value

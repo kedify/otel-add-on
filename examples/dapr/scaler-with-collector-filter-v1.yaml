@@ -1,0 +1,15 @@
+opentelemetry-collector:
+  alternateConfig:
+    processors:
+      filter/ottl:
+        error_mode: ignore
+        metrics:
+          metric: # drop all other metrics that are not whitelisted here
+            - |
+              name != "runtime/service_invocation/req_recv_total"
+              and instrumentation_scope.attributes["app_id"] != "nodeapp"
+              and instrumentation_scope.attributes["src_app_id"] != "pythonapp"
+    service:
+      pipelines:
+        metrics:
+          processors: [filter/ottl]
