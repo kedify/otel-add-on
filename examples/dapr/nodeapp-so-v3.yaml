@@ -15,7 +15,14 @@ spec:
         clampMax: '10'
     - type: kedify-http
       metadata:
-#        todo:
+        trafficAutowire: service
+        service: nodeapp-dapr
+        fallbackService: nodeapp-dapr-original
+        portName: dapr-http
+        hosts: nodeapp-dapr.default.svc.cluster.local
+        scalingMetric: requestRate
+        targetValue: '10000'
+
   minReplicaCount: 0
   advanced:
     horizontalPodAutoscalerConfig:

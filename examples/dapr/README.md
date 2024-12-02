@@ -107,14 +107,13 @@ SO
 
 ## Scaling Behavior
 
-Each replica of `pythonapp` microservice calls the `nodeapp` microservice each second. Checke the following part of the ScaledObject:
-```yaml
-        metricQuery: 'sum(runtime_service_invocation_req_recv_total{app_id="nodeapp",src_app_id="pythonapp"})'
-        operationOverTime: 'rate'
-```
-
 Each replica of the pythonapp microservice makes a call to the nodeapp microservice every second. Check the following
 part of the ScaledObject configuration:
+
+```yaml
+metricQuery: 'sum(runtime_service_invocation_req_recv_total{app_id="nodeapp",src_app_id="pythonapp"})'
+operationOverTime: 'rate'
+```
 
 - The runtime_service_invocation_req_recv_total metric increments each time the `pythonapp` calls `nodeapp`.
 - One of the metric dimensions is the pod identity, meaning each pod exposes these metrics with its label attached.
