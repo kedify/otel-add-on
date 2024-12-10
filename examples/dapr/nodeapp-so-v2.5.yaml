@@ -1,0 +1,30 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: dapr-nodeapp
+spec:
+  scaleTargetRef:
+    name: nodeapp
+  triggers:
+    - type: kedify-otel
+      metadata:
+        scalerAddress: 'keda-otel-scaler.default.svc:4318'
+        metricQuery: 'sum(runtime_service_invocation_req_recv_total{app_id="nodeapp",src_app_id="pythonapp"})'
+        operationOverTime: 'rate'
+        targetValue: '1'
+        clampMax: '10'
+    - type: kedify-otel
+      metadata:
+        scalerAddress: 'keda-otel-scaler.default.svc:4318'
+        metricQuery: 'sum(dapr_resiliency_activations_total{app_id="pythonapp",flow_direction="outbound",name="nodeapp-service-resiliency",namespace="default",policy="retry",target="app_nodeapp"})'
+        operationOverTime: 'rate'
+        targetValue: '0.01'
+        clampMax: '1'
+  minReplicaCount: 0
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 15
+        scaleUp:
+          stabilizationWindowSeconds: 15

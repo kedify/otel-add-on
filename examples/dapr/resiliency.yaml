@@ -6,12 +6,15 @@ metadata:
 scopes: [pythonapp]
 spec:
    policies:
+      timeouts:
+        short: 30s
       retries:
         retryForever:
           policy: constant
-          maxInterval: 500ms
-          maxRetries: -1
+          duration: 0.5s
+          maxRetries: 180
    targets:
       apps:
-         nodeapp:
-            retry: retryForever
+        nodeapp:
+          retry: retryForever
+          timeout: short
