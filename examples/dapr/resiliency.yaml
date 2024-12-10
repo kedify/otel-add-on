@@ -1,0 +1,17 @@
+apiVersion: dapr.io/v1alpha1
+kind: Resiliency
+metadata:
+   name: nodeapp-service-resiliency
+   namespace: default
+scopes: [pythonapp]
+spec:
+   policies:
+      retries:
+        retryForever:
+          policy: constant
+          maxInterval: 500ms
+          maxRetries: -1
+   targets:
+      apps:
+         nodeapp:
+            retry: retryForever

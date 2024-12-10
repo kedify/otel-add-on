@@ -1,4 +1,6 @@
 #!/bin/bash
+set -e
+
 OTEL_SCALER_VERSION=v0.0.4
 KEDA_VERSION=v2.16.0-1
 
