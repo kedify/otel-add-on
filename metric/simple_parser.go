@@ -23,7 +23,7 @@ func (p p) Parse(metricQuery string) (types.MetricName, types.Labels, types.Aggr
 	}
 	mq := strings.TrimSpace(metricQuery)
 	aggregateFunction := types.VecSum // default
-	for _, aggFn := range []types.AggregationOverVectors{types.VecSum, types.VecAvg, types.VecMin, types.VecMax} {
+	for _, aggFn := range []types.AggregationOverVectors{types.VecSum, types.VecAvg, types.VecMin, types.VecMax, types.VecCount} {
 		if strings.HasPrefix(mq, string(aggFn)+"(") && strings.HasSuffix(mq, ")") {
 			aggregateFunction = aggFn
 			mq = strings.TrimPrefix(mq, string(aggFn)+"(")

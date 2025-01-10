@@ -521,6 +521,49 @@ func TestMemStoreSumOverAverages(t *testing.T) {
 	assertMetricFound(t, val, found, err, 3.5+2.333)
 }
 
+func TestMemStoreCount(t *testing.T) {
+	// setup
+	ms := NewMetricStore(60)
+	labels1 := map[string]any{
+		"a": "1",
+		"b": "2",
+	}
+	labels2 := map[string]any{
+		"a": "1",
+		"b": "3",
+	}
+	labels3 := map[string]any{
+		"a": "1",
+		"b": "4",
+	}
+	labels4 := map[string]any{
+		"a": "2",
+		"b": "2",
+	}
+	name1 := "metric_name"
+	setupMetrics(ms, name1, 1, labels1, 1., 2.)
+	setupMetrics(ms, name1, 1, labels2, 1., 2., 3.)
+	setupMetrics(ms, name1, 1, labels3, 1., 2., 3., 4.)
+	setupMetrics(ms, name1, 1, labels4, 1., 2., 3., 4., 5.)
+	setupMetrics(ms, "noise", 1, labels2, 1., 2., 3., 4., 5.) // this shouldn't be included
+	val1, found1, err1 := ms.Get(types.MetricName(name1), map[string]any{
+		"a": "1",
+	}, types.OpAvg, types.VecCount)
+	assertMetricFound(t, val1, found1, err1, 3.)
+
+	val2, found2, err2 := ms.Get(types.MetricName(name1), map[string]any{
+		"b": "2",
+	}, types.OpAvg, types.VecCount)
+	assertMetricFound(t, val2, found2, err2, 2.)
+	val3, found3, err3 := ms.Get(types.MetricName(name1), map[string]any{}, types.OpAvg, types.VecCount)
+	assertMetricFound(t, val3, found3, err3, 4.)
+	val4, found4, err4 := ms.Get(types.MetricName(name1), map[string]any{
+		"a": "1",
+		"b": "2",
+	}, types.OpAvg, types.VecCount)
+	assertMetricFound(t, val4, found4, err4, 1.)
+}
+
 func setupMetrics(store types.MemStore, name string, secondsStep int64, labels map[string]any, vals ...float64) {
 	now := time.Now().Unix()
 	for i, v := range vals {

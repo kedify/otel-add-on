@@ -40,12 +40,12 @@ func (m ms) Get(unescapedName types.MetricName, searchLabels types.Labels, timeO
 	return value, found, err
 }
 
-func (m ms) get(name types.MetricName, searchLabels types.Labels, timeOp types.OperationOverTime, defaultAggregation types.AggregationOverVectors) (float64, types.Found, error) {
+func (m ms) get(name types.MetricName, searchLabels types.Labels, timeOp types.OperationOverTime, vecOp types.AggregationOverVectors) (float64, types.Found, error) {
 	now := time.Now().Unix()
 	if err := util.CheckTimeOp(timeOp); err != nil {
 		return -1., false, err
 	}
-	if err := checkDefaultAggregation(defaultAggregation); err != nil {
+	if err := checkVectorAggregation(vecOp); err != nil {
 		return -1., false, err
 	}
 	storedMetrics, found := m.store.Load(string(name))
@@ -55,6 +55,9 @@ func (m ms) get(name types.MetricName, searchLabels types.Labels, timeOp types.O
 	}
 	if md, f := storedMetrics.Load(hashOfMap(searchLabels)); f {
 		// found exact label match
+		if vecOp == types.VecCount {
+			return 1, true, nil
+		}
 		if !m.isStale(md.LastUpdate, now) {
 			ret, f := md.AggregatesOverTime.Load(timeOp)
 			if !f {
@@ -87,7 +90,7 @@ func (m ms) get(name types.MetricName, searchLabels types.Labels, timeOp types.O
 					return true
 				}
 				counter += 1
-				accumulator = m.calculateAggregate(val, counter, accumulator, defaultAggregation)
+				accumulator = m.calculateAggregate(val, counter, accumulator, vecOp)
 			} else {
 				defer func() {
 					storedMetrics.Delete(hashOfMap(searchLabels))
@@ -99,9 +102,9 @@ func (m ms) get(name types.MetricName, searchLabels types.Labels, timeOp types.O
 	return accumulator, true, nil
 }
 
-func checkDefaultAggregation(aggregation types.AggregationOverVectors) error {
+func checkVectorAggregation(aggregation types.AggregationOverVectors) error {
 	switch aggregation {
-	case types.VecSum, types.VecAvg, types.VecMin, types.VecMax:
+	case types.VecSum, types.VecAvg, types.VecMin, types.VecMax, types.VecCount:
 		return nil
 	default:
 		return fmt.Errorf("unknown AggregationOverVectors:%s", aggregation)
@@ -173,7 +176,11 @@ func (m ms) isStale(datapoint uint32, now int64) bool {
 
 func (m ms) calculateAggregate(value float64, counter int, accumulator float64, aggregation types.AggregationOverVectors) float64 {
 	if counter == 1 {
-		return value
+		if aggregation == types.VecCount {
+			return 1
+		} else {
+			return value
+		}
 	}
 	switch aggregation {
 	case types.VecSum:
@@ -188,6 +195,8 @@ func (m ms) calculateAggregate(value float64, counter int, accumulator float64, 
 		return math.Min(accumulator, value)
 	case types.VecMax:
 		return math.Max(accumulator, value)
+	case types.VecCount:
+		return accumulator + 1
 	default:
 		panic("unknown aggregation function: " + aggregation)
 	}
