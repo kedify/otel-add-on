@@ -5,7 +5,6 @@ package scaler
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -61,27 +60,18 @@ func (e *impl) Ping(context.Context, *emptypb.Empty) (*emptypb.Empty, error) {
 }
 
 func (e *impl) IsActive(
-	ctx context.Context,
+	_ context.Context,
 	sor *externalscaler.ScaledObjectRef,
 ) (*externalscaler.IsActiveResponse, error) {
 	lggr := e.lggr.WithName("IsActive")
 
-	gmr, err := e.GetMetrics(ctx, &externalscaler.GetMetricsRequest{
-		ScaledObjectRef: sor,
-	})
+	value, err := e.getMetric(sor)
 	if err != nil {
-		lggr.Error(err, "GetMetrics failed", "scaledObjectRef", sor.String())
+		lggr.Error(err, "getMetric failed", "scaledObjectRef", sor.String())
 		return nil, err
 	}
 
-	metricValues := gmr.GetMetricValues()
-	if err := errors.New("len(metricValues) != 1"); len(metricValues) != 1 {
-		lggr.Error(err, "invalid GetMetricsResponse", "scaledObjectRef", sor.String(), "getMetricsResponse", gmr.String())
-		return nil, err
-	}
-	metricValue := metricValues[0].GetMetricValue()
-	active := metricValue > 0
-
+	active := value > 0
 	return &externalscaler.IsActiveResponse{Result: active}, nil
 }
 
@@ -154,41 +144,44 @@ func (e *impl) GetMetricSpec(
 }
 
 func (e *impl) GetMetrics(
-	ctx context.Context,
+	_ context.Context,
 	metricRequest *externalscaler.GetMetricsRequest,
 ) (*externalscaler.GetMetricsResponse, error) {
-	lggr := e.lggr.WithName("GetMetrics")
 	sor := metricRequest.ScaledObjectRef
-
-	//namespacedName := k8s.NamespacedNameFromScaledObjectRef(sor)
-	//metricName := namespacedName.Name
-
-	scalerMetadata := sor.GetScalerMetadata()
-	metricName, labels, agg, err := util.GetMetricQuery(lggr, scalerMetadata, e.metricParser)
+	value, err := e.getMetric(sor)
 	if err != nil {
 		return nil, err
 	}
-
-	opOverTime := util.GetOperationOvertTime(lggr, scalerMetadata)
-	value, found, err := e.metricStore.Get(metricName, labels, opOverTime, agg)
-	lggr.Info("got metric value: ", "name", metricName, "labels", labels, "value", value, "found", found, "error", err)
-	if !found {
-		return nil, fmt.Errorf("not found")
-	}
-	if err != nil {
-		return nil, err
-	}
-	value = util.ClampValue(lggr, value, scalerMetadata)
-	e.metricsExporter.SetMetricValueClamped(string(metricName), fmt.Sprint(labels), string(opOverTime), string(agg), sor.GetName(), sor.GetNamespace(), value)
 
 	res := &externalscaler.GetMetricsResponse{
 		MetricValues: []*externalscaler.MetricValue{
 			{
 				MetricName:  metricRequest.GetMetricName(),
-				MetricValue: int64(math.Round(value)),
+				MetricValue: int64(math.Ceil(value)),
 			},
 		},
 	}
 
 	return res, nil
+}
+
+func (e *impl) getMetric(sor *externalscaler.ScaledObjectRef) (float64, error) {
+	lggr := e.lggr.WithName("getMetric")
+	metricName, labels, agg, err := util.GetMetricQuery(lggr, sor.GetScalerMetadata(), e.metricParser)
+	if err != nil {
+		return -1, err
+	}
+
+	opOverTime := util.GetOperationOvertTime(lggr, sor.GetScalerMetadata())
+	value, found, err := e.metricStore.Get(metricName, labels, opOverTime, agg)
+	lggr.Info("got metric value: ", "name", metricName, "labels", labels, "value", value, "found", found, "error", err)
+	if !found {
+		return -1, fmt.Errorf("not found")
+	}
+	if err != nil {
+		return -1, err
+	}
+	value = util.ClampValue(lggr, value, sor.GetScalerMetadata())
+	e.metricsExporter.SetMetricValueClamped(string(metricName), fmt.Sprint(labels), string(opOverTime), string(agg), sor.GetName(), sor.GetNamespace(), value)
+	return value, nil
 }
