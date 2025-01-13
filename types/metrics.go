@@ -39,11 +39,16 @@ const (
 	// and on the resulting set of numbers where each represents last_one, rate, min, max, avg of the time serie, we apply
 	// this function
 
-	// VecSum sums the number
+	// VecSum sums the numbers
 	VecSum AggregationOverVectors = "sum"
+	// VecAvg calculate the mean value
 	VecAvg AggregationOverVectors = "avg"
+	// VecMin calculate the minimum value
 	VecMin AggregationOverVectors = "min"
+	// VecMax calculate the max value
 	VecMax AggregationOverVectors = "max"
+	// VecCount calculate the number of occurrences
+	VecCount AggregationOverVectors = "count"
 
 	// following operations can be applied on one time serie vector that was captured over time
 	// returning just one number

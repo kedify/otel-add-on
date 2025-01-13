@@ -80,6 +80,17 @@ func TestSimpleParserMin(t *testing.T) {
 	}
 }
 
+func TestSimpleParserCount(t *testing.T) {
+	// setup
+	p := NewParser()
+
+	// check
+	name, labels, agg, err := p.Parse("count(metric_foo{ahoj=cau})")
+	if name != "metric_foo" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{"ahoj": "cau"}) || agg != types.VecCount || err != nil {
+		t.Errorf("expected: [metric_foo, map[ahoj:cau], min, <nil>], got: [%s, %v, %v, %v]", name, labels, agg, err)
+	}
+}
+
 func TestSimpleParserNoLabels(t *testing.T) {
 	// setup
 	p := NewParser()
