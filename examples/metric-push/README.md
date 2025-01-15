@@ -28,7 +28,7 @@ open http://localhost:8080
 
 Install this addon:
 ```bash
-helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.4 -f scaler-only-push-values.yaml
+helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.5 -f scaler-only-push-values.yaml
 ```
 
 In this scenario, we don't install OTEL collector using the `kedify-otel/otel-add-on` helm chart, because
