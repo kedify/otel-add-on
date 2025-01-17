@@ -2,6 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: keda-otel-scaler
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
   labels:
     {{- include "otel-add-on.labels" . | nindent 4 }}
 spec:

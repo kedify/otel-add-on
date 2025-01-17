@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "otel-add-on.name" . }}-scaler
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
   labels:
     {{- include "otel-add-on.labels" . | nindent 4 }}
 spec:
