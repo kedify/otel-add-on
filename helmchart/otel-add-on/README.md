@@ -77,6 +77,7 @@ or [docs](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/
 | settings.logs.stackTracesLvl | string | `"error"` | one of: info, error, panic |
 | settings.logs.noColor | bool | `false` | if anything else than 'false', the log will not contain colors |
 | settings.logs.noBanner | bool | `false` | if anything else than 'false', the log will not print the ascii logo |
+| validatingAdmissionPolicy.enabled | bool | `true` | whether the ValidatingAdmissionPolicy and ValidatingAdmissionPolicyBinding resources should be also rendered |
 | asciiArt | bool | `true` | should the ascii logo be printed when this helm chart is installed |
 | imagePullSecrets | list | `[]` | [details](https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod) |
 | serviceAccount.create | bool | `true` | should the service account be also created and linked in the deployment |
