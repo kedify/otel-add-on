@@ -63,6 +63,8 @@ const (
 	OpAvg   OperationOverTime = "avg"
 	OpMin   OperationOverTime = "min"
 	OpMax   OperationOverTime = "max"
+
+	// when adding new AggregationOverVectors or OperationOverTime, don't forget to change also ValidatingAdmissionPolicy
 )
 
 type MemStore interface {
