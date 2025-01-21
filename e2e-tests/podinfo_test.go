@@ -85,7 +85,7 @@ var _ = Describe("Helm chart:", func() {
 		Expect(err).NotTo(HaveOccurred())
 		_, err = execCmdOE("helm dependency build", pwd+"/../helmchart/otel-add-on")
 		Expect(err).NotTo(HaveOccurred())
-		cmd := "helm upgrade -i kedify-otel ../helmchart/otel-add-on -f ./testdata/scaler-values.yaml"
+		cmd := "helm upgrade -i kedify-otel ../helmchart/otel-add-on --namespace keda --create-namespace -f ./testdata/scaler-values.yaml"
 		if len(otelScalerVersion) > 0 {
 			cmd += fmt.Sprintf(" --set image.tag=%s", otelScalerVersion)
 		}
@@ -110,7 +110,7 @@ var _ = Describe("Helm chart:", func() {
 	})
 	When("kedify-otel installed", func() {
 		It("should become ready", func() {
-			waitForDeployment("otel-add-on-scaler", "default", defaultTimeoutSec)
+			waitForDeployment("otel-add-on-scaler", "keda", defaultTimeoutSec)
 		})
 	})
 	Context("Scaled Object", func() {
@@ -154,7 +154,7 @@ var _ = Describe("Helm chart:", func() {
 						Should(Succeed())
 				})
 				time.Sleep(5 * time.Second)
-				ctx2min, _ := context.WithTimeout(context.TODO(), 4*time.Minute)
+				ctx5min, _ := context.WithTimeout(context.TODO(), 5*time.Minute)
 				It("should eventually scale the podinfo back from N -> 1", func() {
 					Eventually(func(g Gomega) {
 						out, err := kubectl("get hpa keda-hpa-podinfo-pull-example -ojsonpath='{.status.desiredReplicas}'")
@@ -163,7 +163,7 @@ var _ = Describe("Helm chart:", func() {
 						g.Expect(err).Should(Not(HaveOccurred()))
 						g.Expect(desiredReplicas).Should(Equal(minReplicas))
 						ctx.t.Logf("        ->>>  Pod info successfuly scaled back to %d        <<<-\n\n\n", desiredReplicas)
-					}).WithPolling(3 * time.Second).WithContext(ctx2min).Should(Succeed())
+					}).WithPolling(3 * time.Second).WithContext(ctx5min).Should(Succeed())
 				})
 			})
 		})
@@ -186,7 +186,7 @@ func PrintLogs() {
 		wrapInSection("HPA", "get hpa keda-hpa-podinfo-pull-example -oyaml")
 		wrapInSection("SO", "get so podinfo-pull-example -oyaml")
 		wrapInSection("PODS", "get pods -A")
-		for _, nameAndNs := range []string{"podinfo -ndefault", "keda-operator -nkeda", "opentelemetry-collector -ndefault", "otel-add-on -ndefault"} {
+		for _, nameAndNs := range []string{"podinfo -ndefault", "keda-operator -nkeda", "opentelemetry-collector -nkeda", "otel-add-on -nkeda"} {
 			wrapInSection(fmt.Sprintf("Logs for %s", nameAndNs), fmt.Sprintf("logs -lapp.kubernetes.io/name=%s --tail=-1", nameAndNs))
 		}
 	}

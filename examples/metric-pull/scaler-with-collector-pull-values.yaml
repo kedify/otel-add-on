@@ -58,7 +58,7 @@ opentelemetry-collector:
                   target_label: pod_name
     exporters:
       otlp:
-        endpoint: keda-otel-scaler:4317
+        endpoint: keda-otel-scaler.keda.svc:4317
         compression: "none"
         tls:
           insecure: true
