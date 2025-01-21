@@ -38,6 +38,11 @@ settings:
     # -- if anything else than 'false', the log will not print the ascii logo
     noBanner: false
 
+validatingAdmissionPolicy:
+  # -- whether the ValidatingAdmissionPolicy and ValidatingAdmissionPolicyBinding resources should be also rendered
+  enabled: true
+  name: well-formed-otel-scalers
+
 # -- should the ascii logo be printed when this helm chart is installed
 asciiArt: true
 
