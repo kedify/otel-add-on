@@ -1,6 +1,7 @@
 #otel-add-on:
 #------------
 replicaCount: 1
+namespace: keda
 
 image:
   # -- Image to use for the Deployment
@@ -141,8 +142,8 @@ opentelemetry-collector:
         include_metadata: true
     exporters:
       otlp:
-        # make sure this is the same hostname and port as .service
-        endpoint: keda-otel-scaler:4317
+        # make sure this is the same hostname and port as .service (when using different namespace)
+        endpoint: keda-otel-scaler.keda.svc:4317
         compression: "none"
         tls:
           insecure: true

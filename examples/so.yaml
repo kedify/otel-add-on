@@ -10,7 +10,7 @@ spec:
   triggers:
     - type: external
       metadata:
-        scalerAddress: "keda-otel-scaler.default.svc:4318"
+        scalerAddress: "keda-otel-scaler.keda.svc:4318"
 #        scalerAddress: "host.k3d.internal:4318"
 
         # required - no default
