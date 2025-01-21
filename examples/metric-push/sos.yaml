@@ -8,7 +8,7 @@ spec:
   triggers:
     - type: external
       metadata:
-        scalerAddress: "keda-otel-scaler.default.svc:4318"
+        scalerAddress: "keda-otel-scaler.keda.svc:4318"
         metricQuery: "avg(app_frontend_requests{target=/api/recommendations, method=GET, status=200})"
         operationOverTime: "rate"
         targetValue: "1"
@@ -32,7 +32,7 @@ spec:
   triggers:
     - type: external
       metadata:
-        scalerAddress: "keda-otel-scaler.default.svc:4318"
+        scalerAddress: "keda-otel-scaler.keda.svc:4318"
         metricQuery: "avg(app_frontend_requests{target=/api/products, method=GET, status=200})"
         operationOverTime: "rate"
         targetValue: "1"
@@ -59,7 +59,7 @@ spec:
 #  triggers:
 #    - type: external
 #      metadata:
-#        scalerAddress: "keda-otel-scaler.default.svc:4318"
+#        scalerAddress: "keda-otel-scaler.keda.svc:4318"
 #        metricQuery: "avg(calls{service.name=imageprovider,span.kind=SPAN_KIND_SERVER,span.name=imageprovider,status.code=STATUS_CODE_UNSET})"
 #        operationOverTime: "rate"
 #        targetValue: "2"

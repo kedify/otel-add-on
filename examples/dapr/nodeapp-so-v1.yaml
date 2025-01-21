@@ -8,7 +8,7 @@ spec:
   triggers:
     - type: kedify-otel
       metadata:
-        scalerAddress: 'keda-otel-scaler.default.svc:4318'
+        scalerAddress: 'keda-otel-scaler.keda.svc:4318'
         metricQuery: 'sum(runtime_service_invocation_req_recv_total{app_id="nodeapp",src_app_id="pythonapp"})'
         operationOverTime: 'rate'
         targetValue: '1'

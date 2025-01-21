@@ -20,7 +20,7 @@ spec:
         # on each time serie and combine the result with the optional operation that's part of this query (if omitted, it's sum)
         #
         # grammar:
-        # op(metricName{label1=val1, label2=val2})  , where 'op' is one of {sum, min, max, avg}
+        # op(metricName{label1=val1, label2=val2})  , where 'op' is one of {sum, min, max, avg, count}
         #
         # examples:
         #  - avg(http_requests_total{code=200,handler=targets,instance=example:8080,method=get})   (good with operationOverTime=rate)
