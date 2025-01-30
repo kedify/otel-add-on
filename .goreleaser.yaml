@@ -75,6 +75,14 @@ dockers:
         "--label=org.opencontainers.image.version={{.Version}}"
       - &LABEL5
         "--label=org.opencontainers.image.description={{.ProjectName}} by Kedify"
+      - &LABEL6
+          "--label=org.opencontainers.image.vendor=Kedify"
+      - &LABEL7
+          "--label=org.opencontainers.image.authors=Kedify Team https://kedify.io/"
+      - &LABEL8
+          "--label=org.opencontainers.image.url=https://github.com/kedify/otel-add-on/pkgs/container/otel-add-on"
+      - &LABEL9
+          "--label=org.opencontainers.image.source=https://github.com/kedify/otel-add-on/pkgs/container/otel-add-on"
   - &BASE_IMG_ARM
     <<: *BASE_IMG
     id: base-arm
@@ -86,6 +94,10 @@ dockers:
       - *LABEL3
       - *LABEL4
       - *LABEL5
+      - *LABEL6
+      - *LABEL7
+      - *LABEL8
+      - *LABEL9
   - &HARDENED_IMG
     <<: *BASE_IMG
     id: hardened
@@ -97,6 +109,10 @@ dockers:
       - *LABEL3
       - *LABEL4
       - *LABEL5
+      - *LABEL6
+      - *LABEL7
+      - *LABEL8
+      - *LABEL9
   - &HARDENED_IMG_ARM
     <<: *BASE_IMG_ARM
     id: hardened-arm
@@ -108,6 +124,10 @@ dockers:
       - *LABEL3
       - *LABEL4
       - *LABEL5
+      - *LABEL6
+      - *LABEL7
+      - *LABEL8
+      - *LABEL9
 
   - <<: *BASE_IMG
     id: otel-add-on
