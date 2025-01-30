@@ -145,3 +145,5 @@ curl -sL https://github.com/open-telemetry/opentelemetry-collector-releases/rele
 # 2) run the validator against your helm chart values
 ./otel-contrib validate --config=<(cat values.yaml | yq '.opentelemetry-collector.alternateConfig')
 ```
+
+Alternatively, you may want to use online tools such as [otelbin.io](https://www.otelbin.io/).
