@@ -97,3 +97,53 @@ helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0
 ```bash
 k apply -f examples/so.yaml
 ```
+
+## Troubleshooting
+
+To figure out the actual value of a metric query, there is a simple REST api that can be used:
+
+```bash
+(kubectl port-forward svc/keda-otel-scaler 9090&)
+# swagger doc: http://localhost:9090/swagger/index.html
+# test the existing metric query
+curl -X 'POST' \
+  'http://localhost:9090/memstore/query' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "operationOverTime": "last_one",
+  "query": "kube_deployment_status_replicas_available{deployment=foo,namespace=observability}"
+}'
+{
+    "ok": true,
+    "operation": "query",
+    "error": "",
+    "value": 1
+}
+
+# check the data if the labels are stored there correctly:
+curl -X 'GET' \
+  'http://localhost:9090/memstore/data' \
+  -H 'accept: application/json' | jq '.kube_deployment_status_replicas_available[].labels'
+{
+  "deployment": "keda-operator",
+  "namespace": "keda"
+}
+```
+
+### Configuration for OTEL collector
+
+This repo has the OTEL collector helm chart as a dependency and some issues in the configuration are guarded
+by their upstream JSON Schema, but some are not, and it's a good idea to run the validator (especially if it's part
+of a CI/CD pipeline):
+
+```
+# 1) download the binary
+VERSION=0.117.0
+curl -sL https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${VERSION}/otelcol-contrib_${VERSION}_$(go env GOOS)_$(go env GOARCH).tar.gz | tar xvz - -C .
+
+# 2) run the validator against your helm chart values
+./otel-contrib validate --config=<(cat values.yaml | yq '.opentelemetry-collector.alternateConfig')
+```
+
+Alternatively, you may want to use online tools such as [otelbin.io](https://www.otelbin.io/).
