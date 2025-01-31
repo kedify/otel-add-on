@@ -1,0 +1,7 @@
+# Configuration for our Artifact Hub repository
+# used for claiming the ownership for the KEDA Scaler
+# See https://github.com/artifacthub/hub/blob/master/docs/metadata/artifacthub-repo.yml
+repositoryID: 44a46e9d-61fb-481d-8320-45c9a84e9580
+owners:
+  - name: jkremser
+    email: jiri.kremser@email.com
