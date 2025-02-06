@@ -35,7 +35,6 @@ spec:
 
     - expression: "variables.noTriggers || variables.triggers.all(t, has(t.metadata.metricQuery) && t.metadata.metricQuery.matches(variables.mqRegexp))"
       messageExpression: "'Malformed trigger in ScaledObject: ' + object.metadata.name + ' unsupported metricQuery: ' + variables.triggers.filter(t, !has(t.metadata.metricQuery) || !t.metadata.metricQuery.matches(variables.mqRegexp)).map(t, has(t.metadata.metricQuery) ? t.metadata.metricQuery : 'missing')[0]"
-      reason: "MalformedMetricQuery"
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicyBinding
