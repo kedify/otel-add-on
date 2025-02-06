@@ -81,10 +81,10 @@ securityContext:
   runAsUser: 1000
 
 service:
-  # -- Under this service, the otel add on needs to be reachable by KEDA operator and OTEL collector
+  # -- Under this service, the otel add on needs to be reachable by KEDA operator and OTel collector
   # ([details](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types))
   type: ClusterIP
-  # -- OTLP receiver will be opened on this port. OTEL exporter configured in the OTEL collector needs to have this value set.
+  # -- OTLP receiver will be opened on this port. OTel exporter configured in the OTel collector needs to have this value set.
   otlpReceiverPort: 4317
   # -- KEDA external scaler will be opened on this port. ScaledObject's `.spec.triggers[].metadata.scalerAddress` needs to be set to this svc and this port.
   kedaExternalScalerPort: 4318

@@ -89,7 +89,7 @@ func (m *InternalMetrics) Init() {
 		m.metrics.KedaOtelScalerRuntimeInfo = prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: KedaOtelScalerRuntimeInfo,
-				Help: "KEDA OTEL scaler runtime info.",
+				Help: "KEDA OTel scaler runtime info.",
 			},
 			[]string{"version", "goVersion", "arch", "os", "gitSha", "retentionSeconds", "scalerPort", "otlpPort", "internalMetricsPort", "restApiPort"},
 		)

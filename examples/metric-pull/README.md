@@ -1,6 +1,6 @@
 # Use-case: pull metrics
 
-This use-case demonstrates how OTEL collector can be used as a scraper of another metric endpoints and
+This use-case demonstrates how OTel collector can be used as a scraper of another metric endpoints and
 then forwarding the filtered metrics into OTLP receiver in our scaler.
 
 Prepare helm chart repos:
@@ -30,7 +30,7 @@ Install this addon:
 helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.5 -f scaler-with-collector-pull-values.yaml
 ```
 
-Note the following section in the helm chart values that configures the OTEL collector to scrape targets:
+Note the following section in the helm chart values that configures the OTel collector to scrape targets:
 
 ```yaml
 ...
@@ -65,7 +65,7 @@ Note the following section in the helm chart values that configures the OTEL col
                   target_label: pod_name
 ...
 ```
-We are adding one static target - the metrics from the OTEL collector itself, just for demo purposes, these
+We are adding one static target - the metrics from the OTel collector itself, just for demo purposes, these
 won't be used for scaling decision. And also any pod annotated with `prometheus.io/scrape=true`. One can
 also modify the path where the metrics are exported using `prometheus.io/path=/metrics`.
 

@@ -1,6 +1,6 @@
 # Use-case: push metrics
 
-This use-case demonstrates how OTEL collector can be used as a scraper of another metric endpoints and
+This use-case demonstrates how OTel collector can be used as a scraper of another metric endpoints and
 then forwarding the filtered metrics into OTLP receiver in our scaler.
 
 Prepare helm chart repos:
@@ -31,22 +31,22 @@ Install this addon:
 helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.5 -f scaler-only-push-values.yaml
 ```
 
-In this scenario, we don't install OTEL collector using the `kedify-otel/otel-add-on` helm chart, because
+In this scenario, we don't install OTel collector using the `kedify-otel/otel-add-on` helm chart, because
 the `opentelemetry-demo` already creates one and it was configured to forward all metrics to our scaler.
-If we wanted to filter the metrics, we would need to deploy another OTEL collector and configure the processor
+If we wanted to filter the metrics, we would need to deploy another OTel collector and configure the processor
 there so that it would look like this:
 
 ```bash
   ┌────────────┐     ┌────────────┐     ┌─────────────┐
   │            │     │            │     │             │
-  │ OTEL col 1 ├────►│ OTEL col 2 ├────►│ this scaler │
+  │ OTel col 1 ├────►│ OTel col 2 ├────►│ this scaler │
   │            │     │ (filtering)│     │             │
   └────────────┘     └────────────┘     └─────────────┘
    
 instead we go w/ simple (w/o filtering):
   ┌────────────┐     ┌─────────────┐
   │            │     │             │
-  │ OTEL col 1 ├────►│ this scaler │
+  │ OTel col 1 ├────►│ this scaler │
   │            │     │             │
   └────────────┘     └─────────────┘
 ```
@@ -98,6 +98,6 @@ k3d cluster delete metric-push
 ```
 
 > [!TIP]
-> In general, when instrumenting the application using OTEL sdk, you can call the 
+> In general, when instrumenting the application using OTel sdk, you can call the 
 > [ForceFlush](https://opentelemetry.io/docs/specs/otel/metrics/sdk/#forceflush-1)
 > to further decrease the delay between a metric change and scaling trigger.

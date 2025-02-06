@@ -49,9 +49,9 @@ helm upgrade -i oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.5
 
 {{ template "chart.requirementsSection" . }}
 
-## OTEL Collector Sub-Chart
+## OTel Collector Sub-Chart
 
-This helm chart, if not disabled by `--set opentelemetry-collector.enabled=false`, installs the OTEL collector using
+This helm chart, if not disabled by `--set opentelemetry-collector.enabled=false`, installs the OTel collector using
 its upstream [helm chart](https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-collector).
 
 To check all the possible values for this dependent helm chart, consult [values.yaml](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/charts/opentelemetry-collector/values.yaml)

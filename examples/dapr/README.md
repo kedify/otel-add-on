@@ -7,8 +7,8 @@ upstream [example](https://docs.dapr.io/getting-started/quickstarts/serviceinvoc
 where the Python app calls the Node app using the service invocation pattern.
 
 Both workloads run `daprd` in a sidecar container, which also exposes metrics. We have modified the `daprd` and its
-mutating webhook (`dapr-sidecar-injector`) to push metrics to our OTEL collector. These metrics use OpenCensus,
-so we need to configure the OTEL collector to accept metrics through the `opencensus` receiver.
+mutating webhook (`dapr-sidecar-injector`) to push metrics to our OTel collector. These metrics use OpenCensus,
+so we need to configure the OTel collector to accept metrics through the `opencensus` receiver.
 
 ## Setup
 
@@ -32,7 +32,7 @@ kubectl set image deploy/dapr-sidecar-injector -n dapr-system dapr-sidecar-injec
 kubectl rollout status -n dapr-system deploy/dapr-sidecar-injector
 ```
 
-Deploy this scaler and OTEL collector that forwards one whitelisted metric:
+Deploy this scaler and OTel collector that forwards one whitelisted metric:
 ```bash
 cat <<VALUES | helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.5 -f -
 opentelemetry-collector:
@@ -118,7 +118,7 @@ operationOverTime: 'rate'
 - The runtime_service_invocation_req_recv_total metric increments each time the `pythonapp` calls `nodeapp`.
 - One of the metric dimensions is the pod identity, meaning each pod exposes these metrics with its label attached.
 - Similar to PromQL, if not all dimensions are specified, multiple metric series will be returned.
-- The OTEL scaler calculates the rate over a one-minute window (default). This should be `1`, as we are calling the API 
+- The OTel scaler calculates the rate over a one-minute window (default). This should be `1`, as we are calling the API 
   every second, so the counter increments by one each second.
 - If multiple metric series are present, the sum is applied to aggregate the values. For example, if there are three
   producer pods, the total will be `3`.

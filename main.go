@@ -1,4 +1,4 @@
-// The OTEL Scaler is the standard implementation for a KEDA external scaler
+// The OTel Scaler is the standard implementation for a KEDA external scaler
 // which can be found at https://keda.sh/docs/2.15/concepts/external-scalers/
 package main
 
@@ -56,7 +56,7 @@ func main() {
 	if !cfg.NoBanner {
 		util.PrintBanner(cfg.NoColor)
 	}
-	build.PrintComponentInfo(ctrl.Log, lvl, "OTEL addon for KEDA")
+	build.PrintComponentInfo(ctrl.Log, lvl, "OTel addon for KEDA")
 
 	ctx := util.ContextWithLogger(ctrl.SetupSignalHandler(), setupLog)
 	eg, ctx := errgroup.WithContext(ctx)

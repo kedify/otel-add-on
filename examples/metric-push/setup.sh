@@ -2,7 +2,7 @@
 DIR="${DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )}"
 DEMO_APP="${DEMO_APP:-my-otel-demo}"
 
-command -v figlet &> /dev/null && figlet Autoscaling OTEL demo
+command -v figlet &> /dev/null && figlet Autoscaling OTel demo
 
 # setup helm repos
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts

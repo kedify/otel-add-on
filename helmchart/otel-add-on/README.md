@@ -54,9 +54,9 @@ Kubernetes: `>= 1.19.0-0`
 |------------|------|---------|
 | https://open-telemetry.github.io/opentelemetry-helm-charts | opentelemetry-collector | 0.110.0 |
 
-## OTEL Collector Sub-Chart
+## OTel Collector Sub-Chart
 
-This helm chart, if not disabled by `--set opentelemetry-collector.enabled=false`, installs the OTEL collector using
+This helm chart, if not disabled by `--set opentelemetry-collector.enabled=false`, installs the OTel collector using
 its upstream [helm chart](https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-collector).
 
 To check all the possible values for this dependent helm chart, consult [values.yaml](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/charts/opentelemetry-collector/values.yaml)
@@ -89,8 +89,8 @@ or [docs](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/
 | securityContext.readOnlyRootFilesystem | bool | `true` | [details](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) |
 | securityContext.runAsNonRoot | bool | `true` | [details](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#implicit-group-memberships-defined-in-etc-group-in-the-container-image) |
 | securityContext.runAsUser | int | `1000` | [details](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#implicit-group-memberships-defined-in-etc-group-in-the-container-image) |
-| service.type | string | `"ClusterIP"` | Under this service, the otel add on needs to be reachable by KEDA operator and OTEL collector ([details](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types)) |
-| service.otlpReceiverPort | int | `4317` | OTLP receiver will be opened on this port. OTEL exporter configured in the OTEL collector needs to have this value set. |
+| service.type | string | `"ClusterIP"` | Under this service, the otel add on needs to be reachable by KEDA operator and OTel collector ([details](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types)) |
+| service.otlpReceiverPort | int | `4317` | OTLP receiver will be opened on this port. OTel exporter configured in the OTel collector needs to have this value set. |
 | service.kedaExternalScalerPort | int | `4318` | KEDA external scaler will be opened on this port. ScaledObject's `.spec.triggers[].metadata.scalerAddress` needs to be set to this svc and this port. |
 | resources.limits.cpu | string | `"500m"` | cpu limit for the pod, enforced by cgroups ([details](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)) |
 | resources.limits.memory | string | `"256Mi"` | memory limit for the pod, used by oomkiller ([details](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)) |
