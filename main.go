@@ -47,7 +47,6 @@ var (
 func main() {
 	cfg := util.MustParseConfig()
 	otlpReceiverPort := cfg.OTLPReceiverPort
-	kedaExternalScalerPort := cfg.KedaExternalScalerPort
 	restApiPort := cfg.RestApiPort
 	metricStoreRetentionSeconds := cfg.MetricStoreRetentionSeconds
 	lazySeries := cfg.MetricStoreLazySeries
@@ -79,7 +78,7 @@ func main() {
 			return e
 		}
 
-		if e = startGrpcServer(ctx, ctrl.Log, ms, mp, kedaExternalScalerPort); !util.IsIgnoredErr(e) {
+		if e = startGrpcServer(ctx, ctrl.Log, ms, mp, cfg); !util.IsIgnoredErr(e) {
 			setupLog.Error(e, "grpc server failed (KEDA external scaler)")
 			return e
 		}
@@ -175,9 +174,9 @@ func startGrpcServer(
 	lggr logr.Logger,
 	ms types.MemStore,
 	mp types.Parser,
-	kedaExternalScalerPort int,
+	cfg *util.Config,
 ) error {
-	kedaExternalScalerAddr := fmt.Sprintf("0.0.0.0:%d", kedaExternalScalerPort)
+	kedaExternalScalerAddr := fmt.Sprintf("0.0.0.0:%d", cfg.KedaExternalScalerPort)
 	setupLog.Info("starting the grpc server for KEDA scaler", "address", kedaExternalScalerAddr)
 	lis, err := net.Listen("tcp", kedaExternalScalerAddr)
 	if err != nil {
@@ -218,6 +217,7 @@ func startGrpcServer(
 			lggr,
 			ms,
 			mp,
+			cfg,
 		),
 	)
 

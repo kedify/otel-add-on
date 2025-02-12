@@ -143,6 +143,15 @@ func (m ms) Put(entry t.NewMetricEntry) {
 	m.store.Store(string(name), metrics)
 }
 
+func (m ms) IsSubscribed(lazyAggregates bool, name t.MetricName, overTime t.OperationOverTime) bool {
+	ops, found := m.subscriptions[name]
+	if !lazyAggregates {
+		return found
+	} else {
+		return slices.Contains(ops, overTime)
+	}
+}
+
 func escapeName(name t.MetricName) t.MetricName {
 	return t.MetricName(strings.ReplaceAll(strings.ReplaceAll(string(name), "/", "_"), ".", "_"))
 }

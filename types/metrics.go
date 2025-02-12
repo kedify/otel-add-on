@@ -34,11 +34,6 @@ type ObservedValue struct {
 	Time uint32 `json:"time"`
 }
 
-type Subscription struct {
-	metricName string
-	aggregate  AggregationOverVectors
-}
-
 const (
 	// following aggregations can be applied across multiple metric series. This automatically happens if provided
 	// set of labels wasn't specific enough to identify just one vector. In which case we first apply the OperationOverTime
@@ -82,6 +77,9 @@ type MemStore interface {
 
 	// GetStore returns the internal storage
 	GetStore() *Map[string, *Map[LabelsHash, *MetricData]]
+
+	// IsSubscribed returns true if anyone has called Get for this metric before
+	IsSubscribed(bool, MetricName, OperationOverTime) bool
 }
 
 type Parser interface {

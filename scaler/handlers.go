@@ -35,23 +35,22 @@ type impl struct {
 	metricStore     types.MemStore
 	metricParser    types.Parser
 	metricsExporter *metric.InternalMetrics
-	//soInformer   informersv1alpha1.ScaledObjectInformer
-	//targetMetric int64
 	externalscaler.UnimplementedExternalScalerServer
+	cfg *util.Config
 }
 
 func New(
 	lggr logr.Logger,
 	metricStore types.MemStore,
 	metricParser types.Parser,
+	cfg *util.Config,
 ) *impl {
 	return &impl{
 		lggr:            lggr,
 		metricStore:     metricStore,
 		metricParser:    metricParser,
 		metricsExporter: metric.Metrics(),
-		//soInformer:   soInformer,
-		//targetMetric: defaultTargetMetric,
+		cfg:             cfg,
 	}
 }
 
@@ -116,9 +115,19 @@ func (e *impl) GetMetricSpec(
 	sor *externalscaler.ScaledObjectRef,
 ) (*externalscaler.GetMetricSpecResponse, error) {
 	lggr := e.lggr.WithName("GetMetricSpec")
+	isLazy := e.cfg.MetricStoreLazySeries || e.cfg.MetricStoreLazyAggregates
+	metricName, labels, agg, err := util.GetMetricQuery(lggr, sor.GetScalerMetadata(), e.metricParser)
+	if err == nil {
+		opOverTime := util.GetOperationOvertTime(lggr, sor.GetScalerMetadata())
+		if isLazy && e.metricStore.IsSubscribed(e.cfg.MetricStoreLazyAggregates, metricName, opOverTime) {
+			if _, _, er := e.metricStore.Get(metricName, labels, opOverTime, agg); err != nil {
+				lggr.Error(er, "unable to initialize the metric in lazy mode", "metricName", metricName, "labels", labels)
+			}
+		}
+	}
 
 	namespacedName := util.NamespacedNameFromScaledObjectRef(sor)
-	metricName := fmt.Sprintf("%s-%s", namespacedName.Namespace, namespacedName.Name)
+	kedaMetricName := fmt.Sprintf("%s-%s", namespacedName.Namespace, namespacedName.Name)
 
 	scalerMetadata := sor.GetScalerMetadata()
 	if scalerMetadata == nil {
@@ -134,7 +143,7 @@ func (e *impl) GetMetricSpec(
 	res := &externalscaler.GetMetricSpecResponse{
 		MetricSpecs: []*externalscaler.MetricSpec{
 			{
-				MetricName: metricName,
+				MetricName: kedaMetricName,
 				TargetSize: targetValue,
 			},
 		},
