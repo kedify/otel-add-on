@@ -10,6 +10,8 @@ type Config struct {
 	RestApiPort                 int  `envconfig:"REST_API_PORT" default:"9090"`
 	InternalMetricsPort         int  `envconfig:"INTERNAL_METRICS_PORT" default:"8080"`
 	MetricStoreRetentionSeconds int  `envconfig:"METRIC_STORE_RETENTION_SECONDS" default:"120"`
+	MetricStoreLazySeries       bool `envconfig:"METRIC_STORE_LAZY_SERIES" default:"false"`
+	MetricStoreLazyAggregates   bool `envconfig:"METRIC_STORE_LAZY_AGGREGATES" default:"false"`
 	NoColor                     bool `envconfig:"NO_COLOR" default:"false"`
 	NoBanner                    bool `envconfig:"NO_BANNER" default:"false"`
 }

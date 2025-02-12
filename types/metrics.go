@@ -8,8 +8,9 @@ type NewMetricEntry struct {
 	// labels further identifies the collected data points (introducing new dimensions and storing also metadata) ~ tags
 	Labels Labels `json:"labels"`
 	// observed value
-	MeasurementValue float64           `json:"measurementValue"`
-	MeasurementTime  pcommon.Timestamp `json:"measurementTime"`
+	MeasurementValue  float64           `json:"measurementValue"`
+	MeasurementTime   pcommon.Timestamp `json:"measurementTime"`
+	OperationOverTime OperationOverTime
 }
 
 type AggregationOverVectors string
@@ -33,13 +34,18 @@ type ObservedValue struct {
 	Time uint32 `json:"time"`
 }
 
+type Subscription struct {
+	metricName string
+	aggregate  AggregationOverVectors
+}
+
 const (
 	// following aggregations can be applied across multiple metric series. This automatically happens if provided
 	// set of labels wasn't specific enough to identify just one vector. In which case we first apply the OperationOverTime
 	// and on the resulting set of numbers where each represents last_one, rate, min, max, avg of the time serie, we apply
 	// this function
 
-	// VecSum sums the numbers
+	// VecSum sums the numbers (if adding a new one, update also checkVectorAggregation)
 	VecSum AggregationOverVectors = "sum"
 	// VecAvg calculate the mean value
 	VecAvg AggregationOverVectors = "avg"

@@ -12,8 +12,17 @@ image:
   tag: ""
 
 settings:
-  # -- how long the metrics should be kept in the short term (in memory) storage
-  metricStoreRetentionSeconds: 120
+  metricStore:
+    # -- how long the metrics should be kept in the short term (in memory) storage
+    retentionSeconds: 120
+
+    # -- if enabled, no metrics will be stored until there is a request for such metric
+    # from KEDA operator.
+    lazySeries: false
+
+    # -- if enabled, the only aggregate that will be calculated on the fly is the one referenced in the metric query
+    #  (by default, we calculate and store all of them - sum, rate, min, max, etc.)
+    lazyAggregates: false
 
   # -- how often (in milliseconds) should the IsActive method be tried
   isActivePollingIntervalMilliseconds: 500

@@ -50,6 +50,8 @@ func main() {
 	kedaExternalScalerPort := cfg.KedaExternalScalerPort
 	restApiPort := cfg.RestApiPort
 	metricStoreRetentionSeconds := cfg.MetricStoreRetentionSeconds
+	lazySeries := cfg.MetricStoreLazySeries
+	lazyAggregates := cfg.MetricStoreLazyAggregates
 
 	lvl := util.SetupLog(cfg.NoColor)
 	isDebug = util.IsDebug(lvl)
@@ -60,7 +62,7 @@ func main() {
 
 	ctx := util.ContextWithLogger(ctrl.SetupSignalHandler(), setupLog)
 	eg, ctx := errgroup.WithContext(ctx)
-	ms := metric.NewMetricStore(metricStoreRetentionSeconds)
+	ms := metric.NewMetricStore(metricStoreRetentionSeconds, lazySeries, lazyAggregates)
 	mp := metric.NewParser()
 
 	eg.Go(func() error {
