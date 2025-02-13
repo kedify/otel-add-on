@@ -69,7 +69,9 @@ or [docs](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/
 | image.repository | string | `"ghcr.io/kedify/otel-add-on"` | Image to use for the Deployment |
 | image.pullPolicy | string | `"Always"` | Image pull policy, consult [docs](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy) |
 | image.tag | string | `""` | Image version to use for the Deployment, if not specified, it defaults to `.Chart.AppVersion` |
-| settings.metricStoreRetentionSeconds | int | `120` | how long the metrics should be kept in the short term (in memory) storage |
+| settings.metricStore.retentionSeconds | int | `120` | how long the metrics should be kept in the short term (in memory) storage |
+| settings.metricStore.lazySeries | bool | `false` | if enabled, no metrics will be stored until there is a request for such metric from KEDA operator. |
+| settings.metricStore.lazyAggregates | bool | `false` | if enabled, the only aggregate that will be calculated on the fly is the one referenced in the metric query  (by default, we calculate and store all of them - sum, rate, min, max, etc.) |
 | settings.isActivePollingIntervalMilliseconds | int | `500` | how often (in milliseconds) should the IsActive method be tried |
 | settings.internalMetricsPort | int | `8080` | internal (mostly golang) metrics will be exposed on `:8080/metrics` |
 | settings.restApiPort | int | `9090` | port where rest api should be listening |
