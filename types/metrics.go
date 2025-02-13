@@ -8,8 +8,9 @@ type NewMetricEntry struct {
 	// labels further identifies the collected data points (introducing new dimensions and storing also metadata) ~ tags
 	Labels Labels `json:"labels"`
 	// observed value
-	MeasurementValue float64           `json:"measurementValue"`
-	MeasurementTime  pcommon.Timestamp `json:"measurementTime"`
+	MeasurementValue  float64           `json:"measurementValue"`
+	MeasurementTime   pcommon.Timestamp `json:"measurementTime"`
+	OperationOverTime OperationOverTime
 }
 
 type AggregationOverVectors string
@@ -39,7 +40,7 @@ const (
 	// and on the resulting set of numbers where each represents last_one, rate, min, max, avg of the time serie, we apply
 	// this function
 
-	// VecSum sums the numbers
+	// VecSum sums the numbers (if adding a new one, update also checkVectorAggregation)
 	VecSum AggregationOverVectors = "sum"
 	// VecAvg calculate the mean value
 	VecAvg AggregationOverVectors = "avg"
@@ -76,6 +77,9 @@ type MemStore interface {
 
 	// GetStore returns the internal storage
 	GetStore() *Map[string, *Map[LabelsHash, *MetricData]]
+
+	// IsSubscribed returns true if anyone has called Get for this metric before
+	IsSubscribed(bool, MetricName, OperationOverTime) bool
 }
 
 type Parser interface {

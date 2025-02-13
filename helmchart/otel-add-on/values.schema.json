@@ -28,8 +28,24 @@
     "settings": {
       "type": "object",
       "properties": {
-        "metricStoreRetentionSeconds": {
-          "type": "number"
+        "metricStore": {
+          "type": "object",
+          "properties": {
+            "retentionSeconds": {
+              "type": "number"
+            },
+            "lazySeries": {
+              "type": "boolean"
+            },
+            "lazyAggregates": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "retentionSeconds",
+            "lazySeries",
+            "lazyAggregates"
+          ]
         },
         "isActivePollingIntervalMilliseconds": {
           "type": "number"
@@ -65,7 +81,7 @@
         }
       },
       "required": [
-        "metricStoreRetentionSeconds",
+        "metricStore",
         "isActivePollingIntervalMilliseconds",
         "internalMetricsPort",
         "restApiPort",
