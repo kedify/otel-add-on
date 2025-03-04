@@ -57,4 +57,61 @@ its upstream [helm chart](https://github.com/open-telemetry/opentelemetry-helm-c
 To check all the possible values for this dependent helm chart, consult [values.yaml](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/charts/opentelemetry-collector/values.yaml)
 or [docs](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/charts/opentelemetry-collector/README.md).
 
-{{ template "chart.valuesSection" . }}
+## Values
+
+{{ define "chart.customValueColumnRender" }}
+{{- $defaultValue := (default .Default .AutoDefault)  -}}
+{{- $notationType := .NotationType }}
+{{- if (and (hasPrefix "`" $defaultValue) (hasSuffix "`" $defaultValue) ) -}}
+{{- $defaultValue = (toPrettyJson (fromJson (trimAll "`" (default .Default .AutoDefault) ) ) ) -}}
+{{- $notationType = "json" }}
+{{- end -}}
+{{- if (eq $notationType "tpl" ) }}
+<pre lang="{{ $notationType }}">
+{{ .Key }}: |
+{{- $defaultValue | nindent 2 }}
+</pre>
+{{- else }}
+<pre lang="{{ $notationType }}">
+{{ $defaultValue }}
+</pre>
+{{- end }}
+{{ end }}
+
+{{ define "chart.customDescriptionColumnRender" }}
+{{- $defaultDescription := (default .Description .AutoDescription)  -}}
+{{- $defaultDescription :=  regexReplaceAll "`([^`]+)`" $defaultDescription "<code>${1}</code>"  -}}
+{{- $defaultDescription :=  regexReplaceAll "\\[([^\\]]+)\\]\\(([^\\)]+)\\)" $defaultDescription "<a href=\"${2}\">${1}</a>" -}}
+{{- $defaultDescription -}}
+{{ end }}
+
+{{ define "chart.valuesTableHtml" }}
+<table>
+     <thead>
+          <th>Key</th>
+          <th>Description</th>
+          <th>Default</th>
+     </thead>
+     <tbody>
+     {{- range .Values }}
+          <tr>
+               <td id="{{ .Key | replace "." "--" }}">
+               <a href="./values.yaml#L{{ .LineNumber }}">{{ .Key }}</a><br/>
+               ({{ .Type }})
+               </td>
+               <td>
+               {{ template "chart.customDescriptionColumnRender" . }}
+               </td>
+               <td>
+                    <div style="max-width: 200px;">{{ template "chart.customValueColumnRender" . }}</div>
+               </td>
+          </tr>
+     {{- end }}
+     </tbody>
+</table>
+{{ end }}
+
+{{ template "chart.valuesSectionHtml" . }}
+
+<!-- uncomment this for markdown style (use either valuesTableHtml or valuesSection)
+(( template "chart.valuesSection" . )) -->
