@@ -16,7 +16,7 @@ k3d cluster create metric-pull -p "8181:31198@server:0"
 
 # deploy stuff
 helm upgrade -i podinfo podinfo/podinfo -f ${DIR}/podinfo-values.yaml
-helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.5 -f ${DIR}/scaler-with-collector-pull-values.yaml
+helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.6 -f ${DIR}/scaler-with-collector-pull-values.yaml
 helm upgrade -i keda kedify/keda --namespace keda --create-namespace
 
 kubectl rollout status -n keda --timeout=300s deploy/keda-operator
