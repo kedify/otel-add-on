@@ -257,7 +257,7 @@
     },
     "opentelemetry-collector": {
       "type": "object",
-      "$ref": "https://raw.githubusercontent.com/open-telemetry/opentelemetry-helm-charts/refs/tags/opentelemetry-collector-0.119.0/charts/opentelemetry-collector/values.schema.json#/properties"
+      "$ref": "https://raw.githubusercontent.com/open-telemetry/opentelemetry-helm-charts/refs/tags/opentelemetry-collector-0.119.1/charts/opentelemetry-collector/values.schema.json#/properties"
     }
   },
   "required": [
