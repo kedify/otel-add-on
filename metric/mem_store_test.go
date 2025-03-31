@@ -9,16 +9,17 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 
 	ty "github.com/kedify/otel-add-on/types"
+	"github.com/kedify/otel-add-on/util"
 )
 
 const (
-	Eps         = .001
-	NotFoundVal = -1.
+	Eps                = .001
+	DefaultNotFoundVal = 0.
 )
 
 func TestMemStorePutOneAndGetOne(t *testing.T) {
 	// setup
-	ms := NewMetricStore(5, false, false)
+	ms := newMetricStore(5, false, false)
 	ms.Put(ty.NewMetricEntry{
 		Name:             "metric1",
 		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
@@ -36,7 +37,7 @@ func TestMemStorePutOneAndGetOne(t *testing.T) {
 
 func TestMemStoreEscapeMetrics(t *testing.T) {
 	// setup
-	ms := NewMetricStore(5, false, false)
+	ms := newMetricStore(5, false, false)
 	ms.Put(ty.NewMetricEntry{
 		Name:             "metric/one",
 		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
@@ -66,7 +67,7 @@ func TestMemStoreEscapeMetrics(t *testing.T) {
 
 func TestMemStoreErr(t *testing.T) {
 	// setup
-	ms := NewMetricStore(5, false, false)
+	ms := newMetricStore(5, false, false)
 	ms.Put(ty.NewMetricEntry{
 		Name:             "metric1",
 		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
@@ -86,7 +87,7 @@ func TestMemStoreErr(t *testing.T) {
 
 func TestMemStoreGetNotFound(t *testing.T) {
 	// setup
-	ms := NewMetricStore(5, false, false)
+	ms := newMetricStore(5, false, false)
 	ms.Put(ty.NewMetricEntry{
 		Name:             "metric1",
 		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
@@ -114,9 +115,30 @@ func TestMemStoreGetNotFound(t *testing.T) {
 	assertMetricNotFound(t, val4, found4, err4)
 }
 
+func TestMemStoreGetNotFoundCustomVal(t *testing.T) {
+	// setup
+	ms := NewMetricStore(&util.Config{MetricStoreRetentionSeconds: 5, MetricStoreValueIfNotFound: 42.})
+	ms.Put(ty.NewMetricEntry{
+		Name:             "metric1",
+		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
+		MeasurementValue: 42.,
+		Labels: map[string]any{
+			"a": "1",
+			"b": "2",
+		},
+	})
+
+	// check
+	val, found, err := ms.Get("nometric-404", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne, ty.VecSum)
+	assertMetric(t, val, found, err, 42., false, nil)
+	if found {
+		t.Errorf("expected: [false], got: [%v]", bool(found))
+	}
+}
+
 func TestMemStoreOperationLastOne(t *testing.T) {
 	// setup
-	ms := NewMetricStore(5, false, false)
+	ms := newMetricStore(5, false, false)
 	ms.Put(ty.NewMetricEntry{
 		Name:             "metric1",
 		MeasurementTime:  pcommon.Timestamp(time.Now().Unix() - 1),
@@ -143,7 +165,7 @@ func TestMemStoreOperationLastOne(t *testing.T) {
 
 func TestMemStorePutTwoAndGetTwo(t *testing.T) {
 	// setup
-	ms := NewMetricStore(5, false, false)
+	ms := newMetricStore(5, false, false)
 	ms.Put(ty.NewMetricEntry{
 		Name:             "metric1",
 		MeasurementTime:  pcommon.Timestamp(time.Now().Unix() - 1),
@@ -173,7 +195,7 @@ func TestMemStorePutTwoAndGetTwo(t *testing.T) {
 
 func TestMemStoreSumAcrossDifferentMetrics(t *testing.T) {
 	// setup
-	ms := NewMetricStore(5, false, false)
+	ms := newMetricStore(5, false, false)
 	ms.Put(ty.NewMetricEntry{
 		Name:             "metric1",
 		MeasurementTime:  pcommon.Timestamp(time.Now().Unix() - 1),
@@ -238,7 +260,7 @@ func TestMemStoreSumAcrossDifferentMetrics(t *testing.T) {
 
 func TestMemStoreAvg(t *testing.T) {
 	// setup
-	ms := NewMetricStore(5, false, false)
+	ms := newMetricStore(5, false, false)
 	ms.Put(ty.NewMetricEntry{
 		Name:             "metric1",
 		MeasurementTime:  pcommon.Timestamp(time.Now().Unix() - 1),
@@ -303,7 +325,7 @@ func TestMemStoreAvg(t *testing.T) {
 
 func TestMemStoreMinMax(t *testing.T) {
 	// setup
-	ms := NewMetricStore(5, false, false)
+	ms := newMetricStore(5, false, false)
 	ms.Put(ty.NewMetricEntry{
 		Name:             "metric1",
 		MeasurementTime:  pcommon.Timestamp(time.Now().Unix() - 1),
@@ -371,7 +393,7 @@ func TestMemStoreMinMax(t *testing.T) {
 
 func TestMemStoreAvgOverTime(t *testing.T) {
 	// setup
-	ms := NewMetricStore(60, false, false)
+	ms := newMetricStore(60, false, false)
 	labels := map[string]any{
 		"a": "1",
 	}
@@ -383,7 +405,7 @@ func TestMemStoreAvgOverTime(t *testing.T) {
 
 func TestMemStoreAvgOverTimeStale(t *testing.T) {
 	// setup
-	ms := NewMetricStore(25, false, false)
+	ms := newMetricStore(25, false, false)
 	labels := map[string]any{
 		"a": "1",
 	}
@@ -395,7 +417,7 @@ func TestMemStoreAvgOverTimeStale(t *testing.T) {
 
 func TestMemStoreMinOverTime(t *testing.T) {
 	// setup
-	ms := NewMetricStore(60, false, false)
+	ms := newMetricStore(60, false, false)
 	labels := map[string]any{
 		"a": "1",
 	}
@@ -407,7 +429,7 @@ func TestMemStoreMinOverTime(t *testing.T) {
 
 func TestMemStoreLastOneOverTime(t *testing.T) {
 	// setup
-	ms := NewMetricStore(60, false, false)
+	ms := newMetricStore(60, false, false)
 	labels := map[string]any{
 		"a": "1",
 	}
@@ -419,7 +441,7 @@ func TestMemStoreLastOneOverTime(t *testing.T) {
 
 func TestMemStoreMinOverTimeStale(t *testing.T) {
 	// setup
-	ms := NewMetricStore(35, false, false)
+	ms := newMetricStore(35, false, false)
 	labels := map[string]any{
 		"a": "1",
 	}
@@ -431,7 +453,7 @@ func TestMemStoreMinOverTimeStale(t *testing.T) {
 
 func TestMemStoreCountsOverTime(t *testing.T) {
 	// setup
-	ms := NewMetricStore(80, false, false)
+	ms := newMetricStore(80, false, false)
 	labels := map[string]any{
 		"a": "1",
 	}
@@ -443,7 +465,7 @@ func TestMemStoreCountsOverTime(t *testing.T) {
 
 func TestMemStoreRateOverTime1(t *testing.T) {
 	// setup
-	ms := NewMetricStore(200, false, false)
+	ms := newMetricStore(200, false, false)
 	labels := map[string]any{
 		"a": "1",
 	}
@@ -455,7 +477,7 @@ func TestMemStoreRateOverTime1(t *testing.T) {
 
 func TestMemStoreRateOverTime2(t *testing.T) {
 	// setup
-	ms := NewMetricStore(200, false, false)
+	ms := newMetricStore(200, false, false)
 	labels := map[string]any{
 		"a": "1",
 	}
@@ -467,7 +489,7 @@ func TestMemStoreRateOverTime2(t *testing.T) {
 
 func TestMemStoreRateOverTime3(t *testing.T) {
 	// setup
-	ms := NewMetricStore(200, false, false)
+	ms := newMetricStore(200, false, false)
 	labels := map[string]any{
 		"a": "1",
 	}
@@ -479,7 +501,7 @@ func TestMemStoreRateOverTime3(t *testing.T) {
 
 func TestMemStoreRateOverTime4(t *testing.T) {
 	// setup
-	ms := NewMetricStore(500, false, false)
+	ms := newMetricStore(500, false, false)
 	labels := map[string]any{
 		"a": "1",
 	}
@@ -491,7 +513,7 @@ func TestMemStoreRateOverTime4(t *testing.T) {
 
 func TestMemStoreRateOverTimeForgetOld(t *testing.T) {
 	// setup
-	ms := NewMetricStore(60, false, false)
+	ms := newMetricStore(60, false, false)
 	labels := map[string]any{
 		"a": "1",
 	}
@@ -503,7 +525,7 @@ func TestMemStoreRateOverTimeForgetOld(t *testing.T) {
 
 func TestMemStoreSumOverAverages(t *testing.T) {
 	// setup
-	ms := NewMetricStore(60, false, false)
+	ms := newMetricStore(60, false, false)
 	labels1 := map[string]any{
 		"a": "1",
 		"b": "2",
@@ -524,7 +546,7 @@ func TestMemStoreSumOverAverages(t *testing.T) {
 
 func TestMemStoreCount(t *testing.T) {
 	// setup
-	ms := NewMetricStore(60, false, false)
+	ms := newMetricStore(60, false, false)
 	labels1 := map[string]any{
 		"a": "1",
 		"b": "2",
@@ -596,7 +618,7 @@ func assertMetric(t *testing.T, val float64, found ty.Found, err error, expected
 }
 
 func assertMetricNotFound(t *testing.T, val float64, found ty.Found, err error) {
-	assertMetric(t, val, found, err, NotFoundVal, false, nil)
+	assertMetric(t, val, found, err, DefaultNotFoundVal, false, nil)
 }
 
 func assertMetricFound(t *testing.T, val float64, found ty.Found, err error, expectedVal float64) {
@@ -622,4 +644,12 @@ func assertMetricErr(t *testing.T, err error) {
 
 func equalsFloat(a, b float64) bool {
 	return math.Abs(a-b) < Eps
+}
+
+func newMetricStore(metricStoreRetentionSeconds int, lazySeries, lazyAggregates bool) ty.MemStore {
+	return NewMetricStore(&util.Config{
+		MetricStoreRetentionSeconds: metricStoreRetentionSeconds,
+		MetricStoreLazySeries:       lazySeries,
+		MetricStoreLazyAggregates:   lazyAggregates,
+	})
 }

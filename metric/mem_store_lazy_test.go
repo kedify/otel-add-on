@@ -7,11 +7,15 @@ import (
 	"go.opentelemetry.io/collector/pdata/pcommon"
 
 	ty "github.com/kedify/otel-add-on/types"
+	"github.com/kedify/otel-add-on/util"
 )
 
 func TestLazyMemStorePutOneAndGetNothing(t *testing.T) {
 	// setup
-	ms := NewMetricStore(5, true, false)
+	ms := NewMetricStore(&util.Config{
+		MetricStoreRetentionSeconds: 5,
+		MetricStoreLazySeries:       true,
+	})
 	ms.Put(ty.NewMetricEntry{
 		Name:             "metric1",
 		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
@@ -28,7 +32,10 @@ func TestLazyMemStorePutOneAndGetNothing(t *testing.T) {
 
 func TestLazyMemStoreGetPutAndGet(t *testing.T) {
 	// setup
-	ms := NewMetricStore(70, true, false)
+	ms := NewMetricStore(&util.Config{
+		MetricStoreRetentionSeconds: 70,
+		MetricStoreLazySeries:       true,
+	})
 	labels := map[string]any{
 		"a": "1",
 	}
@@ -48,7 +55,10 @@ func TestLazyMemStoreGetPutAndGet(t *testing.T) {
 
 func TestMemStoreLazyAggregatesFirstCallNotFound(t *testing.T) {
 	// setup
-	ms := NewMetricStore(5, false, true)
+	ms := NewMetricStore(&util.Config{
+		MetricStoreRetentionSeconds: 5,
+		MetricStoreLazyAggregates:   true,
+	})
 	ms.Put(ty.NewMetricEntry{
 		Name:             "metric1",
 		MeasurementTime:  pcommon.Timestamp(time.Now().Unix()),
@@ -65,7 +75,10 @@ func TestMemStoreLazyAggregatesFirstCallNotFound(t *testing.T) {
 
 func TestMemStoreLazyAggregatesOneAgg(t *testing.T) {
 	// setup
-	ms := NewMetricStore(70, false, true)
+	ms := NewMetricStore(&util.Config{
+		MetricStoreRetentionSeconds: 70,
+		MetricStoreLazyAggregates:   true,
+	})
 	labels := map[string]any{
 		"a": "1",
 	}
@@ -82,7 +95,10 @@ func TestMemStoreLazyAggregatesOneAgg(t *testing.T) {
 
 func TestMemStoreLazyAggregatesAddingOnTheFly(t *testing.T) {
 	// setup
-	ms := NewMetricStore(70, false, true)
+	ms := NewMetricStore(&util.Config{
+		MetricStoreRetentionSeconds: 70,
+		MetricStoreLazyAggregates:   true,
+	})
 	labels := map[string]any{
 		"a": "1",
 	}
@@ -103,7 +119,11 @@ func TestMemStoreLazyAggregatesAddingOnTheFly(t *testing.T) {
 
 func TestLazyMemStoreAndLazyAggregatesComplex(t *testing.T) {
 	// setup
-	ms := NewMetricStore(700, true, true)
+	ms := NewMetricStore(&util.Config{
+		MetricStoreRetentionSeconds: 700,
+		MetricStoreLazySeries:       true,
+		MetricStoreLazyAggregates:   true,
+	})
 	labels := map[string]any{
 		"a": "1",
 		"b": "2",

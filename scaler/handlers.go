@@ -178,17 +178,19 @@ func (e *impl) getMetric(sor *externalscaler.ScaledObjectRef) (float64, error) {
 	lggr := e.lggr.WithName("getMetric")
 	metricName, labels, agg, err := util.GetMetricQuery(lggr, sor.GetScalerMetadata(), e.metricParser)
 	if err != nil {
-		return -1, err
+		return e.cfg.MetricStoreValueIfNotFound, err
 	}
-
 	opOverTime := util.GetOperationOvertTime(lggr, sor.GetScalerMetadata())
 	value, found, err := e.metricStore.Get(metricName, labels, opOverTime, agg)
 	lggr.Info("got metric value: ", "name", metricName, "labels", labels, "value", value, "found", found, "error", err)
 	if !found {
-		return -1, fmt.Errorf("not found")
+		if e.cfg.MetricStoreErrIfNotFound {
+			return e.cfg.MetricStoreValueIfNotFound, fmt.Errorf("not found")
+		}
+		return e.cfg.MetricStoreValueIfNotFound, nil
 	}
 	if err != nil {
-		return -1, err
+		return e.cfg.MetricStoreValueIfNotFound, err
 	}
 	value = util.ClampValue(lggr, value, sor.GetScalerMetadata())
 	e.metricsExporter.SetMetricValueClamped(string(metricName), fmt.Sprint(labels), string(opOverTime), string(agg), sor.GetName(), sor.GetNamespace(), value)
