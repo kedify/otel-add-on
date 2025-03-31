@@ -46,6 +46,10 @@ spec:
               value: {{ .Values.settings.metricStore.lazySeries | quote }}
             - name: METRIC_STORE_LAZY_AGGREGATES
               value: {{ .Values.settings.metricStore.lazyAggregates | quote }}
+            - name: METRIC_STORE_ERROR_IF_NOT_FOUND
+              value: {{ .Values.settings.metricStore.errIfNotFound | quote }}
+            - name: METRIC_STORE_VALUE_IF_NOT_FOUND
+              value: {{ .Values.settings.metricStore.valueIfNotFound | quote }}
             - name: IS_ACTIVE_POLLING_INTERVAL_MS
               value: {{ .Values.settings.isActivePollingIntervalMilliseconds | quote }}
             - name: INTERNAL_METRICS_PORT

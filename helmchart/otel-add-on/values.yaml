@@ -24,6 +24,12 @@ settings:
     #  (by default, we calculate and store all of them - sum, rate, min, max, etc.)
     lazyAggregates: false
 
+    # -- when enabled, the scaler will be returning error to KEDA's `GetMetrics()` call
+    errIfNotFound: false
+
+    # -- default value, that is reported in case of error or if the value is not in the mem store
+    valueIfNotFound: 0.
+
   # -- how often (in milliseconds) should the IsActive method be tried
   isActivePollingIntervalMilliseconds: 500
 

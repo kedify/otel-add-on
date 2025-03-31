@@ -48,9 +48,6 @@ func main() {
 	cfg := util.MustParseConfig()
 	otlpReceiverPort := cfg.OTLPReceiverPort
 	restApiPort := cfg.RestApiPort
-	metricStoreRetentionSeconds := cfg.MetricStoreRetentionSeconds
-	lazySeries := cfg.MetricStoreLazySeries
-	lazyAggregates := cfg.MetricStoreLazyAggregates
 
 	lvl := util.SetupLog(cfg.NoColor)
 	isDebug = util.IsDebug(lvl)
@@ -61,7 +58,7 @@ func main() {
 
 	ctx := util.ContextWithLogger(ctrl.SetupSignalHandler(), setupLog)
 	eg, ctx := errgroup.WithContext(ctx)
-	ms := metric.NewMetricStore(metricStoreRetentionSeconds, lazySeries, lazyAggregates)
+	ms := metric.NewMetricStore(cfg)
 	mp := metric.NewParser()
 
 	eg.Go(func() error {

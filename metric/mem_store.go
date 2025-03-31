@@ -21,18 +21,20 @@ type ms struct {
 	metricsExporter    *InternalMetrics
 	lazySeries         bool
 	lazyAggregates     bool
+	valIfNotFound      float64
 	subscriptions      map[t.MetricName][]t.OperationOverTime
 }
 
-func NewMetricStore(stalePeriodSeconds int, lazySeries, lazyAggregates bool) t.MemStore {
+func NewMetricStore(cfg *util.Config) t.MemStore {
 	m := Metrics()
 	m.Init()
 	return ms{
 		store:              &t.Map[string, *t.Map[t.LabelsHash, *t.MetricData]]{},
-		stalePeriodSeconds: stalePeriodSeconds,
+		stalePeriodSeconds: cfg.MetricStoreRetentionSeconds,
 		metricsExporter:    m,
-		lazySeries:         lazySeries,
-		lazyAggregates:     lazyAggregates,
+		lazySeries:         cfg.MetricStoreLazySeries,
+		lazyAggregates:     cfg.MetricStoreLazyAggregates,
+		valIfNotFound:      cfg.MetricStoreValueIfNotFound,
 		subscriptions:      map[t.MetricName][]t.OperationOverTime{},
 	}
 }
@@ -51,20 +53,20 @@ func (m ms) Get(unescapedName t.MetricName, searchLabels t.Labels, timeOp t.Oper
 func (m ms) get(name t.MetricName, searchLabels t.Labels, timeOp t.OperationOverTime, vecOp t.AggregationOverVectors) (float64, t.Found, error) {
 	now := time.Now().Unix()
 	if err := util.CheckTimeOp(timeOp); err != nil {
-		return -1., false, err
+		return m.valIfNotFound, false, err
 	}
 	if err := checkVectorAggregation(vecOp); err != nil {
-		return -1., false, err
+		return m.valIfNotFound, false, err
 	}
 	if m.lazySeries || m.lazyAggregates {
 		if firstTime := subscribe(m.subscriptions, m.lazyAggregates, name, timeOp); firstTime {
-			return -1., false, nil
+			return m.valIfNotFound, false, nil
 		}
 	}
 	storedMetrics, foundMetric := m.store.Load(string(name))
 	if !foundMetric {
 		// not found
-		return -1., false, nil
+		return m.valIfNotFound, false, nil
 	}
 	if md, f := storedMetrics.Load(hashOfMap(searchLabels)); f {
 		// found exact label match
@@ -74,7 +76,7 @@ func (m ms) get(name t.MetricName, searchLabels t.Labels, timeOp t.OperationOver
 		if !m.isStale(md.LastUpdate, now) {
 			ret, f := md.AggregatesOverTime.Load(timeOp)
 			if !f {
-				return -1., false, fmt.Errorf("unknown OperationOverTime: %s", timeOp)
+				return m.valIfNotFound, false, fmt.Errorf("unknown OperationOverTime: %s", timeOp)
 			}
 			return ret, true, nil
 		} else {
