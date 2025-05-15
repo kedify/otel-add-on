@@ -10,6 +10,10 @@ spec:
   selector:
     matchLabels:
       {{- include "otel-add-on.selectorLabels" . | nindent 6 }}
+  {{- if eq .Values.deploymentStrategy "Recreate" }}
+  strategy:
+    type: Recreate
+  {{- end }}
   template:
     metadata:
     {{- with .Values.podAnnotations }}
