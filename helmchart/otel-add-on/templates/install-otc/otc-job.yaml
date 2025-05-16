@@ -1,0 +1,79 @@
+{{- if .Values.otelOperatorCr.create }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-otc
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: create-otc
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "-1"
+    helm.sh/hook-delete-policy: "before-hook-creation,hook-succeeded"
+spec:
+  ttlSecondsAfterFinished: 43200 # 12h
+  backoffLimit: 4
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+      labels:
+        app: create-otc
+    spec:
+      restartPolicy: Never
+      serviceAccountName: install-otc
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 2000
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      volumes:
+      - name: otc
+        configMap:
+          name: otc
+          items:
+          - key: content
+            path: otc.yaml
+      initContainers:
+      - name: wait-crds
+        image: "quay.io/giantswarm/docker-kubectl:1.29.2"
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        args:
+        - -c
+        - |
+          set -o nounset
+          for i in $(seq 20)
+          do
+            kubectl get crd opentelemetrycollectors.opentelemetry.io 2>&1 && exit 0
+            _sec=$(echo "1.5^$i" | bc)
+            echo "Waiting ${_sec} seconds for CRD opentelemetrycollectors.opentelemetry.io to exist"
+            sleep ${_sec}
+          done
+      containers:
+      - name: create-otc
+        image: "quay.io/giantswarm/docker-kubectl:1.29.2"
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - name: otc
+          mountPath: /data/otc.yaml
+          subPath: otc.yaml
+        command:
+        - sh
+        args:
+        - -c
+        - |
+          set -o nounset
+          for i in $(seq 20)
+          do
+            kubectl apply -f /data/ 2>&1 && exit 0
+            _sec=$(echo "1.5^$i" | bc)
+            echo "Waiting ${_sec} seconds.."
+            sleep ${_sec}
+          done
+          exit 1
+{{- end }}

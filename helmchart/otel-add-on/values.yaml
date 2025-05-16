@@ -2,6 +2,8 @@
 #------------
 replicaCount: 1
 namespace: keda
+## -- when rendering/installing/upgrading the helm chart, the schema validation trivially passes
+#disableSchemaValidation: false
 
 image:
   # -- Image to use for the Deployment
@@ -139,12 +141,50 @@ tolerations: []
 # -- [details](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity)
 affinity: {}
 
+
+otelOperatorCr:
+  # -- if enabled, the OpenTelemetryCollector CR will be created using post-install hook job
+  create: true
+  # -- if not empty, only following metrics will be sent. This translates to filter/metrics processor. Empty array means include all.
+  scrapeConfigs:
+    - job_name: 'otel-collector'
+      scrape_interval: 3s
+      static_configs:
+        - targets: ['0.0.0.0:8080']
+  includeMetrics: []
+#    - vllm:gpu_cache_usage_perc
+#    - vllm:gpu_cache_usage_perc_scaled
+#    - customload
+  metricsgeneration:
+    rules: []
+#      - name: vllm:gpu_cache_usage_perc_scaled
+#        type: scale
+#        metric1: vllm:gpu_cache_usage_perc
+#        operation: multiply
+#        scale_by: 100
+#      - name: customload
+#        type: calculate
+#        metric1: vllm:gpu_cache_usage_perc
+#        metric2: vllm:num_requests_waiting
+#        operation: multiply
+
+# otel operator helm chart:
+# https://github.com/open-telemetry/opentelemetry-helm-charts/blob/opentelemetry-operator-0.88.6/charts/opentelemetry-operator/values.yaml
+opentelemetry-operator:
+  enabled: false
+  manager:
+    collectorImage:
+      repository: otel/opentelemetry-collector-k8s
+
+  admissionWebhooks:
+    create: false
 # otel collector helm chart:
 # https://github.com/open-telemetry/opentelemetry-helm-charts/tree/opentelemetry-collector-0.110.0/charts/opentelemetry-collector/values.yaml
 #--------------------------
 # example configuration of otel collector to work as an opencensus receiver and forwarder to otel-add-on
 opentelemetry-collector:
-  enabled: true
+  enabled: false
+  # -- Valid values are "daemonset", "deployment", and "statefulset"
   mode: deployment
   image:
     repository: otel/opentelemetry-collector-k8s

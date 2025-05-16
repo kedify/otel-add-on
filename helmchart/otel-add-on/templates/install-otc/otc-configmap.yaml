@@ -1,0 +1,77 @@
+{{- if .Values.otelOperatorCr.create }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otc
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/hook: "post-install,post-upgrade"
+    helm.sh/hook-delete-policy: "before-hook-creation,hook-succeeded"
+    helm.sh/hook-weight: "-2"
+data:
+  content: |
+    apiVersion: opentelemetry.io/v1beta1
+    kind: OpenTelemetryCollector
+    metadata:
+      name: {{ include "otel-add-on.name" . }}-otc
+    spec:
+      resources:
+        limits:
+          cpu: "500m"
+          memory: 300Mi
+        requests:
+          cpu: 100m
+          memory: 200Mi
+      mode: sidecar
+      config:
+        receivers:
+          prometheus:
+            config:
+              scrape_configs:
+                {{- toYaml .Values.otelOperatorCr.scrapeConfigs | nindent 16 }}
+        processors:
+          resourcedetection/env:
+            detectors: [env]
+            timeout: 2s
+            override: false
+          transform:
+            metric_statements:
+              - context: datapoint
+                statements:
+                  - set(attributes["namespace"], resource.attributes["k8s.namespace.name"])
+                  - set(attributes["pod"], resource.attributes["k8s.pod.name"])
+                  - set(attributes["deployment"], resource.attributes["k8s.deployment.name"])
+          filter/metrics:
+            metrics:
+              include:
+                match_type: strict
+                metric_names:
+                  {{- range .Values.otelOperatorCr.includeMetrics }}
+                  - {{ . }}
+                  {{- end }}
+        {{- with .Values.otelOperatorCr.metricsgeneration.rules }}
+          metricsgeneration:
+            rules:
+              {{- toYaml . | nindent 14 }}
+        {{- end }}
+        exporters:
+          otlp/keda:
+            endpoint: keda-otel-scaler.keda.svc:4317
+            compression: "none"
+            tls:
+              insecure: true
+          debug:
+            verbosity: detailed
+          # prometheus:
+          #   endpoint: "0.0.0.0:1234"
+          #   metric_expiration: 180m
+          #   enable_open_metrics: true
+        service:
+          pipelines:
+            metrics:
+              # todo: include the components if they were used or not
+              receivers: [prometheus]
+              processors: [metricsgeneration, filter/metrics, resourcedetection/env, transform]
+              exporters: [debug, otlp/keda]
+---
+{{- end }}
