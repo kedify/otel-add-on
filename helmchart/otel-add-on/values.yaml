@@ -160,6 +160,19 @@ opentelemetry-collector:
       opencensus:
         endpoint: 0.0.0.0:55678
         include_metadata: true
+
+    processors:
+      resourcedetection/env:
+        detectors: [ env ]
+        timeout: 2s
+        override: false
+      transform:
+        metric_statements:
+          - context: datapoint
+            statements:
+              - set(attributes["namespace"], resource.attributes["k8s.namespace.name"])
+              - set(attributes["pod"], resource.attributes["k8s.pod.name"])
+              - set(attributes["deployment"], resource.attributes["k8s.deployment.name"])
     exporters:
       otlp:
         # make sure this is the same hostname and port as .service (when using different namespace)
@@ -175,11 +188,9 @@ opentelemetry-collector:
         - health_check
       pipelines:
         metrics:
-          receivers:
-            - opencensus
-          exporters:
-            - debug
-            - otlp
+          receivers: [opencensus]
+          processors: [resourcedetection/env, transform]
+          exporters: [debug, otlp]
 
     extensions:
       health_check:
