@@ -27,8 +27,6 @@ rules:
   - patch
   - create
   - get
-  resourceNames:
-  - {{ include "otel-add-on.name" . }}-otc
 - apiGroups:
   - apiextensions.k8s.io
   resources:
