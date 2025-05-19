@@ -146,6 +146,7 @@ otelOperatorCr:
   # -- if enabled, the OpenTelemetryCollector CR will be created using post-install hook job
   create: true
   # -- if not empty, only following metrics will be sent. This translates to filter/metrics processor. Empty array means include all.
+  namespace: ""
   scrapeConfigs:
     - job_name: 'otel-collector'
       scrape_interval: 3s
@@ -175,6 +176,10 @@ opentelemetry-operator:
   manager:
     collectorImage:
       repository: otel/opentelemetry-collector-k8s
+    env: {}
+    extraEnvs:
+    - name: ENABLE_WEBHOOKS
+      value: "false"
 
   admissionWebhooks:
     create: false
