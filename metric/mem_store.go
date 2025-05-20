@@ -284,20 +284,23 @@ func (m ms) updateAggregatesOverTime(md *t.MetricData, metricName t.MetricName) 
 }
 
 func (m ms) updateAggregationOverTime(overTime t.OperationOverTime, md *t.MetricData) {
-	if overTime == t.OpRate {
+	switch overTime {
+	case t.OpRate:
 		valuesDelta := md.Data[len(md.Data)-1].Value - md.Data[0].Value
 		timeDelta := float64(md.Data[len(md.Data)-1].Time - md.Data[0].Time)
 		md.AggregatesOverTime.Store(t.OpRate, valuesDelta/timeDelta)
-	} else if overTime == t.OpMin || overTime == t.OpMax || overTime == t.OpAvg {
+	case t.OpMin, t.OpMax, t.OpAvg:
 		acc, _ := md.AggregatesOverTime.Load(overTime)
 		for i := 0; i < len(md.Data); i++ {
 			acc = m.calculateAggregate(md.Data[i].Value, i+1, acc, t.AggregationOverVectors(overTime))
 		}
 		md.AggregatesOverTime.Store(overTime, acc)
-	} else if overTime == t.OpCount {
+	case t.OpCount:
 		md.AggregatesOverTime.Store(t.OpCount, float64(len(md.Data)))
-	} else if overTime == t.OpLastOne {
+	case t.OpLastOne:
 		md.AggregatesOverTime.Store(t.OpLastOne, md.Data[len(md.Data)-1].Value)
+	default:
+		panic("unknown aggregation over time function: " + overTime)
 	}
 }
 

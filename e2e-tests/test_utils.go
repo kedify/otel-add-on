@@ -24,7 +24,7 @@ import (
 const (
 	k3dVersion                 = "v5.7.3"
 	podinfoVesrsion            = "v6.7.1"
-	kedifyKedaHelmChartVersion = "v2.16.0-1"
+	kedifyKedaHelmChartVersion = "v2.17.1-0"
 	defaultTimeoutSec          = 300
 )
 

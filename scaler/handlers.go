@@ -165,7 +165,9 @@ func (e *impl) GetMetrics(
 	res := &externalscaler.GetMetricsResponse{
 		MetricValues: []*externalscaler.MetricValue{
 			{
-				MetricName:  metricRequest.GetMetricName(),
+				MetricName:       metricRequest.GetMetricName(),
+				MetricValueFloat: value,
+				// when both are sent, the MetricValueFloat has precedence (sending the old one for backward compat)
 				MetricValue: int64(math.Ceil(value)),
 			},
 		},
