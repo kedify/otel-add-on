@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.24'
           cache: false
 
       - name: Checkout code
@@ -40,21 +40,21 @@ jobs:
         run: go vet ./...
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: v1.54
+          version: v2.1
           skip-cache: true
 
       - name: Run staticcheck
         run: |
-          go install honnef.co/go/tools/cmd/staticcheck@v0.4.7
+          go install honnef.co/go/tools/cmd/staticcheck@v0.6.1
           staticcheck ./...
 
       - name: Run vulncheck
         run: |
           echo -e "### vulncheck\n\n" >> ${GITHUB_STEP_SUMMARY}
           echo '```' >> ${GITHUB_STEP_SUMMARY}
-          go install golang.org/x/vuln/cmd/govulncheck@v1.0.4
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
           (govulncheck ./... || true) | tee -a ${GITHUB_STEP_SUMMARY}
           echo '```' >> ${GITHUB_STEP_SUMMARY}
 
