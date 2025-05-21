@@ -143,8 +143,10 @@ func (e *impl) GetMetricSpec(
 	res := &externalscaler.GetMetricSpecResponse{
 		MetricSpecs: []*externalscaler.MetricSpec{
 			{
-				MetricName: kedaMetricName,
-				TargetSize: targetValue,
+				MetricName:      kedaMetricName,
+				TargetSizeFloat: targetValue,
+				// when both are sent, the TargetSizeFloat has precedence (sending the old one for backward compat)
+				TargetSize: int64(math.Ceil(targetValue)),
 			},
 		},
 	}

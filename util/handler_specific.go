@@ -54,12 +54,12 @@ func GetOperationOvertTime(lggr logr.Logger, metadata map[string]string) types.O
 	return types.OperationOverTime(operationOverTime)
 }
 
-func GetTargetValue(metadata map[string]string) (int64, error) {
+func GetTargetValue(metadata map[string]string) (float64, error) {
 	targetValueStr, found := metadata[MetadataTargetValue]
 	if !found {
 		return -1, fmt.Errorf("not found %s", MetadataTargetValue)
 	}
-	targetValue, err := strconv.ParseInt(targetValueStr, 10, 64)
+	targetValue, err := strconv.ParseFloat(targetValueStr, 64)
 	if err != nil {
 		return -1, err
 	}
