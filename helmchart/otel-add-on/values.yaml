@@ -53,6 +53,9 @@ settings:
     # -- if anything else than 'false', the log will not print the ascii logo
     noBanner: false
 
+# -- one of: RollingUpdate, Recreate ([details](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy))
+deploymentStrategy: RollingUpdate
+
 validatingAdmissionPolicy:
   # -- whether the ValidatingAdmissionPolicy and ValidatingAdmissionPolicyBinding resources should be also rendered
   enabled: true
