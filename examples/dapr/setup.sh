@@ -2,7 +2,6 @@
 set -e
 
 OTEL_SCALER_VERSION=v0.0.4
-KEDA_VERSION=v2.16.0-1
 
 k3d cluster delete dapr-demo
 k3d cluster create dapr-demo -p "8080:31222@server:0"
@@ -16,6 +15,14 @@ dapr status -k
 kubectl set env deployments.apps -n dapr-system dapr-sidecar-injector SIDECAR_IMAGE=docker.io/jkremser/dapr:test SIDECAR_IMAGE_PULL_POLICY=Always
 kubectl set image deploy/dapr-sidecar-injector -n dapr-system dapr-sidecar-injector=jkremser/dapr-injector:test
 kubectl rollout status -n dapr-system deploy/dapr-sidecar-injector
+
+
+# deploy KEDA
+helm repo add kedify https://kedify.github.io/charts
+helm repo update kedify
+KEDA_VERSION=$(curl -s https://api.github.com/repos/kedify/charts/releases | jq -r '[.[].tag_name | select(. | startswith("keda/")) | sub("^keda/"; "")] | first')
+KEDA_VERSION=${KEDA_VERSION:-v2.17.1-0}
+helm upgrade -i keda kedify/keda --namespace keda --create-namespace  --version ${KEDA_VERSION}
 
 
 # deploy otel scaler
@@ -48,18 +55,11 @@ kubectl patch deployments.apps pythonapp nodeapp --type=merge -p '{"spec":{"temp
   "dapr.io/metrics-push-endpoint":"otelcol:55678"
   }}}}}'
 
-
-# deploy KEDA
-helm repo add kedify https://kedify.github.io/charts
-helm repo update kedify
-helm upgrade -i keda kedify/keda --namespace keda --create-namespace  --version ${KEDA_VERSION}
-
-
 # wait for it..
-for d in nodeapp pythonapp otelcol otel-add-on-scaler ; do
+for d in nodeapp pythonapp otelcol ; do
   kubectl rollout status --timeout=300s deploy/${d}
 done
-for d in keda-admission-webhooks keda-operator keda-operator-metrics-apiserver ; do
+for d in keda-admission-webhooks keda-operator keda-operator-metrics-apiserver otel-add-on-scaler ; do
   kubectl rollout status --timeout=300s deploy/${d} -nkeda
 done
 

@@ -15,11 +15,14 @@ k3d cluster delete metric-push &> /dev/null
 k3d cluster create metric-push -p "8080:31198@server:0"
 
 # deploy stuff
+KEDA_VERSION=$(curl -s https://api.github.com/repos/kedify/charts/releases | jq -r '[.[].tag_name | select(. | startswith("keda/")) | sub("^keda/"; "")] | first')
+KEDA_VERSION=${KEDA_VERSION:-v2.17.1-0}
+helm upgrade -i keda kedify/keda --namespace keda --create-namespace
 helm upgrade -i my-otel-demo open-telemetry/opentelemetry-demo -f ${DIR}/opentelemetry-demo-values.yaml
 helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.8 -f ${DIR}/scaler-only-push-values.yaml
-helm upgrade -i keda kedify/keda --namespace keda --create-namespace
 
 kubectl rollout status -n keda --timeout=300s deploy/keda-operator
+kubectl rollout status -n keda --timeout=300s deploy/otel-add-on-scaler
 kubectl rollout status -n keda --timeout=300s deploy/keda-operator-metrics-apiserver
 for d in \
   ${DEMO_APP}-accountingservice \
@@ -43,8 +46,7 @@ for d in \
   ${DEMO_APP}-imageprovider \
   ${DEMO_APP}-grafana \
   ${DEMO_APP}-cartservice \
-  ${DEMO_APP}-quoteservice \
-  otel-add-on-scaler ; do
+  ${DEMO_APP}-quoteservice ; do
     kubectl rollout status --timeout=600s deploy/${d}
   done
 
