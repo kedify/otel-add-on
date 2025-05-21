@@ -1,6 +1,6 @@
 # otel-add-on
 
-![Version: v0.0.8](https://img.shields.io/badge/Version-v0.0.8-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.0.8](https://img.shields.io/badge/AppVersion-v0.0.8-informational?style=flat-square)
+![Version: v0.0.9](https://img.shields.io/badge/Version-v0.0.9-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.0.9](https://img.shields.io/badge/AppVersion-v0.0.9-informational?style=flat-square)
 
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/otel-add-on)](https://artifacthub.io/packages/search?repo=otel-add-on)
 
@@ -314,8 +314,24 @@ false
                </td>
           </tr>
           <tr>
+               <td id="deploymentStrategy">
+               <a href="./values.yaml#L57">deploymentStrategy</a><br/>
+               (string)
+               </td>
+               <td>
+               one of: RollingUpdate, Recreate (<a href="https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy">details</a>)
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+"RollingUpdate"
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
                <td id="validatingAdmissionPolicy--enabled">
-               <a href="./values.yaml#L58">validatingAdmissionPolicy.enabled</a><br/>
+               <a href="./values.yaml#L61">validatingAdmissionPolicy.enabled</a><br/>
                (bool)
                </td>
                <td>
@@ -331,7 +347,7 @@ true
           </tr>
           <tr>
                <td id="asciiArt">
-               <a href="./values.yaml#L62">asciiArt</a><br/>
+               <a href="./values.yaml#L65">asciiArt</a><br/>
                (bool)
                </td>
                <td>
@@ -347,7 +363,7 @@ true
           </tr>
           <tr>
                <td id="imagePullSecrets">
-               <a href="./values.yaml#L65">imagePullSecrets</a><br/>
+               <a href="./values.yaml#L68">imagePullSecrets</a><br/>
                (list)
                </td>
                <td>
@@ -363,7 +379,7 @@ true
           </tr>
           <tr>
                <td id="serviceAccount--create">
-               <a href="./values.yaml#L71">serviceAccount.create</a><br/>
+               <a href="./values.yaml#L74">serviceAccount.create</a><br/>
                (bool)
                </td>
                <td>
@@ -379,7 +395,7 @@ true
           </tr>
           <tr>
                <td id="serviceAccount--annotations">
-               <a href="./values.yaml#L74">serviceAccount.annotations</a><br/>
+               <a href="./values.yaml#L77">serviceAccount.annotations</a><br/>
                (object)
                </td>
                <td>
@@ -395,7 +411,7 @@ true
           </tr>
           <tr>
                <td id="serviceAccount--name">
-               <a href="./values.yaml#L76">serviceAccount.name</a><br/>
+               <a href="./values.yaml#L79">serviceAccount.name</a><br/>
                (string)
                </td>
                <td>
@@ -411,7 +427,7 @@ true
           </tr>
           <tr>
                <td id="podAnnotations">
-               <a href="./values.yaml#L79">podAnnotations</a><br/>
+               <a href="./values.yaml#L82">podAnnotations</a><br/>
                (object)
                </td>
                <td>
@@ -427,7 +443,7 @@ true
           </tr>
           <tr>
                <td id="podLabels">
-               <a href="./values.yaml#L82">podLabels</a><br/>
+               <a href="./values.yaml#L85">podLabels</a><br/>
                (object)
                </td>
                <td>
@@ -443,7 +459,7 @@ true
           </tr>
           <tr>
                <td id="podSecurityContext">
-               <a href="./values.yaml#L85">podSecurityContext</a><br/>
+               <a href="./values.yaml#L88">podSecurityContext</a><br/>
                (object)
                </td>
                <td>
@@ -459,7 +475,7 @@ true
           </tr>
           <tr>
                <td id="securityContext--readOnlyRootFilesystem">
-               <a href="./values.yaml#L92">securityContext.readOnlyRootFilesystem</a><br/>
+               <a href="./values.yaml#L95">securityContext.readOnlyRootFilesystem</a><br/>
                (bool)
                </td>
                <td>
@@ -475,7 +491,7 @@ true
           </tr>
           <tr>
                <td id="securityContext--runAsNonRoot">
-               <a href="./values.yaml#L94">securityContext.runAsNonRoot</a><br/>
+               <a href="./values.yaml#L97">securityContext.runAsNonRoot</a><br/>
                (bool)
                </td>
                <td>
@@ -491,7 +507,7 @@ true
           </tr>
           <tr>
                <td id="securityContext--runAsUser">
-               <a href="./values.yaml#L96">securityContext.runAsUser</a><br/>
+               <a href="./values.yaml#L99">securityContext.runAsUser</a><br/>
                (int)
                </td>
                <td>
@@ -507,7 +523,7 @@ true
           </tr>
           <tr>
                <td id="service--type">
-               <a href="./values.yaml#L101">service.type</a><br/>
+               <a href="./values.yaml#L104">service.type</a><br/>
                (string)
                </td>
                <td>
@@ -523,7 +539,7 @@ true
           </tr>
           <tr>
                <td id="service--otlpReceiverPort">
-               <a href="./values.yaml#L103">service.otlpReceiverPort</a><br/>
+               <a href="./values.yaml#L106">service.otlpReceiverPort</a><br/>
                (int)
                </td>
                <td>
@@ -539,7 +555,7 @@ true
           </tr>
           <tr>
                <td id="service--kedaExternalScalerPort">
-               <a href="./values.yaml#L105">service.kedaExternalScalerPort</a><br/>
+               <a href="./values.yaml#L108">service.kedaExternalScalerPort</a><br/>
                (int)
                </td>
                <td>
@@ -555,7 +571,7 @@ true
           </tr>
           <tr>
                <td id="resources--limits--cpu">
-               <a href="./values.yaml#L110">resources.limits.cpu</a><br/>
+               <a href="./values.yaml#L113">resources.limits.cpu</a><br/>
                (string)
                </td>
                <td>
@@ -571,7 +587,7 @@ true
           </tr>
           <tr>
                <td id="resources--limits--memory">
-               <a href="./values.yaml#L112">resources.limits.memory</a><br/>
+               <a href="./values.yaml#L115">resources.limits.memory</a><br/>
                (string)
                </td>
                <td>
@@ -587,7 +603,7 @@ true
           </tr>
           <tr>
                <td id="resources--requests--cpu">
-               <a href="./values.yaml#L115">resources.requests.cpu</a><br/>
+               <a href="./values.yaml#L118">resources.requests.cpu</a><br/>
                (string)
                </td>
                <td>
@@ -603,7 +619,7 @@ true
           </tr>
           <tr>
                <td id="resources--requests--memory">
-               <a href="./values.yaml#L117">resources.requests.memory</a><br/>
+               <a href="./values.yaml#L120">resources.requests.memory</a><br/>
                (string)
                </td>
                <td>
@@ -619,7 +635,7 @@ true
           </tr>
           <tr>
                <td id="nodeSelector">
-               <a href="./values.yaml#L131">nodeSelector</a><br/>
+               <a href="./values.yaml#L134">nodeSelector</a><br/>
                (object)
                </td>
                <td>
@@ -635,7 +651,7 @@ true
           </tr>
           <tr>
                <td id="tolerations">
-               <a href="./values.yaml#L134">tolerations</a><br/>
+               <a href="./values.yaml#L137">tolerations</a><br/>
                (list)
                </td>
                <td>
@@ -651,7 +667,7 @@ true
           </tr>
           <tr>
                <td id="affinity">
-               <a href="./values.yaml#L137">affinity</a><br/>
+               <a href="./values.yaml#L140">affinity</a><br/>
                (object)
                </td>
                <td>
