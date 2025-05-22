@@ -1,4 +1,5 @@
 {{- if .Values.validatingAdmissionPolicy.enabled -}}
+{{- if .Capabilities.APIVersions.Has "admissionregistration.k8s.io/v1" }}
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingAdmissionPolicy
 metadata:
@@ -43,4 +44,5 @@ metadata:
 spec:
   policyName: "well-formed-otel-scalers"
   validationActions: [Deny]
+{{- end }}
 {{- end }}
