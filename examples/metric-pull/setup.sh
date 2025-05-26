@@ -19,7 +19,7 @@ helm upgrade -i podinfo podinfo/podinfo -f ${DIR}/podinfo-values.yaml
 KEDA_VERSION=$(curl -s https://api.github.com/repos/kedify/charts/releases | jq -r '[.[].tag_name | select(. | startswith("keda/")) | sub("^keda/"; "")] | first')
 KEDA_VERSION=${KEDA_VERSION:-v2.17.1-0}
 helm upgrade -i keda kedify/keda --namespace keda --create-namespace --version ${KEDA_VERSION}
-helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.8 -f ${DIR}/scaler-with-collector-pull-values.yaml
+helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.9 -f ${DIR}/scaler-with-collector-pull-values.yaml
 
 kubectl rollout status -n keda --timeout=300s deploy/keda-operator
 kubectl rollout status -n keda --timeout=300s deploy/keda-operator-metrics-apiserver
