@@ -248,7 +248,7 @@ otelOperator:
 # example configuration of otel collector to work as an opencensus receiver and forwarder to otel-add-on
 otelCollector:
   enabled: false
-  # -- Valid values are "daemonset", "deployment", and "statefulset"
+  # -- Valid values are "daemonset", "deployment", "sidecar" and "statefulset"
   mode: deployment
   image:
     repository: otel/opentelemetry-collector-k8s

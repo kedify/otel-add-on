@@ -2,7 +2,7 @@
 
 Project uses Ginkgo testing framework that by default doesn't guarantee the order in which the tests are run.
 
-Basic test that should fork w/o any credentials for GitHub:
+Basic test that should work w/o any credentials for GitHub:
 
 ```bash
 E2E_PRINT_LOGS=false ONLY=podinfo make e2e-test
