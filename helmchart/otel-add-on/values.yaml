@@ -216,13 +216,13 @@ otelOperatorCr:
   alternateExtensions: {}
 #    bearertokenauth/github:
 #      token: ${env:GH_PAT}
+
+#  envFrom:
+#  - secretRef:
+#      name: gh-token
   env: []
 #    - name: GH_PAT
 #      value: "**"
-  envFrom: {}
-#  - secretRef:
-#      name: gh-token
-
 
 # otel operator helm chart:
 # https://github.com/open-telemetry/opentelemetry-helm-charts/blob/opentelemetry-operator-0.88.6/charts/opentelemetry-operator/values.yaml
