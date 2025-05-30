@@ -143,15 +143,60 @@ affinity: {}
 
 
 otelOperatorCr:
-  # -- if enabled, the OpenTelemetryCollector CR will be created using post-install hook job
+  # -- if enabled, the OpenTelemetryCollector CR will be created using post-install hook job_name
   create: true
-  # -- if not empty, only following metrics will be sent. This translates to filter/metrics processor. Empty array means include all.
+  # -- in what k8s namespace the OpenTelemetryCollector CR should be created
   namespace: ""
-  scrapeConfigs:
+  # -- container image for post-install helm hook that help with OpenTelemetryCollector CR installation
+  debug: false
+  kubectlImage:
+    tag: "v1.33.1"
+    repository: ghcr.io/kedify/kubectl
+    pullPolicy: Always
+    pullSecrets: []
+  # -- how the otel collector should be deployed: sidecar, statefulset, deployment, daemonset
+  mode: sidecar
+  serviceAccount:
+    create: false
+    annotations: {}
+    name: ""
+  clusterRole:
+    create: false
+    annotations: {}
+    rules: []
+#    - apiGroups:
+#      - ''
+#      resources:
+#      - 'pods'
+#      - 'nodes'
+#      verbs:
+#      - 'get'
+#      - 'list'
+#      - 'watch'
+  # -- resources for the OTel collector container
+  resources:
+    limits:
+      cpu: 400m
+      memory: 128Mi
+    requests:
+      cpu: 200m
+      memory: 64Mi
+  # -- free form OTel configuration that will be used for the OpenTelemetryCollector CR (no checks)
+  # this is mutually exclusive w/ all the following options
+  alternateOtelConfig: {}
+
+  # -- static targets for prometheus receiver, this needs to take into account the deployment mode of the collector
+  # (127.0.0.1 in case of a sidecar mode will mean something else than for statefulset mode)
+  prometheusScrapeConfigs:
     - job_name: 'otel-collector'
       scrape_interval: 3s
       static_configs:
         - targets: ['0.0.0.0:8080']
+  # -- mutually exclusive with prometheusScrapeConfigs option
+  alternateReceivers: {}
+#    k8s_events:
+#      namespaces: [ kube-system ]
+  # -- if not empty, only following metrics will be sent. This translates to filter/metrics processor. Empty array means include all.
   includeMetrics: []
 #    - vllm:gpu_cache_usage_perc
 #    - vllm:gpu_cache_usage_perc_scaled
@@ -168,18 +213,32 @@ otelOperatorCr:
 #        metric1: vllm:gpu_cache_usage_perc
 #        metric2: vllm:num_requests_waiting
 #        operation: multiply
+  alternateExtensions: {}
+#    bearertokenauth/github:
+#      token: ${env:GH_PAT}
+  env: []
+#    - name: GH_PAT
+#      value: "**"
+  envFrom: {}
+#  - secretRef:
+#      name: gh-token
+
 
 # otel operator helm chart:
 # https://github.com/open-telemetry/opentelemetry-helm-charts/blob/opentelemetry-operator-0.88.6/charts/opentelemetry-operator/values.yaml
-opentelemetry-operator:
+otelOperator:
   enabled: false
+  fullnameOverride: otel-operator
   manager:
     collectorImage:
-      repository: otel/opentelemetry-collector-k8s
-    env: {}
+#      repository: otel/opentelemetry-collector-k8s
+      repository: otel/opentelemetry-collector-contrib
+#    env: {}
     extraEnvs:
     - name: ENABLE_WEBHOOKS
       value: "false"
+    serviceAccount:
+      name: otel-operator
 
   admissionWebhooks:
     create: false
@@ -187,7 +246,7 @@ opentelemetry-operator:
 # https://github.com/open-telemetry/opentelemetry-helm-charts/tree/opentelemetry-collector-0.110.0/charts/opentelemetry-collector/values.yaml
 #--------------------------
 # example configuration of otel collector to work as an opencensus receiver and forwarder to otel-add-on
-opentelemetry-collector:
+otelCollector:
   enabled: false
   # -- Valid values are "daemonset", "deployment", and "statefulset"
   mode: deployment

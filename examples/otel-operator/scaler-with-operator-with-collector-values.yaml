@@ -1,0 +1,51 @@
+settings:
+  metricStoreRetentionSeconds: 60
+  logs:
+    logLvl: debug
+
+otelOperator:
+  enabled: true
+  manager:
+    collectorImage:
+      repository: otel/opentelemetry-collector-contrib
+
+otelOperatorCr:
+  debug: true
+  mode: deployment
+  namespace: keda
+  serviceAccount:
+    create: true
+  clusterRole:
+    create: true
+    rules:
+    - apiGroups:
+      - ''
+      resources:
+      - 'pods'
+      - 'nodes'
+      verbs:
+      - 'get'
+      - 'list'
+      - 'watch'
+  alternateReceivers:
+    github:
+      initial_delay: 1s
+      collection_interval: 45s
+      scrapers:
+        scraper:
+          github_org: kedify
+          search_query: "repo:kedify/otel-add-on"
+          auth:
+            authenticator: bearertokenauth/github
+  alternateExtensions:
+    bearertokenauth/github:
+      token: ${env:GH_PAT}
+#  env:
+#  - name: GH_PAT
+#    value: "abc"
+  envFrom:
+    # kubectl create secret generic gh-token --from-literal=GH_PAT=abc
+    - secretRef:
+        name: gh-token
+  includeMetrics:
+    - vcs.change.duration

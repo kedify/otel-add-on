@@ -1,10 +1,10 @@
-{{- if .Values.otelOperatorCr.create }}
+{{- if and .Values.otelOperator.enabled .Values.otelOperatorCr.create }}
 # minimal rbac for post-install jop that creates scaled object for interceptor
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: install-otc
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ .Values.otelOperatorCr.namespace | default .Release.Namespace }}
   annotations:
     helm.sh/hook: "post-install,post-upgrade"
     helm.sh/hook-delete-policy: "before-hook-creation,hook-succeeded"
@@ -49,5 +49,5 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: install-otc
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ .Values.otelOperatorCr.namespace | default .Release.Namespace }}
 {{- end }}

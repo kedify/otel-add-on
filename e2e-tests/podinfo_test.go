@@ -16,7 +16,7 @@ import (
 const (
 	clusterName = "test-podinfo-cluster"
 	minReplicas = 1
-	maxReplicas = 20
+	maxReplicas = 3
 )
 
 func TestPodinfo(t *testing.T) {
@@ -36,6 +36,7 @@ var _ = BeforeSuite(func() {
 	fmt.Printf("---------------------------------\nOTEL_SCALER_VERSION: %s\n", thisVersion)
 	fmt.Printf("E2E_PRINT_LOGS: %s\n", printLogs)
 	fmt.Printf("E2E_DELETE_CLUSTER: %s\n", deleteCluster)
+	fmt.Printf("PR_BRANCH: %s\n", prBranch)
 	fmt.Printf("CI: %s\n", isCI)
 	fmt.Printf("current commit:\n%s\n---------------------------------\n\n", out)
 
@@ -61,6 +62,11 @@ var _ = BeforeEach(func() {
 })
 
 var _ = Describe("Helm chart:", func() {
+	BeforeEach(func() {
+		if only != "" && only != suitePi {
+			Skip("Skipping podinfo")
+		}
+	})
 	for repoName, repoUrl := range helmChartRepos {
 		Context(repoName, Ordered, func() {
 			It("should be possible to add it", func() {
@@ -146,14 +152,14 @@ var _ = Describe("Helm chart:", func() {
 						desiredReplicas, err := strconv.Atoi(strings.Trim(out, "'"))
 						g.Expect(err).Should(Not(HaveOccurred()))
 						g.Expect(desiredReplicas).Should(And(BeNumerically(">", minReplicas), BeNumerically("<=", maxReplicas)))
-						ctx.t.Logf("        ->>>  Pod info successfuly scaled to %d        <<<-\n\n\n", desiredReplicas)
+						ctx.t.Logf("\n        ->>>  Pod info successfuly scaled to %d        <<<-\n\n", desiredReplicas)
 						GinkgoWriter.Println("        ->>>  Pod info successfuly scaled to")
 						cancelHey <- true
 					}).WithPolling(3 * time.Second).
 						WithContext(ctx1min).
 						Should(Succeed())
 				})
-				time.Sleep(5 * time.Second)
+				time.Sleep(10 * time.Second)
 				ctx5min, _ := context.WithTimeout(context.TODO(), 5*time.Minute)
 				It("should eventually scale the podinfo back from N -> 1", func() {
 					Eventually(func(g Gomega) {
@@ -162,8 +168,8 @@ var _ = Describe("Helm chart:", func() {
 						desiredReplicas, err := strconv.Atoi(strings.Trim(out, "'"))
 						g.Expect(err).Should(Not(HaveOccurred()))
 						g.Expect(desiredReplicas).Should(Equal(minReplicas))
-						ctx.t.Logf("        ->>>  Pod info successfuly scaled back to %d        <<<-\n\n\n", desiredReplicas)
-					}).WithPolling(3 * time.Second).WithContext(ctx5min).Should(Succeed())
+						ctx.t.Logf("\n        ->>>  Pod info successfuly scaled back to %d        <<<-\n\n", desiredReplicas)
+					}).WithPolling(5 * time.Second).WithTimeout(5 * time.Minute).WithContext(ctx5min).Should(Succeed())
 				})
 			})
 		})
@@ -171,10 +177,13 @@ var _ = Describe("Helm chart:", func() {
 })
 
 var _ = ReportAfterSuite("ReportAfterSuite", func(report Report) {
+	if only != "" && only != suitePi {
+		Skip("Skipping for podinfo tests")
+	}
 	if !report.SuiteSucceeded {
 		ctx.t.Log("Test suite failed, leaving k3d cluster alive for inspection..")
 		PrintLogs()
-	} else if deleteCluster != "false" {
+	} else if deleteCluster == "true" {
 		ctx.t.Log("Deleting k3d cluster..")
 		err := execCmdE(fmt.Sprintf("k3d cluster delete %s", clusterName))
 		Expect(err).NotTo(HaveOccurred())
@@ -186,7 +195,10 @@ func PrintLogs() {
 		wrapInSection("HPA", "get hpa keda-hpa-podinfo-pull-example -oyaml")
 		wrapInSection("SO", "get so podinfo-pull-example -oyaml")
 		wrapInSection("PODS", "get pods -A")
-		for _, nameAndNs := range []string{"podinfo -ndefault", "keda-operator -nkeda", "opentelemetry-collector -nkeda", "otel-add-on -nkeda"} {
+		for _, nameAndNs := range []string{"podinfo -ndefault",
+			"keda-operator -nkeda",
+			"opentelemetry-collector -nkeda",
+			"otel-add-on -nkeda"} {
 			wrapInSection(fmt.Sprintf("Logs for %s", nameAndNs), fmt.Sprintf("logs -lapp.kubernetes.io/name=%s --tail=-1", nameAndNs))
 		}
 	}

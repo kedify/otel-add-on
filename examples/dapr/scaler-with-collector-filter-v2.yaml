@@ -1,4 +1,5 @@
 opentelemetry-collector:
+  enabled: true
   alternateConfig:
     processors:
       filter/ottl:
