@@ -6,7 +6,7 @@ export GH_PAT=
 
 command -v figlet &> /dev/null && figlet OTel Operator + GitHub receiver
 [ -z "${PR_BRANCH}" ] && echo "Set BRANCH env variable to a branch name from which a PR is opened against kedify/otel-add-on repo" && exit 1
-[ -z "${GH_PAT}" ] && echo "Set GH_PAT env variable to a PAT token that has read permissions for content on kedify/otel-add-on repo repo"  && exit 1
+[ -z "${GH_PAT}" ] && echo "Set GH_PAT env variable to a PAT token that has read permissions for content on kedify/otel-add-on repo"  && exit 1
 
 # setup helm repos
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
