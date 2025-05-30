@@ -152,8 +152,8 @@ var _ = Describe("Helm chart:", func() {
 						desiredReplicas, err := strconv.Atoi(strings.Trim(out, "'"))
 						g.Expect(err).Should(Not(HaveOccurred()))
 						g.Expect(desiredReplicas).Should(And(BeNumerically(">", minReplicas), BeNumerically("<=", maxReplicas)))
-						ctx.t.Logf("\n        ->>>  Pod info successfuly scaled to %d        <<<-\n\n", desiredReplicas)
-						GinkgoWriter.Println("        ->>>  Pod info successfuly scaled to")
+						ctx.t.Logf("\n        ->>>  Pod info successfully scaled to %d        <<<-\n\n", desiredReplicas)
+						GinkgoWriter.Println("        ->>>  Pod info successfully scaled to")
 						cancelHey <- true
 					}).WithPolling(3 * time.Second).
 						WithContext(ctx1min).
