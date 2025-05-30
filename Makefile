@@ -56,7 +56,7 @@ test:  ## Runs golang unit tests.
 .PHONY: e2e-test
 e2e-test:  ## Runs end to end tests. This will spawn a k3d cluster.
 	@$(call say,Running end to end tests)
-	cd e2e-tests && go test -race -v ./...
+	cd e2e-tests && go test -count=1 -race -v ./...
 
 .PHONY: generate
 generate: codegen-tags codegen ## Generate code DeepCopy, DeepCopyInto, and DeepCopyObject method implementations + json tags.

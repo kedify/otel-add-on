@@ -1,9 +1,10 @@
 settings:
-  metricStoreRetentionSeconds: 60
+  metricStoreRetentionSeconds: 30
   logs:
     logLvl: debug
 
-opentelemetry-collector:
+otelCollector:
+  enabled: true
   ports:
     metrics:
       enabled: true
@@ -32,7 +33,7 @@ opentelemetry-collector:
               static_configs:
                 - targets: ['0.0.0.0:8888']
             - job_name: k8s
-              scrape_interval: 5s
+              scrape_interval: 2s
               kubernetes_sd_configs:
                 - role: pod
               relabel_configs:

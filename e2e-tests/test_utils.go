@@ -22,10 +22,12 @@ import (
 )
 
 const (
-	k3dVersion                 = "v5.7.3"
-	podinfoVesrsion            = "v6.7.1"
+	k3dVersion                 = "v5.8.3"
+	podinfoVesrsion            = "v6.9.0"
 	kedifyKedaHelmChartVersion = "v2.17.1-0"
 	defaultTimeoutSec          = 300
+	suiteOp                    = "operator"
+	suitePi                    = "podinfo"
 )
 
 type EnvVar struct {
@@ -41,6 +43,7 @@ var (
 		"kedify":                  "https://kedify.github.io/charts",
 		"kedify-otel":             "https://kedify.github.io/otel-add-on",
 		"opentelemetry-collector": "https://open-telemetry.github.io/opentelemetry-helm-charts",
+		"opentelemetry-operator":  "https://open-telemetry.github.io/opentelemetry-helm-charts",
 	}
 
 	// repoName -> helmChartName mapping
@@ -49,10 +52,13 @@ var (
 		"kedify":      "keda",
 		"kedify-otel": "otel-add-on",
 	}
-	otelScalerVersion, _ = os.LookupEnv("OTEL_SCALER_VERSION")
-	printLogs, _         = os.LookupEnv("E2E_PRINT_LOGS")
-	deleteCluster, _     = os.LookupEnv("E2E_DELETE_CLUSTER")
 	isCI, _              = os.LookupEnv("CI")
+	prBranch, _          = os.LookupEnv("PR_BRANCH")
+	ghPat, _             = os.LookupEnv("GH_PAT")
+	only, _              = os.LookupEnv("ONLY")
+	deleteCluster, _     = os.LookupEnv("E2E_DELETE_CLUSTER")
+	printLogs, _         = os.LookupEnv("E2E_PRINT_LOGS")
+	otelScalerVersion, _ = os.LookupEnv("OTEL_SCALER_VERSION")
 )
 
 type TestContext struct {
@@ -73,6 +79,25 @@ func kapply(path string) (string, error) {
 
 func execCmdOE(cmdWithArgs string, workDir string, envVars ...EnvVar) (string, error) {
 	cmd := parseCommand(cmdWithArgs, workDir, envVars...)
+	return shell.RunCommandAndGetOutputE(ctx.t, cmd)
+}
+
+func execBashCmdOE(cmdWithArgs string, workDir string, envVars ...EnvVar) (string, error) {
+	envVarsMap := make(map[string]string, len(envVars))
+	if len(envVars) > 0 {
+		for _, envVar := range envVars {
+			envVarsMap[envVar.name] = envVar.value
+		}
+	}
+
+	cmd := shell.Command{
+		Command: "bash",
+		Args:    []string{"-c", cmdWithArgs},
+		Env:     envVarsMap,
+	}
+	if len(workDir) > 0 {
+		cmd.WorkingDir = workDir
+	}
 	return shell.RunCommandAndGetOutputE(ctx.t, cmd)
 }
 
@@ -230,4 +255,10 @@ func waitForDeployment(name string, namespace string, timeoutSec int) {
 func getHpa(name, namespace string) error {
 	_, err := kubectl(fmt.Sprintf("get hpa -n %s %s", namespace, name))
 	return err
+}
+
+func skipIfNeeded(t *testing.T, name string) {
+	if only != "" && only != name {
+		t.Skip(fmt.Sprintf("Skipping test suite for %s", name))
+	}
 }

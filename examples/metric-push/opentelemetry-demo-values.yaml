@@ -37,6 +37,7 @@ components:
       - name: OTEL_EXPORTER_OTLP_ENDPOINT
         value: http://$(OTEL_COLLECTOR_NAME):4317
 opentelemetry-collector:
+  enabled: true
   config:
     exporters:
       # this is the original exporter, we just rename it from otlp to otlp/jaeger to preserve it

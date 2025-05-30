@@ -68,6 +68,31 @@
       "matchStrings": [
         ".*/opentelemetry-helm-charts\n\\s+version:\\s+(?<currentValue>[^\\S]+).*\n",
       ],
+    },
+
+    // bump helm chart version of opentelemetry-operator if there is a release
+    {
+      "fileMatch": [
+        "(^|/)helmchart/otel-add-on/README.md$",
+        "(^|/)helmchart/otel-add-on/values.schema.json$",
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "open-telemetry/opentelemetry-helm-charts",
+      "extractVersionTemplate": "^opentelemetry-operator-(?<version>.*)$",
+      "matchStrings": [
+        ".*/(tree|tags)/opentelemetry-operator-(?<currentValue>[^/]+).*\n",
+      ],
+    },
+    {
+      "fileMatch": [
+        "(^|/)helmchart/otel-add-on/Chart.yaml$"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "open-telemetry/opentelemetry-helm-charts",
+      "extractVersionTemplate": "^opentelemetry-operator-(?<version>.*)$",
+      "matchStrings": [
+        ".*/opentelemetry-helm-charts\n\\s+version:\\s+(?<currentValue>[^\\S]+).*\n",
+      ],
     }
   ],
   "reviewers": ["team:all"],
