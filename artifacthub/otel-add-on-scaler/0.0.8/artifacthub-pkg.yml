@@ -1,0 +1,15 @@
+# full spec: https://github.com/artifacthub/hub/blob/master/docs/metadata/artifacthub-pkg.yml
+version: 0.0.8
+name: otel-add-on-scaler
+displayName: KEDA OTel Addon Scaler
+createdAt: 2025-01-31T12:00:00Z
+description: KEDA External Scaler that can obtain metrics from OTel collector and use them for autoscaling.
+homeURL: https://github.com/kedify/otel-add-on
+logoURL: https://raw.githubusercontent.com/kedacore/keda/main/images/keda-logo-500x500-white.png
+links:
+  - name: GitHub repo
+    url: https://github.com/kedify/otel-add-on
+keywords:
+  - keda
+  - otel
+  - scaler
