@@ -17,4 +17,15 @@
  | (_) | ||  __/ |   | (_| | (_| | (_| |___| (_) | | | |            !5.
   \___/ \__\___|_|    \__,_|\__,_|\__,_|    \___/|_| |_|            ,
                                                                     .
-{{- end -}}
+{{- end }}
+Following components were installed:
+- KEDA-OTel add-on
+{{- if .Values.otelOperator.enabled }}
+- OTel Operator
+{{- if .Values.otelOperatorCr.create }}
+- OTel Collector (using the operator)
+{{- end }}
+{{- end }}
+{{- if .Values.otelCollector.enabled }}
+- OTel Collector (using the helm chart)
+{{- end }}

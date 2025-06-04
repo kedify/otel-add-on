@@ -14,11 +14,11 @@ spec:
         targetValue: "10"
         clampMax: "600"
   minReplicaCount: 1
-  maxReplicaCount: 20
+  maxReplicaCount: 3
   advanced:
     horizontalPodAutoscalerConfig:
       behavior:
         scaleDown:
-          stabilizationWindowSeconds: 10
+          stabilizationWindowSeconds: 2
         scaleUp:
-          stabilizationWindowSeconds: 10
+          stabilizationWindowSeconds: 2

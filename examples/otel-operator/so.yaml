@@ -1,0 +1,27 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: github-metrics
+  namespace: keda
+spec:
+  scaleTargetRef:
+    name: otel-operator
+  triggers:
+    - type: external
+      metadata:
+        scalerAddress: "keda-otel-scaler.keda.svc:4318"
+        # there is a PR opened on this repo for more than 100 sec (>200 sec -> 2 replicas, >300 sec -> 3 replicas)
+#        metricQuery: "max(vcs_change_duration{vcs.repository.name=otel-add-on,vcs.change.state=open})"
+        metricQuery: "max(vcs_change_duration{vcs.repository.name=otel-add-on,vcs.change.state=open,vcs.ref.head.name=${PR_BRANCH}})"
+        targetValue: "100"
+        clampMin: "0"
+        clampMax: "300"
+        operationOverTime: "max"
+  maxReplicaCount: 3
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 1
+        scaleUp:
+          stabilizationWindowSeconds: 10

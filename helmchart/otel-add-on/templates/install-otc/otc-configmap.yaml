@@ -1,0 +1,123 @@
+{{- if and .Values.otelOperator.enabled .Values.otelOperatorCr.create }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otc
+  namespace: {{ .Values.otelOperatorCr.namespace | default .Release.Namespace }}
+  annotations:
+    helm.sh/hook: "post-install,post-upgrade"
+    helm.sh/hook-delete-policy: "before-hook-creation,hook-succeeded"
+    helm.sh/hook-weight: "-2"
+data:
+  content: |
+    apiVersion: opentelemetry.io/v1beta1
+    kind: OpenTelemetryCollector
+    metadata:
+      name: {{ include "otel-add-on.name" . }}-otc
+      namespace: {{ .Values.otelOperatorCr.namespace | default .Release.Namespace }}
+    spec:
+      resources:
+        {{- toYaml .Values.otelOperatorCr.resources | nindent 8 }}
+      mode:  {{ .Values.otelOperatorCr.mode }}
+      {{- with .Values.otelOperatorCr.serviceAccount.name }}
+      serviceAccount: {{ . }}
+      {{- end }}
+      upgradeStrategy: none
+      {{- with .Values.otelOperatorCr.env }}
+      env:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.otelOperatorCr.envFrom }}
+      envFrom:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+      config:
+        {{- if .Values.otelOperatorCr.alternateOtelConfig }}
+        {{- toYaml .Values.otelOperatorCr.alternateOtelConfig | nindent 8 }}
+        {{- else}}
+
+        {{- $extensions := list }}
+        {{- with .Values.otelOperatorCr.alternateExtensions }}
+        extensions:
+        {{- range $extension, $extensionCfg := . }}
+          {{- $extensions = append $extensions $extension }}
+          {{ $extension }}:
+            {{- toYaml $extensionCfg | nindent 12 }}
+        {{- end }}
+        {{- end }}
+
+        {{- $receivers := list }}
+        receivers:
+        {{- if .Values.otelOperatorCr.alternateReceivers }}
+        {{- range $receiver, $receiverCfg := .Values.otelOperatorCr.alternateReceivers }}
+          {{- $receivers = append $receivers $receiver }}
+          {{ $receiver }}:
+            {{- toYaml $receiverCfg | nindent 12 }}
+        {{- end }}
+        {{- else}}
+        {{- with .Values.otelOperatorCr.prometheusScrapeConfigs}}
+          {{- $receivers = append $receivers "prometheus" }}
+          prometheus:
+            config:
+              scrape_configs:
+                {{- toYaml . | nindent 16 }}
+        {{- end }}
+        {{- end }}
+        {{- $processors := list }}
+        processors:
+          {{- $processors = append $processors "resourcedetection/env" }}
+          resourcedetection/env:
+            detectors: [env]
+            timeout: 2s
+            override: false
+
+          {{- $processors = append $processors "transform" }}
+          transform:
+            metric_statements:
+              - context: datapoint
+                statements:
+                  - set(attributes["namespace"], resource.attributes["k8s.namespace.name"])
+                  - set(attributes["pod"], resource.attributes["k8s.pod.name"])
+                  - set(attributes["deployment"], resource.attributes["k8s.deployment.name"])
+
+          {{- with .Values.otelOperatorCr.includeMetrics}}
+          {{- $processors = append $processors "filter/metrics" }}
+          filter/metrics:
+            metrics:
+              include:
+                match_type: strict
+                metric_names:
+                  {{- range . }}
+                  - {{ . }}
+                  {{- end }}
+          {{- end }}
+
+          {{- with .Values.otelOperatorCr.metricsgeneration.rules }}
+          {{- $processors = append $processors "metricsgeneration" }}
+          metricsgeneration:
+            rules:
+              {{- toYaml . | nindent 14 }}
+          {{- end }}
+        exporters:
+          otlp/keda:
+            endpoint: keda-otel-scaler.keda.svc:4317
+            compression: "none"
+            tls:
+              insecure: true
+          {{- if .Values.otelOperatorCr.debug }}
+          debug:
+            verbosity: detailed
+          {{- end }}
+        service:
+          {{- with $extensions }}
+          extensions: [{{- join "," . -}}]
+          {{- end }}
+          pipelines:
+            metrics:
+              receivers: [{{- join "," $receivers -}}]
+              processors: [{{- join "," $processors -}}]
+              exporters: [{{- if .Values.otelOperatorCr.debug -}}debug, {{- end -}}otlp/keda]
+        {{- end }}
+---
+{{- end }}
