@@ -52,7 +52,8 @@ Kubernetes: `>= 1.19.0-0`
 
 | Repository | Name | Version |
 |------------|------|---------|
-| https://open-telemetry.github.io/opentelemetry-helm-charts | opentelemetry-collector | 0.110.0 |
+| https://open-telemetry.github.io/opentelemetry-helm-charts | otelCollector(opentelemetry-collector) | 0.110.0 |
+| https://open-telemetry.github.io/opentelemetry-helm-charts | otelOperator(opentelemetry-operator) | 0.90.0 |
 
 ## OTel Collector Sub-Chart
 
@@ -75,7 +76,7 @@ or [docs](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/
      <tbody>
           <tr>
                <td id="image--repository">
-               <a href="./values.yaml#L8">image.repository</a><br/>
+               <a href="./values.yaml#L10">image.repository</a><br/>
                (string)
                </td>
                <td>
@@ -91,7 +92,7 @@ or [docs](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/
           </tr>
           <tr>
                <td id="image--pullPolicy">
-               <a href="./values.yaml#L10">image.pullPolicy</a><br/>
+               <a href="./values.yaml#L12">image.pullPolicy</a><br/>
                (string)
                </td>
                <td>
@@ -107,7 +108,7 @@ or [docs](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/
           </tr>
           <tr>
                <td id="image--tag">
-               <a href="./values.yaml#L12">image.tag</a><br/>
+               <a href="./values.yaml#L14">image.tag</a><br/>
                (string)
                </td>
                <td>
@@ -123,7 +124,7 @@ or [docs](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/
           </tr>
           <tr>
                <td id="settings--metricStore--retentionSeconds">
-               <a href="./values.yaml#L17">settings.metricStore.retentionSeconds</a><br/>
+               <a href="./values.yaml#L19">settings.metricStore.retentionSeconds</a><br/>
                (int)
                </td>
                <td>
@@ -139,7 +140,7 @@ or [docs](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/
           </tr>
           <tr>
                <td id="settings--metricStore--lazySeries">
-               <a href="./values.yaml#L21">settings.metricStore.lazySeries</a><br/>
+               <a href="./values.yaml#L23">settings.metricStore.lazySeries</a><br/>
                (bool)
                </td>
                <td>
@@ -155,7 +156,7 @@ false
           </tr>
           <tr>
                <td id="settings--metricStore--lazyAggregates">
-               <a href="./values.yaml#L25">settings.metricStore.lazyAggregates</a><br/>
+               <a href="./values.yaml#L27">settings.metricStore.lazyAggregates</a><br/>
                (bool)
                </td>
                <td>
@@ -171,7 +172,7 @@ false
           </tr>
           <tr>
                <td id="settings--metricStore--errIfNotFound">
-               <a href="./values.yaml#L28">settings.metricStore.errIfNotFound</a><br/>
+               <a href="./values.yaml#L30">settings.metricStore.errIfNotFound</a><br/>
                (bool)
                </td>
                <td>
@@ -187,7 +188,7 @@ false
           </tr>
           <tr>
                <td id="settings--metricStore--valueIfNotFound">
-               <a href="./values.yaml#L31">settings.metricStore.valueIfNotFound</a><br/>
+               <a href="./values.yaml#L33">settings.metricStore.valueIfNotFound</a><br/>
                (float)
                </td>
                <td>
@@ -203,7 +204,7 @@ false
           </tr>
           <tr>
                <td id="settings--isActivePollingIntervalMilliseconds">
-               <a href="./values.yaml#L34">settings.isActivePollingIntervalMilliseconds</a><br/>
+               <a href="./values.yaml#L36">settings.isActivePollingIntervalMilliseconds</a><br/>
                (int)
                </td>
                <td>
@@ -219,7 +220,7 @@ false
           </tr>
           <tr>
                <td id="settings--internalMetricsPort">
-               <a href="./values.yaml#L37">settings.internalMetricsPort</a><br/>
+               <a href="./values.yaml#L39">settings.internalMetricsPort</a><br/>
                (int)
                </td>
                <td>
@@ -235,7 +236,7 @@ false
           </tr>
           <tr>
                <td id="settings--restApiPort">
-               <a href="./values.yaml#L40">settings.restApiPort</a><br/>
+               <a href="./values.yaml#L42">settings.restApiPort</a><br/>
                (int)
                </td>
                <td>
@@ -251,7 +252,7 @@ false
           </tr>
           <tr>
                <td id="settings--logs--logLvl">
-               <a href="./values.yaml#L45">settings.logs.logLvl</a><br/>
+               <a href="./values.yaml#L47">settings.logs.logLvl</a><br/>
                (string)
                </td>
                <td>
@@ -267,7 +268,7 @@ false
           </tr>
           <tr>
                <td id="settings--logs--stackTracesLvl">
-               <a href="./values.yaml#L48">settings.logs.stackTracesLvl</a><br/>
+               <a href="./values.yaml#L50">settings.logs.stackTracesLvl</a><br/>
                (string)
                </td>
                <td>
@@ -283,7 +284,7 @@ false
           </tr>
           <tr>
                <td id="settings--logs--noColor">
-               <a href="./values.yaml#L51">settings.logs.noColor</a><br/>
+               <a href="./values.yaml#L53">settings.logs.noColor</a><br/>
                (bool)
                </td>
                <td>
@@ -299,7 +300,7 @@ false
           </tr>
           <tr>
                <td id="settings--logs--noBanner">
-               <a href="./values.yaml#L54">settings.logs.noBanner</a><br/>
+               <a href="./values.yaml#L56">settings.logs.noBanner</a><br/>
                (bool)
                </td>
                <td>
@@ -315,7 +316,7 @@ false
           </tr>
           <tr>
                <td id="deploymentStrategy">
-               <a href="./values.yaml#L57">deploymentStrategy</a><br/>
+               <a href="./values.yaml#L59">deploymentStrategy</a><br/>
                (string)
                </td>
                <td>
@@ -331,7 +332,7 @@ false
           </tr>
           <tr>
                <td id="validatingAdmissionPolicy--enabled">
-               <a href="./values.yaml#L61">validatingAdmissionPolicy.enabled</a><br/>
+               <a href="./values.yaml#L63">validatingAdmissionPolicy.enabled</a><br/>
                (bool)
                </td>
                <td>
@@ -347,7 +348,7 @@ true
           </tr>
           <tr>
                <td id="asciiArt">
-               <a href="./values.yaml#L65">asciiArt</a><br/>
+               <a href="./values.yaml#L67">asciiArt</a><br/>
                (bool)
                </td>
                <td>
@@ -363,7 +364,7 @@ true
           </tr>
           <tr>
                <td id="imagePullSecrets">
-               <a href="./values.yaml#L68">imagePullSecrets</a><br/>
+               <a href="./values.yaml#L70">imagePullSecrets</a><br/>
                (list)
                </td>
                <td>
@@ -379,7 +380,7 @@ true
           </tr>
           <tr>
                <td id="serviceAccount--create">
-               <a href="./values.yaml#L74">serviceAccount.create</a><br/>
+               <a href="./values.yaml#L76">serviceAccount.create</a><br/>
                (bool)
                </td>
                <td>
@@ -395,7 +396,7 @@ true
           </tr>
           <tr>
                <td id="serviceAccount--annotations">
-               <a href="./values.yaml#L77">serviceAccount.annotations</a><br/>
+               <a href="./values.yaml#L79">serviceAccount.annotations</a><br/>
                (object)
                </td>
                <td>
@@ -411,7 +412,7 @@ true
           </tr>
           <tr>
                <td id="serviceAccount--name">
-               <a href="./values.yaml#L79">serviceAccount.name</a><br/>
+               <a href="./values.yaml#L81">serviceAccount.name</a><br/>
                (string)
                </td>
                <td>
@@ -427,7 +428,7 @@ true
           </tr>
           <tr>
                <td id="podAnnotations">
-               <a href="./values.yaml#L82">podAnnotations</a><br/>
+               <a href="./values.yaml#L84">podAnnotations</a><br/>
                (object)
                </td>
                <td>
@@ -443,7 +444,7 @@ true
           </tr>
           <tr>
                <td id="podLabels">
-               <a href="./values.yaml#L85">podLabels</a><br/>
+               <a href="./values.yaml#L87">podLabels</a><br/>
                (object)
                </td>
                <td>
@@ -459,7 +460,7 @@ true
           </tr>
           <tr>
                <td id="podSecurityContext">
-               <a href="./values.yaml#L88">podSecurityContext</a><br/>
+               <a href="./values.yaml#L90">podSecurityContext</a><br/>
                (object)
                </td>
                <td>
@@ -475,7 +476,7 @@ true
           </tr>
           <tr>
                <td id="securityContext--readOnlyRootFilesystem">
-               <a href="./values.yaml#L95">securityContext.readOnlyRootFilesystem</a><br/>
+               <a href="./values.yaml#L97">securityContext.readOnlyRootFilesystem</a><br/>
                (bool)
                </td>
                <td>
@@ -491,7 +492,7 @@ true
           </tr>
           <tr>
                <td id="securityContext--runAsNonRoot">
-               <a href="./values.yaml#L97">securityContext.runAsNonRoot</a><br/>
+               <a href="./values.yaml#L99">securityContext.runAsNonRoot</a><br/>
                (bool)
                </td>
                <td>
@@ -507,7 +508,7 @@ true
           </tr>
           <tr>
                <td id="securityContext--runAsUser">
-               <a href="./values.yaml#L99">securityContext.runAsUser</a><br/>
+               <a href="./values.yaml#L101">securityContext.runAsUser</a><br/>
                (int)
                </td>
                <td>
@@ -523,7 +524,7 @@ true
           </tr>
           <tr>
                <td id="service--type">
-               <a href="./values.yaml#L104">service.type</a><br/>
+               <a href="./values.yaml#L106">service.type</a><br/>
                (string)
                </td>
                <td>
@@ -539,7 +540,7 @@ true
           </tr>
           <tr>
                <td id="service--otlpReceiverPort">
-               <a href="./values.yaml#L106">service.otlpReceiverPort</a><br/>
+               <a href="./values.yaml#L108">service.otlpReceiverPort</a><br/>
                (int)
                </td>
                <td>
@@ -555,7 +556,7 @@ true
           </tr>
           <tr>
                <td id="service--kedaExternalScalerPort">
-               <a href="./values.yaml#L108">service.kedaExternalScalerPort</a><br/>
+               <a href="./values.yaml#L110">service.kedaExternalScalerPort</a><br/>
                (int)
                </td>
                <td>
@@ -571,7 +572,7 @@ true
           </tr>
           <tr>
                <td id="resources--limits--cpu">
-               <a href="./values.yaml#L113">resources.limits.cpu</a><br/>
+               <a href="./values.yaml#L115">resources.limits.cpu</a><br/>
                (string)
                </td>
                <td>
@@ -587,7 +588,7 @@ true
           </tr>
           <tr>
                <td id="resources--limits--memory">
-               <a href="./values.yaml#L115">resources.limits.memory</a><br/>
+               <a href="./values.yaml#L117">resources.limits.memory</a><br/>
                (string)
                </td>
                <td>
@@ -603,7 +604,7 @@ true
           </tr>
           <tr>
                <td id="resources--requests--cpu">
-               <a href="./values.yaml#L118">resources.requests.cpu</a><br/>
+               <a href="./values.yaml#L120">resources.requests.cpu</a><br/>
                (string)
                </td>
                <td>
@@ -619,7 +620,7 @@ true
           </tr>
           <tr>
                <td id="resources--requests--memory">
-               <a href="./values.yaml#L120">resources.requests.memory</a><br/>
+               <a href="./values.yaml#L122">resources.requests.memory</a><br/>
                (string)
                </td>
                <td>
@@ -635,7 +636,7 @@ true
           </tr>
           <tr>
                <td id="nodeSelector">
-               <a href="./values.yaml#L134">nodeSelector</a><br/>
+               <a href="./values.yaml#L136">nodeSelector</a><br/>
                (object)
                </td>
                <td>
@@ -651,7 +652,7 @@ true
           </tr>
           <tr>
                <td id="tolerations">
-               <a href="./values.yaml#L137">tolerations</a><br/>
+               <a href="./values.yaml#L139">tolerations</a><br/>
                (list)
                </td>
                <td>
@@ -667,7 +668,7 @@ true
           </tr>
           <tr>
                <td id="affinity">
-               <a href="./values.yaml#L140">affinity</a><br/>
+               <a href="./values.yaml#L142">affinity</a><br/>
                (object)
                </td>
                <td>
@@ -677,6 +678,187 @@ true
                     <div style="max-width: 200px;">
 <pre lang="json">
 {}
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCr--create">
+               <a href="./values.yaml#L147">otelOperatorCr.create</a><br/>
+               (bool)
+               </td>
+               <td>
+               if enabled, the OpenTelemetryCollector CR will be created using post-install hook job_name
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+true
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCr--namespace">
+               <a href="./values.yaml#L149">otelOperatorCr.namespace</a><br/>
+               (string)
+               </td>
+               <td>
+               in what k8s namespace the OpenTelemetryCollector CR should be created
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+""
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCr--debug">
+               <a href="./values.yaml#L151">otelOperatorCr.debug</a><br/>
+               (bool)
+               </td>
+               <td>
+               container image for post-install helm hook that help with OpenTelemetryCollector CR installation
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+false
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCr--mode">
+               <a href="./values.yaml#L158">otelOperatorCr.mode</a><br/>
+               (string)
+               </td>
+               <td>
+               how the otel collector should be deployed: sidecar, statefulset, deployment, daemonset
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+"sidecar"
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCr--resources">
+               <a href="./values.yaml#L177">otelOperatorCr.resources</a><br/>
+               (object)
+               </td>
+               <td>
+               resources for the OTel collector container
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+{
+  "limits": {
+    "cpu": "400m",
+    "memory": "128Mi"
+  },
+  "requests": {
+    "cpu": "200m",
+    "memory": "64Mi"
+  }
+}
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCr--alternateOtelConfig">
+               <a href="./values.yaml#L186">otelOperatorCr.alternateOtelConfig</a><br/>
+               (object)
+               </td>
+               <td>
+               free form OTel configuration that will be used for the OpenTelemetryCollector CR (no checks) this is mutually exclusive w/ all the following options
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+{}
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCr--prometheusScrapeConfigs">
+               <a href="./values.yaml#L190">otelOperatorCr.prometheusScrapeConfigs</a><br/>
+               (list)
+               </td>
+               <td>
+               static targets for prometheus receiver, this needs to take into account the deployment mode of the collector (127.0.0.1 in case of a sidecar mode will mean something else than for statefulset mode)
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+[
+  {
+    "job_name": "otel-collector",
+    "scrape_interval": "3s",
+    "static_configs": [
+      {
+        "targets": [
+          "0.0.0.0:8080"
+        ]
+      }
+    ]
+  }
+]
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCr--alternateReceivers">
+               <a href="./values.yaml#L196">otelOperatorCr.alternateReceivers</a><br/>
+               (object)
+               </td>
+               <td>
+               mutually exclusive with prometheusScrapeConfigs option
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+{}
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCr--includeMetrics">
+               <a href="./values.yaml#L200">otelOperatorCr.includeMetrics</a><br/>
+               (list)
+               </td>
+               <td>
+               if not empty, only following metrics will be sent. This translates to filter/metrics processor. Empty array means include all.
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+[]
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelCollector--mode">
+               <a href="./values.yaml#L252">otelCollector.mode</a><br/>
+               (string)
+               </td>
+               <td>
+               Valid values are "daemonset", "deployment", "sidecar" and "statefulset"
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+"deployment"
 </pre>
 </div>
                </td>
