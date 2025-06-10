@@ -1,4 +1,4 @@
-## `OTel <--> KEDA` add-on
+## `OTel ↔ KEDA` add-on
 
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/otel-add-on)](https://artifacthub.io/packages/search?repo=otel-add-on)
 
