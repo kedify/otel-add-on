@@ -89,7 +89,7 @@ jobs:
       - name: Run the end to end tests
         env:
           OTEL_SCALER_VERSION: pr-${{ github.event.pull_request.number }}
-          PR_BRANCH: ${{ github.event.pull_request.base.ref }}
+          PR_BRANCH: ${{ github.head_ref }}
           GH_PAT: ${{ secrets.GITHUB_TOKEN }}
           E2E_PRINT_LOGS: "true"
         run: make e2e-test
