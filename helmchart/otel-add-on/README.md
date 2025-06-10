@@ -38,7 +38,7 @@ crane ls ghcr.io/kedify/charts/otel-add-on | grep -E '^v?[0-9]'
 
 Install specific version:
 ```
-helm upgrade -i oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.9
+helm upgrade -i oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.10
 ```
 
 ## Source Code

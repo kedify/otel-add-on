@@ -27,7 +27,7 @@ open http://localhost:8181/metrics
 
 Install this addon:
 ```bash
-helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.9 -f scaler-with-collector-pull-values.yaml
+helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.10 -f scaler-with-collector-pull-values.yaml
 ```
 
 Note the following section in the helm chart values that configures the OTel collector to scrape targets:
