@@ -18,14 +18,66 @@
   \___/ \__\___|_|    \__,_|\__,_|\__,_|    \___/|_| |_|            ,
                                                                     .
 {{- end }}
+{{- $collectors := include "operatorCrs" . | fromJsonArray }}
 Following components were installed:
-- KEDA-OTel add-on
-{{- if .Values.otelOperator.enabled }}
-- OTel Operator
-{{- if .Values.otelOperatorCr.create }}
-- OTel Collector (using the operator)
+{{- if .Values.deployScaler }}
+- KEDA-OTel add-on ✓
 {{- end }}
+{{- if .Values.otelOperator.enabled }}
+- OTel Operator ✓
+{{- end }}
+{{- range $collectors }}
+- OTel Collector with name '{{ .name | default $.Release.Name }}' (using the operator) ✓
 {{- end }}
 {{- if .Values.otelCollector.enabled }}
-- OTel Collector (using the helm chart)
+- OTel Collector (using the helm chart) ✓
+{{- $collectors = append $collectors .Values.otelCollector -}}
+{{- end }}
+
+Architecture:
+{{- printf "\n" -}}
+{{- if $collectors }}
+{{- range $collectors }}
+{{- printf "   ┌──────────────┐    " -}}
+{{- end }}
+{{- printf "\n" -}}
+{{- range $collectors }}
+{{- printf "   │      🚀      │    " -}}
+{{- end }}
+{{- printf "\n" -}}
+{{- range $collectors }}
+{{- printf "   │ %-13s│    " ((.name | default "byHelmChart") | trunc 11) -}}
+{{- end }}
+{{- printf "  (Collectors)" -}}
+{{- printf "\n" -}}
+{{- range $collectors }}
+{{- printf "   │ %-13s│    " (printf "(%s)" (.mode | trunc 11)) -}}
+{{- end }}
+{{- printf "\n" -}}
+{{- range $collectors }}
+{{- printf "   └──────────────┘    " -}}
+{{- end }}
+{{- printf "\n" -}}
+{{- if and .Values.deployScaler $collectors }}
+{{- printf " ┍" -}}
+{{- end }}
+{{- range $i, $cr := $collectors }}
+{{- if eq $i (sub (len ($collectors)) 1) -}}
+{{- printf "╺╺╺╺╺╺╺╺╺┛" -}}
+{{- else -}}
+{{- printf "╺╺╺╺╺╺╺╺╺┻╺╺╺╺╺╺╺╺╺╺╺╺╺" -}}
+{{- end -}}
+{{- end }}
+{{- printf "\n" -}}
+{{- if and .Values.deployScaler  $collectors }}
+{{- printf " ╵ \n ╵ \n ╵   " -}}
+{{- end }}
+{{- end }}
+
+{{- if .Values.deployScaler }}
+{{- printf "  ╭──────────────────╮         ╭╸╸╸╸╸╸╮\n" -}}
+{{- if $collectors -}}{{- printf " └╴╴→" -}}{{- end -}}
+{{- printf "  │ KEDA OTel Scaler │ ←╴╴╴╴╴→ ┆ KEDA ┆\n" -}}
+{{- if $collectors -}}{{- printf "     " -}}{{- end -}}
+{{- printf "  ╰──────────────────╯         ╰╸╸╸╸╸╸╯\n" -}}
 {{- end }}

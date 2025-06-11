@@ -58,9 +58,12 @@ settings:
 # -- one of: RollingUpdate, Recreate ([details](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy))
 deploymentStrategy: RollingUpdate
 
+# -- when disabled, the deployment with KEDA Scaler will not be rendered
+deployScaler: true
+
 validatingAdmissionPolicy:
   # -- whether the ValidatingAdmissionPolicy and ValidatingAdmissionPolicyBinding resources should be also rendered
-  enabled: true
+  enabled: false
   name: well-formed-otel-scalers
 
 # -- should the ascii logo be printed when this helm chart is installed
@@ -141,21 +144,37 @@ tolerations: []
 # -- [details](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity)
 affinity: {}
 
+# -- helper container image that creates the OpenTelemetryCollector CR as post-install helm hook
+kubectlImage:
+  tag: "v1.33.1"
+  repository: ghcr.io/kedify/kubectl
+  pullPolicy: Always
+  pullSecrets: []
 
-otelOperatorCr:
-  # -- if enabled, the OpenTelemetryCollector CR will be created using post-install hook job_name
-  create: true
-  # -- in what k8s namespace the OpenTelemetryCollector CR should be created
-  namespace: ""
+# -- default template for OpenTelemetryCollector CR. Override the specifics under `otelOperatorCrs` section
+otelOperatorCrDefaultTemplate:
   # -- container image for post-install helm hook that help with OpenTelemetryCollector CR installation
   debug: false
-  kubectlImage:
-    tag: "v1.33.1"
-    repository: ghcr.io/kedify/kubectl
-    pullPolicy: Always
-    pullSecrets: []
+
   # -- how the otel collector should be deployed: sidecar, statefulset, deployment, daemonset
   mode: sidecar
+  # -- whether TargetAllocator feature (Prometheus Custom Resources for service discovery) should be enabled ([details](https://github.com/open-telemetry/opentelemetry-operator?tab=readme-ov-file#target-allocator))
+  # make sure the mode is not set to `sidecar` when this is enabled
+  targetAllocatorEnabled: false
+  # -- list of existing cluster roles that will be bound to the service account (in order to be able to work with `{Pod,Service}Monitor` CRD)
+  targetAllocatorClusterRoles:
+    - kube-prometheus-stack-operator
+    - kube-prometheus-stack-prometheus
+  targetAllocator:
+    serviceAccount: otel-prom-reader
+    prometheusCR:
+      enabled: true
+      # -- further narrow the ServiceMonitor CRs
+      serviceMonitorSelector: {}
+      #        matchLabels:
+      #          foo: bar
+      # -- further narrow the ServiceMonitor CRs
+      podMonitorSelector: {}
   serviceAccount:
     create: false
     annotations: {}
@@ -164,15 +183,15 @@ otelOperatorCr:
     create: false
     annotations: {}
     rules: []
-#    - apiGroups:
-#      - ''
-#      resources:
-#      - 'pods'
-#      - 'nodes'
-#      verbs:
-#      - 'get'
-#      - 'list'
-#      - 'watch'
+  #    - apiGroups:
+  #      - ''
+  #      resources:
+  #      - 'pods'
+  #      - 'nodes'
+  #      verbs:
+  #      - 'get'
+  #      - 'list'
+  #      - 'watch'
   # -- resources for the OTel collector container
   resources:
     limits:
@@ -191,38 +210,54 @@ otelOperatorCr:
     - job_name: 'otel-collector'
       scrape_interval: 3s
       static_configs:
-        - targets: ['0.0.0.0:8080']
+        - targets: [ '0.0.0.0:8080' ]
   # -- mutually exclusive with prometheusScrapeConfigs option
   alternateReceivers: {}
-#    k8s_events:
-#      namespaces: [ kube-system ]
+  #    k8s_events:
+  #      namespaces: [ kube-system ]
   # -- if not empty, only following metrics will be sent. This translates to filter/metrics processor. Empty array means include all.
   includeMetrics: []
-#    - vllm:gpu_cache_usage_perc
-#    - vllm:gpu_cache_usage_perc_scaled
-#    - customload
+  #    - vllm:gpu_cache_usage_perc
+  #    - vllm:gpu_cache_usage_perc_scaled
+  #    - customload
   metricsgeneration:
     rules: []
-#      - name: vllm:gpu_cache_usage_perc_scaled
-#        type: scale
-#        metric1: vllm:gpu_cache_usage_perc
-#        operation: multiply
-#        scale_by: 100
-#      - name: customload
-#        type: calculate
-#        metric1: vllm:gpu_cache_usage_perc
-#        metric2: vllm:num_requests_waiting
-#        operation: multiply
+  #      - name: vllm:gpu_cache_usage_perc_scaled
+  #        type: scale
+  #        metric1: vllm:gpu_cache_usage_perc
+  #        operation: multiply
+  #        scale_by: 100
+  #      - name: customload
+  #        type: calculate
+  #        metric1: vllm:gpu_cache_usage_perc
+  #        metric2: vllm:num_requests_waiting
+  #        operation: multiply
   alternateExtensions: {}
-#    bearertokenauth/github:
-#      token: ${env:GH_PAT}
+  #    bearertokenauth/github:
+  #      token: ${env:GH_PAT}
 
-#  envFrom:
-#  - secretRef:
-#      name: gh-token
+  envFrom: []
+  #  - secretRef:
+  #      name: gh-token
   env: []
 #    - name: GH_PAT
 #      value: "**"
+
+# -- create also OpenTelemetryCollector CRs that will be reconciled by OTel Operator
+# it takes all the default settings defined in `otelOperatorCrDefaultTemplate` and allows overriding them
+otelOperatorCrs:
+  # -- if enabled, the OpenTelemetryCollector CR will be created using post-install hook job_name
+- enabled: false
+  # -- name of the OpenTelemetryCollector CR. If left empty, the release name will be used.
+  name: ""
+  # -- in what k8s namespace the OpenTelemetryCollector CR should be created. If left empty, the release namespace will be used.
+  namespace: ""
+
+- name: target-allocator
+  enabled: false
+  targetAllocatorEnabled: true
+  mode: deployment
+
 
 # otel operator helm chart:
 # https://github.com/open-telemetry/opentelemetry-helm-charts/blob/opentelemetry-operator-0.88.6/charts/opentelemetry-operator/values.yaml
@@ -233,7 +268,7 @@ otelOperator:
     collectorImage:
 #      repository: otel/opentelemetry-collector-k8s
       repository: otel/opentelemetry-collector-contrib
-#    env: {}
+    env: {}
     extraEnvs:
     - name: ENABLE_WEBHOOKS
       value: "false"

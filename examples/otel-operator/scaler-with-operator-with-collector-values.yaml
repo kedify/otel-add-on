@@ -9,7 +9,9 @@ otelOperator:
     collectorImage:
       repository: otel/opentelemetry-collector-contrib
 
-otelOperatorCr:
+otelOperatorCrs:
+- name: otel-add-on
+  enabled: true
   debug: true
   mode: deployment
   namespace: keda

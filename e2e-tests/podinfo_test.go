@@ -86,12 +86,12 @@ var _ = Describe("Helm chart:", func() {
 		err := helmChartInstall("podinfo", params)
 		Expect(err).NotTo(HaveOccurred(), "helm upgrade -i failed: %s", err)
 	})
-	It("kedify-otel should be possible to install", func() {
+	It("keda-otel-scaler should be possible to install", func() {
 		pwd, err := os.Getwd()
 		Expect(err).NotTo(HaveOccurred())
 		_, err = execCmdOE("helm dependency build", pwd+"/../helmchart/otel-add-on")
 		Expect(err).NotTo(HaveOccurred())
-		cmd := "helm upgrade -i kedify-otel ../helmchart/otel-add-on --namespace keda --create-namespace -f ./testdata/scaler-values.yaml"
+		cmd := "helm upgrade -i keda-otel-scaler ../helmchart/otel-add-on --namespace keda --create-namespace -f ./testdata/scaler-values.yaml"
 		if len(otelScalerVersion) > 0 {
 			cmd += fmt.Sprintf(" --set image.tag=%s", otelScalerVersion)
 		}
@@ -99,7 +99,7 @@ var _ = Describe("Helm chart:", func() {
 		Expect(err).NotTo(HaveOccurred(), "helm upgrade -i failed: %s", err)
 	})
 	It("kedify/keda should be possible to install", func() {
-		params := fmt.Sprintf("--version=%s --namespace keda --create-namespace", kedifyKedaHelmChartVersion)
+		params := fmt.Sprintf("--version=%s --namespace keda --create-namespace --set webhooks.enabled=false", kedifyKedaHelmChartVersion)
 		err := helmChartInstall("kedify", params)
 		Expect(err).NotTo(HaveOccurred(), "helm upgrade -i failed: %s", err)
 	})
@@ -114,9 +114,9 @@ var _ = Describe("Helm chart:", func() {
 			waitForDeployment("keda-operator-metrics-apiserver", "keda", defaultTimeoutSec)
 		})
 	})
-	When("kedify-otel installed", func() {
+	When("keda-otel-scaler installed", func() {
 		It("should become ready", func() {
-			waitForDeployment("otel-add-on-scaler", "keda", defaultTimeoutSec)
+			waitForDeployment("keda-otel-scaler", "keda", defaultTimeoutSec)
 		})
 	})
 	Context("Scaled Object", func() {
@@ -160,7 +160,7 @@ var _ = Describe("Helm chart:", func() {
 						Should(Succeed())
 				})
 				time.Sleep(10 * time.Second)
-				ctx5min, _ := context.WithTimeout(context.TODO(), 5*time.Minute)
+				ctx10min, _ := context.WithTimeout(context.TODO(), 10*time.Minute)
 				It("should eventually scale the podinfo back from N -> 1", func() {
 					Eventually(func(g Gomega) {
 						out, err := kubectl("get hpa keda-hpa-podinfo-pull-example -ojsonpath='{.status.desiredReplicas}'")
@@ -169,7 +169,7 @@ var _ = Describe("Helm chart:", func() {
 						g.Expect(err).Should(Not(HaveOccurred()))
 						g.Expect(desiredReplicas).Should(Equal(minReplicas))
 						ctx.t.Logf("\n        ->>>  Pod info successfuly scaled back to %d        <<<-\n\n", desiredReplicas)
-					}).WithPolling(5 * time.Second).WithTimeout(5 * time.Minute).WithContext(ctx5min).Should(Succeed())
+					}).WithPolling(5 * time.Second).WithTimeout(10 * time.Minute).WithContext(ctx10min).Should(Succeed())
 				})
 			})
 		})

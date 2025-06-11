@@ -53,11 +53,11 @@ var _ = Describe("Helm chart (op):", func() {
 		})
 	}
 	It("kedify/keda should be possible to install", func() {
-		params := fmt.Sprintf("--version=%s --namespace keda --create-namespace", kedifyKedaHelmChartVersion)
+		params := fmt.Sprintf("--version=%s --namespace keda --create-namespace --set webhooks.enabled=false", kedifyKedaHelmChartVersion)
 		err := helmChartInstall("kedify", params)
 		Expect(err).NotTo(HaveOccurred(), "helm upgrade -i failed: %s", err)
 	})
-	It("kedify-otel should be possible to install", func() {
+	It("keda-otel-scaler should be possible to install", func() {
 		pwd, err := os.Getwd()
 		Expect(err).NotTo(HaveOccurred())
 		_, err = execCmdOE("helm dependency build", pwd+"/../helmchart/otel-add-on")
@@ -66,7 +66,7 @@ var _ = Describe("Helm chart (op):", func() {
 		execCmdE("kubectl create ns keda")
 		execCmdE(fmt.Sprintf("kubectl create secret -nkeda generic gh-token --from-literal=GH_PAT=%s", ghPat))
 		time.Sleep(1 * time.Second)
-		cmd := "helm upgrade -i kedify-otel ../helmchart/otel-add-on --namespace keda --create-namespace -f ./testdata/scaler-operator-values.yaml"
+		cmd := "helm upgrade -i keda-otel-scaler ../helmchart/otel-add-on --namespace keda --create-namespace -f ./testdata/scaler-operator-values.yaml"
 		if len(otelScalerVersion) > 0 {
 			cmd += fmt.Sprintf(" --set image.tag=%s", otelScalerVersion)
 		}
@@ -86,12 +86,12 @@ var _ = Describe("Helm chart (op):", func() {
 	})
 	When("otel scaler installed", func() {
 		It("should become ready", func() {
-			waitForDeployment("otel-add-on-scaler", "keda", defaultTimeoutSec)
+			waitForDeployment("keda-otel-scaler", "keda", defaultTimeoutSec)
 		})
 	})
 	When("OTel collector installed", func() {
 		It("should become ready", func() {
-			waitForDeployment("otel-add-on-otc-collector", "keda", defaultTimeoutSec)
+			waitForDeployment("otel-add-on-collector", "keda", defaultTimeoutSec)
 		})
 	})
 	Context("Scaled Object", func() {

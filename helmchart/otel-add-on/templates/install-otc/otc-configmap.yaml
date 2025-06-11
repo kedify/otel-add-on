@@ -1,9 +1,10 @@
-{{- if and .Values.otelOperator.enabled .Values.otelOperatorCr.create }}
+{{- range include "operatorCrs" . | fromJsonArray }}
+{{- if .enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: otc
-  namespace: {{ .Values.otelOperatorCr.namespace | default .Release.Namespace }}
+  name: {{ .name | default $.Release.Name }}
+  namespace: {{ $.Release.Namespace }}
   annotations:
     helm.sh/hook: "post-install,post-upgrade"
     helm.sh/hook-delete-policy: "before-hook-creation,hook-succeeded"
@@ -13,32 +14,38 @@ data:
     apiVersion: opentelemetry.io/v1beta1
     kind: OpenTelemetryCollector
     metadata:
-      name: {{ include "otel-add-on.name" . }}-otc
-      namespace: {{ .Values.otelOperatorCr.namespace | default .Release.Namespace }}
+      name: {{ .name | default $.Release.Name }}
+      namespace: {{ .namespace | default $.Release.Namespace }}
+      annotations:
     spec:
       resources:
-        {{- toYaml .Values.otelOperatorCr.resources | nindent 8 }}
-      mode:  {{ .Values.otelOperatorCr.mode }}
-      {{- with .Values.otelOperatorCr.serviceAccount.name }}
+        {{- toYaml .resources | nindent 8 }}
+      mode:  {{ .mode }}
+      {{- with .serviceAccount.name }}
       serviceAccount: {{ . }}
       {{- end }}
       upgradeStrategy: none
-      {{- with .Values.otelOperatorCr.env }}
+      {{- with .env }}
       env:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.otelOperatorCr.envFrom }}
+      {{- with .envFrom }}
       envFrom:
         {{- toYaml . | nindent 8 }}
       {{- end }}
 
+      {{- if .targetAllocatorEnabled }}
+      targetAllocator:
+        {{- toYaml .targetAllocator | nindent 8 }}
+      {{- end }}
+
       config:
-        {{- if .Values.otelOperatorCr.alternateOtelConfig }}
-        {{- toYaml .Values.otelOperatorCr.alternateOtelConfig | nindent 8 }}
+        {{- if .alternateOtelConfig }}
+        {{- toYaml .alternateOtelConfig | nindent 8 }}
         {{- else}}
 
         {{- $extensions := list }}
-        {{- with .Values.otelOperatorCr.alternateExtensions }}
+        {{- with .alternateExtensions }}
         extensions:
         {{- range $extension, $extensionCfg := . }}
           {{- $extensions = append $extensions $extension }}
@@ -49,14 +56,14 @@ data:
 
         {{- $receivers := list }}
         receivers:
-        {{- if .Values.otelOperatorCr.alternateReceivers }}
-        {{- range $receiver, $receiverCfg := .Values.otelOperatorCr.alternateReceivers }}
+        {{- if .alternateReceivers }}
+        {{- range $receiver, $receiverCfg := .alternateReceivers }}
           {{- $receivers = append $receivers $receiver }}
           {{ $receiver }}:
             {{- toYaml $receiverCfg | nindent 12 }}
         {{- end }}
         {{- else}}
-        {{- with .Values.otelOperatorCr.prometheusScrapeConfigs}}
+        {{- with .prometheusScrapeConfigs}}
           {{- $receivers = append $receivers "prometheus" }}
           prometheus:
             config:
@@ -81,7 +88,7 @@ data:
                   - set(attributes["pod"], resource.attributes["k8s.pod.name"])
                   - set(attributes["deployment"], resource.attributes["k8s.deployment.name"])
 
-          {{- with .Values.otelOperatorCr.includeMetrics}}
+          {{- with .includeMetrics}}
           {{- $processors = append $processors "filter/metrics" }}
           filter/metrics:
             metrics:
@@ -93,7 +100,7 @@ data:
                   {{- end }}
           {{- end }}
 
-          {{- with .Values.otelOperatorCr.metricsgeneration.rules }}
+          {{- with .metricsgeneration.rules }}
           {{- $processors = append $processors "metricsgeneration" }}
           metricsgeneration:
             rules:
@@ -101,11 +108,11 @@ data:
           {{- end }}
         exporters:
           otlp/keda:
-            endpoint: keda-otel-scaler.keda.svc:4317
+            endpoint: {{ $.Release.Name }}.{{ $.Values.namespace | default $.Release.Namespace }}.svc:4317
             compression: "none"
             tls:
               insecure: true
-          {{- if .Values.otelOperatorCr.debug }}
+          {{- if .debug }}
           debug:
             verbosity: detailed
           {{- end }}
@@ -117,7 +124,8 @@ data:
             metrics:
               receivers: [{{- join "," $receivers -}}]
               processors: [{{- join "," $processors -}}]
-              exporters: [{{- if .Values.otelOperatorCr.debug -}}debug, {{- end -}}otlp/keda]
+              exporters: [{{- if .debug -}}debug, {{- end -}}otlp/keda]
         {{- end }}
 ---
+{{- end }}
 {{- end }}
