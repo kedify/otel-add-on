@@ -1,7 +1,8 @@
+{{- if .Values.deployScaler }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: keda-otel-scaler
+  name: {{ .Release.Name }}
   namespace: {{ .Values.namespace | default .Release.Namespace }}
   labels:
     {{- include "otel-add-on.labels" . | nindent 4 }}
@@ -26,3 +27,4 @@ spec:
       name: rest-api
   selector:
     {{- include "otel-add-on.selectorLabels" . | nindent 4 }}
+{{- end }}

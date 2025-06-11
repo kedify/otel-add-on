@@ -60,3 +60,35 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Merge the default settings
+*/}}
+{{- define "operatorCrs" -}}
+    {{- if .Values.otelOperatorCrs }}
+        {{- $allmerged := list }}
+        {{- $merged := dict }}
+        {{- range .Values.otelOperatorCrs }}
+          {{- if .enabled }}
+          {{- $merged = merge . $.Values.otelOperatorCrDefaultTemplate }}
+          {{- $allmerged = append $allmerged $merged }}
+          {{- end }}
+        {{- end }}
+        {{- $allmerged | toJson  -}}
+    {{- end }}
+{{- end }}
+
+{{/*
+Check if at least one otelOperatorCrs has .enabled set to true
+*/}}
+{{- define "atLeastOneOperatorCr" -}}
+    {{- if .Values.otelOperatorCrs }}
+        {{- $enablements := list }}
+        {{- range .Values.otelOperatorCrs }}
+          {{- $enablements = append $enablements .enabled }}
+        {{- end }}
+        {{- if has true $enablements }}
+            {{- printf "true" -}}
+        {{- end }}
+    {{- end }}
+{{- end }}

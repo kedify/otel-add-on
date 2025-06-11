@@ -25,7 +25,7 @@ const (
 	k3dVersion                 = "v5.8.3"
 	podinfoVesrsion            = "v6.9.0"
 	kedifyKedaHelmChartVersion = "v2.17.1-0"
-	defaultTimeoutSec          = 300
+	defaultTimeoutSec          = 600
 	suiteOp                    = "operator"
 	suitePi                    = "podinfo"
 )

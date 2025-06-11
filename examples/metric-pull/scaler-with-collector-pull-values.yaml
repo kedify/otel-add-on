@@ -1,5 +1,5 @@
 settings:
-  metricStoreRetentionSeconds: 30
+  metricStoreRetentionSeconds: 20
   logs:
     logLvl: debug
 

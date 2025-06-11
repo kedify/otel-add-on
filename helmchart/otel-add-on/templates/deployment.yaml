@@ -1,7 +1,8 @@
+{{- if .Values.deployScaler }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "otel-add-on.name" . }}-scaler
+  name: {{ .Release.Name }}
   namespace: {{ .Values.namespace | default .Release.Namespace }}
   labels:
     {{- include "otel-add-on.labels" . | nindent 4 }}
@@ -30,7 +31,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "otel-add-on.serviceAccountName" . }}
+      serviceAccountName: {{ .Release.Name }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -109,3 +110,4 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+{{- end }}
