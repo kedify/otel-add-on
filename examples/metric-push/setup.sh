@@ -19,7 +19,7 @@ KEDA_VERSION=$(curl -s https://api.github.com/repos/kedify/charts/releases | jq 
 KEDA_VERSION=${KEDA_VERSION:-v2.17.1-0}
 helm upgrade -i keda kedify/keda --namespace keda --create-namespace --version ${KEDA_VERSION}
 helm upgrade -i my-otel-demo open-telemetry/opentelemetry-demo -f ${DIR}/opentelemetry-demo-values.yaml
-helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.10 -f ${DIR}/scaler-only-push-values.yaml
+helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.11 -f ${DIR}/scaler-only-push-values.yaml
 
 kubectl rollout status -n keda --timeout=300s deploy/keda-operator
 kubectl rollout status -n keda --timeout=300s deploy/otel-add-on-scaler
