@@ -1,0 +1,91 @@
+{{- if (include "atLeastOneOperatorCr" $) -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-otc
+  namespace: {{ default .Release.Namespace }}
+  labels:
+    app: create-otc
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "-1"
+    helm.sh/hook-delete-policy: "before-hook-creation,hook-succeeded"
+spec:
+  ttlSecondsAfterFinished: 43200 # 12h
+  backoffLimit: 4
+  template:
+    metadata:
+      annotations:
+        sidecar.istio.io/inject: "false"
+      labels:
+        app: create-otc
+    spec:
+      restartPolicy: Never
+      serviceAccountName: manipulate-otc
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 2000
+      {{- with .Values.kubectlImage.pullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      volumes:
+{{- range include "operatorCrs" . | fromJsonArray }}
+{{- if .enabled }}
+      - name: {{ .name | default $.Release.Name }}
+        configMap:
+          name: {{ .name | default $.Release.Name }}
+          items:
+          - key: content
+            path: {{ .name | default $.Release.Name }}.yaml
+{{- end }}
+{{- end }}
+      initContainers:
+      - name: wait-crds
+        image: "{{ .Values.kubectlImage.repository }}:{{ .Values.kubectlImage.tag }}"
+        imagePullPolicy: {{ .Values.kubectlImage.pullPolicy }}
+        command:
+        - sh
+        args:
+        - -c
+        - |
+          set -o nounset
+          for i in $(seq 20)
+          do
+            kubectl get crd opentelemetrycollectors.opentelemetry.io 2>&1 && exit 0
+            _sec=$(echo "1.5^$i" | bc)
+            echo "Waiting ${_sec} seconds for CRD opentelemetrycollectors.opentelemetry.io to exist"
+            sleep ${_sec}
+          done
+      containers:
+      - name: create-otc
+        image: "{{ .Values.kubectlImage.repository }}:{{ .Values.kubectlImage.tag }}"
+        imagePullPolicy: {{ .Values.kubectlImage.pullPolicy }}
+        securityContext:
+          readOnlyRootFilesystem: true
+        volumeMounts:
+{{- range include "operatorCrs" . | fromJsonArray }}
+{{- if .enabled }}
+        - name: {{ .name | default $.Release.Name }}
+          mountPath: /data/{{ .name | default $.Release.Name }}.yaml
+          subPath: {{ .name | default $.Release.Name }}.yaml
+{{- end }}
+{{- end }}
+        command:
+        - sh
+        args:
+        - -c
+        - |
+          set -o nounset
+          for i in $(seq 20)
+          do
+            kubectl apply -f /data/ 2>&1 && exit 0
+            _sec=$(echo "1.5^$i" | bc)
+            echo "Waiting ${_sec} seconds.."
+            sleep ${_sec}
+          done
+          exit 1
+{{- end }}

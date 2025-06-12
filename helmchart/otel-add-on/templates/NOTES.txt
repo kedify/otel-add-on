@@ -21,20 +21,33 @@
 {{- $collectors := include "operatorCrs" . | fromJsonArray }}
 Following components were installed:
 {{- if .Values.deployScaler }}
-- KEDA-OTel add-on ✓
+ ✓ KEDA-OTel add-on - 🐿
 {{- end }}
 {{- if .Values.otelOperator.enabled }}
-- OTel Operator ✓
+ ✓ OTel Operator - 🦑
 {{- end }}
 {{- range $collectors }}
-- OTel Collector with name '{{ .name | default $.Release.Name }}' (using the operator) ✓
+ ✓ OTel Collector with name '{{ .name | default $.Release.Name }}' (using the operator) -
+{{- if .targetAllocatorEnabled -}}
+{{- printf " target allocator mode watching Prom's CRs 🎯" -}}
+{{- else -}}
+{{- printf " 🚀" -}}
+{{- end -}}
 {{- end }}
 {{- if .Values.otelCollector.enabled }}
-- OTel Collector (using the helm chart) ✓
-{{- $collectors = append $collectors .Values.otelCollector -}}
+ ✓ OTel Collector (using the helm chart) - 👷
+{{- $collectors = append $collectors (mergeOverwrite .Values.otelCollector (dict "helm" true)) -}}
 {{- end }}
 
 Architecture:
+{{- $char := "" -}}
+{{- $m := "" -}}
+{{- if .Values.otelOperator.enabled }}
+                   ┏━━━━┓
+                   ┃ 🦑 ┃
+                  ╭╄┯┯┯┯╃╮
+
+{{- end }}
 {{- printf "\n" -}}
 {{- if $collectors }}
 {{- range $collectors }}
@@ -42,16 +55,27 @@ Architecture:
 {{- end }}
 {{- printf "\n" -}}
 {{- range $collectors }}
-{{- printf "   │      🚀      │    " -}}
+{{- $char = "🚀" -}}
+{{- if .helm -}}
+{{- $char = "👷" -}}
+{{- end -}}
+{{- if .targetAllocatorEnabled -}}
+{{- $char = "🎯" -}}
+{{- end -}}
+{{- printf "   │      %s      │    " $char -}}
 {{- end }}
 {{- printf "\n" -}}
 {{- range $collectors }}
-{{- printf "   │ %-13s│    " ((.name | default "byHelmChart") | trunc 11) -}}
+{{- printf "   │ %-13s│    " ((.name | default $.Release.Name) | trunc 11) -}}
 {{- end }}
 {{- printf "  (Collectors)" -}}
 {{- printf "\n" -}}
 {{- range $collectors }}
-{{- printf "   │ %-13s│    " (printf "(%s)" (.mode | trunc 11)) -}}
+{{- $m = .mode -}}
+{{- if and .targetAllocatorEnabled (eq .mode "sidecar") -}}
+{{- $m = "statefulset" -}}
+{{- end -}}
+{{- printf "   │ %-13s│    " (printf "•%s" ($m | trunc 11)) -}}
 {{- end }}
 {{- printf "\n" -}}
 {{- range $collectors }}
@@ -72,12 +96,15 @@ Architecture:
 {{- if and .Values.deployScaler  $collectors }}
 {{- printf " ╵ \n ╵ \n ╵   " -}}
 {{- end }}
+{{- else }}
+(No collectors yet)
+
 {{- end }}
 
 {{- if .Values.deployScaler }}
-{{- printf "  ╭──────────────────╮         ╭╸╸╸╸╸╸╮\n" -}}
+{{- printf "  ╭─────────────────────╮         ╭╶╶╶╶╶╶╮\n" -}}
 {{- if $collectors -}}{{- printf " └╴╴→" -}}{{- end -}}
-{{- printf "  │ KEDA OTel Scaler │ ←╴╴╴╴╴→ ┆ KEDA ┆\n" -}}
+{{- printf "  │ KEDA OTel Scaler 🐿  │ ←╴╴╴╴╴→ │ KEDA │\n" -}}
 {{- if $collectors -}}{{- printf "     " -}}{{- end -}}
-{{- printf "  ╰──────────────────╯         ╰╸╸╸╸╸╸╯\n" -}}
+{{- printf "  ╰─────────────────────╯         ╰╶╶╶╶╶╶╯\n" -}}
 {{- end }}

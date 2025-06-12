@@ -8,6 +8,7 @@ dist/
 
 # Helm charts
 helmchart/otel-add-on/charts/*.tgz
+helmchart/otel-add-on/*.tgz
 
 # generated
 /generated/*

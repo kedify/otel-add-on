@@ -1,7 +1,7 @@
 #otel-add-on:
 #------------
 replicaCount: 1
-namespace: keda
+namespace: ""
 ## -- when rendering/installing/upgrading the helm chart, the schema validation trivially passes
 #disableSchemaValidation: false
 
@@ -167,6 +167,7 @@ otelOperatorCrDefaultTemplate:
     - kube-prometheus-stack-prometheus
   targetAllocator:
     serviceAccount: otel-prom-reader
+    enabled: true
     prometheusCR:
       enabled: true
       # -- further narrow the ServiceMonitor CRs
@@ -175,6 +176,8 @@ otelOperatorCrDefaultTemplate:
       #          foo: bar
       # -- further narrow the ServiceMonitor CRs
       podMonitorSelector: {}
+      allowNamespaces: []
+      denyNamespaces: []
   serviceAccount:
     create: false
     annotations: {}
@@ -268,10 +271,8 @@ otelOperator:
     collectorImage:
 #      repository: otel/opentelemetry-collector-k8s
       repository: otel/opentelemetry-collector-contrib
-    env: {}
-    extraEnvs:
-    - name: ENABLE_WEBHOOKS
-      value: "false"
+    env:
+      ENABLE_WEBHOOKS: "false"
     serviceAccount:
       name: otel-operator
 
@@ -288,7 +289,6 @@ otelCollector:
   image:
     repository: otel/opentelemetry-collector-k8s
   fullnameOverride: otelcol
-
   ports:
     opencensus:
       enabled: true

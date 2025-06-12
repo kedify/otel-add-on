@@ -15,12 +15,22 @@ data:
     kind: OpenTelemetryCollector
     metadata:
       name: {{ .name | default $.Release.Name }}
+      {{- if .targetAllocatorEnabled }}
+      namespace: {{ default $.Release.Namespace }}
+      {{- else }}
       namespace: {{ .namespace | default $.Release.Namespace }}
-      annotations:
+      {{- end }}
+      labels:
+        meta.helm.sh/release-name: {{ $.Release.Name }}
+        helm.sh/chart: {{ $.Chart.Version }}
     spec:
       resources:
         {{- toYaml .resources | nindent 8 }}
-      mode:  {{ .mode }}
+      {{- if and .targetAllocatorEnabled (eq .mode "sidecar") }}
+      mode: statefulset
+      {{- else }}
+      mode: {{ .mode }}
+      {{- end}}
       {{- with .serviceAccount.name }}
       serviceAccount: {{ . }}
       {{- end }}
@@ -63,12 +73,27 @@ data:
             {{- toYaml $receiverCfg | nindent 12 }}
         {{- end }}
         {{- else}}
-        {{- with .prometheusScrapeConfigs}}
-          {{- $receivers = append $receivers "prometheus" }}
+        {{- if or .targetAllocatorEnabled .prometheusScrapeConfigs }}
           prometheus:
             config:
               scrape_configs:
-                {{- toYaml . | nindent 16 }}
+        {{- $receivers = append $receivers "prometheus" }}
+        {{- if .targetAllocatorEnabled }}
+              - job_name: 'otel-collector'
+                scrape_interval: 10s
+                static_configs:
+                - targets: [ '0.0.0.0:8888' ]
+                metric_relabel_configs:
+                - action: labeldrop
+                  regex: (id|name)
+                - action: labelmap
+                  regex: label_(.+)
+                  replacement: $$1
+        {{- else }}
+        {{- with .prometheusScrapeConfigs }}
+              {{- toYaml . | nindent 14 }}
+        {{- end }}
+        {{- end }}
         {{- end }}
         {{- end }}
         {{- $processors := list }}

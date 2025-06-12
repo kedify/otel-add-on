@@ -69,7 +69,7 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ . }}
+  name: {{ . }}-otc
   labels:
     {{- include "otel-add-on.labels" $ | nindent 4 }}
 roleRef:
