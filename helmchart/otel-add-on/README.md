@@ -776,7 +776,10 @@ true
     "name": ""
   },
   "targetAllocator": {
+    "enabled": true,
     "prometheusCR": {
+      "allowNamespaces": [],
+      "denyNamespaces": [],
       "enabled": true,
       "podMonitorSelector": {},
       "serviceMonitorSelector": {}
@@ -862,7 +865,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--targetAllocator--prometheusCR--serviceMonitorSelector">
-               <a href="./values.yaml#L173">otelOperatorCrDefaultTemplate.targetAllocator.prometheusCR.serviceMonitorSelector</a><br/>
+               <a href="./values.yaml#L174">otelOperatorCrDefaultTemplate.targetAllocator.prometheusCR.serviceMonitorSelector</a><br/>
                (object)
                </td>
                <td>
@@ -878,7 +881,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--targetAllocator--prometheusCR--podMonitorSelector">
-               <a href="./values.yaml#L177">otelOperatorCrDefaultTemplate.targetAllocator.prometheusCR.podMonitorSelector</a><br/>
+               <a href="./values.yaml#L178">otelOperatorCrDefaultTemplate.targetAllocator.prometheusCR.podMonitorSelector</a><br/>
                (object)
                </td>
                <td>
@@ -894,7 +897,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--resources">
-               <a href="./values.yaml#L196">otelOperatorCrDefaultTemplate.resources</a><br/>
+               <a href="./values.yaml#L199">otelOperatorCrDefaultTemplate.resources</a><br/>
                (object)
                </td>
                <td>
@@ -919,7 +922,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--alternateOtelConfig">
-               <a href="./values.yaml#L205">otelOperatorCrDefaultTemplate.alternateOtelConfig</a><br/>
+               <a href="./values.yaml#L208">otelOperatorCrDefaultTemplate.alternateOtelConfig</a><br/>
                (object)
                </td>
                <td>
@@ -935,7 +938,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--prometheusScrapeConfigs">
-               <a href="./values.yaml#L209">otelOperatorCrDefaultTemplate.prometheusScrapeConfigs</a><br/>
+               <a href="./values.yaml#L212">otelOperatorCrDefaultTemplate.prometheusScrapeConfigs</a><br/>
                (list)
                </td>
                <td>
@@ -963,7 +966,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--alternateReceivers">
-               <a href="./values.yaml#L215">otelOperatorCrDefaultTemplate.alternateReceivers</a><br/>
+               <a href="./values.yaml#L218">otelOperatorCrDefaultTemplate.alternateReceivers</a><br/>
                (object)
                </td>
                <td>
@@ -979,7 +982,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--includeMetrics">
-               <a href="./values.yaml#L219">otelOperatorCrDefaultTemplate.includeMetrics</a><br/>
+               <a href="./values.yaml#L222">otelOperatorCrDefaultTemplate.includeMetrics</a><br/>
                (list)
                </td>
                <td>
@@ -995,7 +998,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrs">
-               <a href="./values.yaml#L248">otelOperatorCrs</a><br/>
+               <a href="./values.yaml#L251">otelOperatorCrs</a><br/>
                (list)
                </td>
                <td>
@@ -1023,7 +1026,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrs[0]">
-               <a href="./values.yaml#L250">otelOperatorCrs[0]</a><br/>
+               <a href="./values.yaml#L253">otelOperatorCrs[0]</a><br/>
                (object)
                </td>
                <td>
@@ -1043,7 +1046,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrs[0]--name">
-               <a href="./values.yaml#L252">otelOperatorCrs[0].name</a><br/>
+               <a href="./values.yaml#L255">otelOperatorCrs[0].name</a><br/>
                (string)
                </td>
                <td>
@@ -1059,7 +1062,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrs[0]--namespace">
-               <a href="./values.yaml#L254">otelOperatorCrs[0].namespace</a><br/>
+               <a href="./values.yaml#L257">otelOperatorCrs[0].namespace</a><br/>
                (string)
                </td>
                <td>
@@ -1075,7 +1078,7 @@ false
           </tr>
           <tr>
                <td id="otelCollector--mode">
-               <a href="./values.yaml#L287">otelCollector.mode</a><br/>
+               <a href="./values.yaml#L288">otelCollector.mode</a><br/>
                (string)
                </td>
                <td>
