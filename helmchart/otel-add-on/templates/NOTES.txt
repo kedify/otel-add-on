@@ -98,7 +98,7 @@ Architecture:
 {{- end }}
 {{- else }}
 (No collectors yet)
-
+{{- printf "\n" -}}
 {{- end }}
 
 {{- if .Values.deployScaler }}

@@ -26,8 +26,8 @@ helm upgrade -i keda kedify/keda --namespace keda --create-namespace  --version 
 
 
 # deploy otel scaler
-cat <<VALUES | helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=${OTEL_SCALER_VERSION} -f -
-opentelemetry-collector:
+cat <<VALUES | helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=${OTEL_SCALER_VERSION} -f -
+otelCollector:
   alternateConfig:
     processors:
       filter/ottl:
@@ -56,11 +56,11 @@ kubectl patch deployments.apps pythonapp nodeapp --type=merge -p '{"spec":{"temp
   }}}}}'
 
 # wait for it..
-for d in nodeapp pythonapp otelcol ; do
-  kubectl rollout status --timeout=300s deploy/${d}
+for d in nodeapp pythonapp ; do
+  kubectl rollout status --timeout=600s deploy/${d}
 done
-for d in keda-admission-webhooks keda-operator keda-operator-metrics-apiserver otel-add-on-scaler ; do
-  kubectl rollout status --timeout=300s deploy/${d} -nkeda
+for d in keda-admission-webhooks keda-operator keda-operator-metrics-apiserver otel-add-on-scaler otelcol ; do
+  kubectl rollout status --timeout=600s deploy/${d} -nkeda
 done
 
 

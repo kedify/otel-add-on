@@ -1,6 +1,5 @@
 #!/bin/bash
 DIR="${DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )}"
-DEMO_APP="${DEMO_APP:-my-otel-demo}"
 
 command -v figlet &> /dev/null && figlet Autoscaling OTel demo
 
@@ -18,36 +17,36 @@ k3d cluster create metric-push -p "8080:31198@server:0"
 KEDA_VERSION=$(curl -s https://api.github.com/repos/kedify/charts/releases | jq -r '[.[].tag_name | select(. | startswith("keda/")) | sub("^keda/"; "")] | first')
 KEDA_VERSION=${KEDA_VERSION:-v2.17.1-0}
 helm upgrade -i keda kedify/keda --namespace keda --create-namespace --version ${KEDA_VERSION}
-helm upgrade -i my-otel-demo open-telemetry/opentelemetry-demo -f ${DIR}/opentelemetry-demo-values.yaml
-helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.11 -f ${DIR}/scaler-only-push-values.yaml
+helm upgrade -i my-otel-demo open-telemetry/opentelemetry-demo -f ${DIR}/opentelemetry-demo-values.yaml --version=0.37.1
+helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.11 -f ${DIR}/scaler-only-push-values.yaml
 
 kubectl rollout status -n keda --timeout=300s deploy/keda-operator
-kubectl rollout status -n keda --timeout=300s deploy/otel-add-on-scaler
+kubectl rollout status -n keda --timeout=300s deploy/keda-otel-scaler
 kubectl rollout status -n keda --timeout=300s deploy/keda-operator-metrics-apiserver
 for d in \
-  ${DEMO_APP}-accountingservice \
-  ${DEMO_APP}-checkoutservice \
-  ${DEMO_APP}-frauddetectionservice \
-  ${DEMO_APP}-frontend \
-  ${DEMO_APP}-kafka \
-  ${DEMO_APP}-loadgenerator \
-  ${DEMO_APP}-valkey \
-  ${DEMO_APP}-productcatalogservice \
-  ${DEMO_APP}-otelcol \
-  ${DEMO_APP}-shippingservice \
-  ${DEMO_APP}-frontendproxy \
-  ${DEMO_APP}-currencyservice \
-  ${DEMO_APP}-adservice \
-  ${DEMO_APP}-jaeger \
-  ${DEMO_APP}-emailservice \
-  ${DEMO_APP}-prometheus-server \
-  ${DEMO_APP}-paymentservice \
-  ${DEMO_APP}-recommendationservice \
-  ${DEMO_APP}-imageprovider \
-  ${DEMO_APP}-grafana \
-  ${DEMO_APP}-cartservice \
-  ${DEMO_APP}-quoteservice ; do
-    kubectl rollout status --timeout=600s deploy/${d}
+  accounting \
+  checkout \
+  fraud-detection \
+  frontend \
+  kafka \
+  load-generator \
+  valkey-cart \
+  product-catalog \
+  otel-collector \
+  shipping \
+  frontend-proxy \
+  currency \
+  ad \
+  jaeger \
+  email \
+  prometheus \
+  payment \
+  recommendation \
+  image-provider \
+  grafana \
+  cart \
+  quote ; do
+    kubectl rollout status --timeout=900s deploy/${d}
   done
 
 # create scaled objects
@@ -65,4 +64,4 @@ kubectl apply -f ${DIR}/sos.yaml
 # watch deployments being scaled
 echo "now deployments should be autoscaled.."
 sleep 5
-watch -c "kubectl get deploy/${DEMO_APP}-recommendationservice deploy/${DEMO_APP}-productcatalogservice hpa/keda-hpa-recommendationservice hpa/keda-hpa-productcatalogservice"
+watch -c "kubectl get deploy/recommendation deploy/product-catalog hpa/keda-hpa-recommendationservice hpa/keda-hpa-productcatalogservice"

@@ -4,5 +4,6 @@ settings:
 #    logLvl: debug
 
 # otel collector will be installed from another helm chart
-opentelemetry-collector:
+otelCollector:
   enabled: false
+

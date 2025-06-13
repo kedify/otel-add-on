@@ -1,12 +1,10 @@
 # https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/charts/opentelemetry-demo/values.yaml
 components:
-  flagd:
-    enabled: false
-  frontendProxy:
+  frontend-proxy:
     service:
       type: NodePort
       nodePort: 31198
-  loadgenerator:
+  load-generator:
     enabled: true
     useDefault:
       env: true
@@ -36,17 +34,20 @@ components:
         value: "8013"
       - name: OTEL_EXPORTER_OTLP_ENDPOINT
         value: http://$(OTEL_COLLECTOR_NAME):4317
+    resources:
+      limits:
+        memory: 3.5Gi
 opentelemetry-collector:
   enabled: true
   config:
     exporters:
       # this is the original exporter, we just rename it from otlp to otlp/jaeger to preserve it
       otlp/jaeger:
-        endpoint: '{{ include "otel-demo.name" . }}-jaeger-collector:4317'
+        endpoint: 'jaeger-collector:4317'
         tls:
           insecure: true
       otlp/keda:
-        endpoint: keda-otel-scaler:4317
+        endpoint: keda-otel-scaler.keda.svc:4317
         tls:
           insecure: true
     service:

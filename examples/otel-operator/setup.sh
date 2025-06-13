@@ -24,7 +24,7 @@ KEDA_VERSION=${KEDA_VERSION:-v2.17.1-0}
 helm upgrade -i keda kedify/keda --namespace keda --create-namespace --version ${KEDA_VERSION}
 
 kubectl create secret -nkeda generic gh-token --from-literal=GH_PAT=${GH_PAT}
-helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.9 -f ${DIR}/scaler-with-operator-with-collector-values.yaml
+helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.9 -f ${DIR}/scaler-with-operator-with-collector-values.yaml
 #helm upgrade -i kedify-otel -nkeda ${DIR}/../../helmchart/otel-add-on -f ${DIR}/scaler-with-operator-with-collector-values.yaml
 
 # wait for components
@@ -32,7 +32,7 @@ for d in \
   keda-operator \
   keda-operator-metrics-apiserver \
   otel-operator \
-  otel-add-on-scaler \
+  keda-otel-scaler \
   otel-add-on-otc-collector ; do
     kubectl rollout status -n keda --timeout=600s deploy/${d}
   done
