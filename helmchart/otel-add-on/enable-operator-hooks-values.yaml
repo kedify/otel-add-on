@@ -1,0 +1,11 @@
+# Make sure to enable the webhooks when using the mode: sidecar
+# This, however, requires the certmanager to be present in the cluster
+
+# https://github.com/open-telemetry/opentelemetry-helm-charts/blob/opentelemetry-operator-0.88.6/charts/opentelemetry-operator/values.yaml
+otelOperator:
+  manager:
+    env:
+      ENABLE_WEBHOOKS: "true"
+
+  admissionWebhooks:
+    create: true

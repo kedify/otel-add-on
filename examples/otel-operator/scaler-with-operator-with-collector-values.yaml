@@ -5,9 +5,6 @@ settings:
 
 otelOperator:
   enabled: true
-  manager:
-    collectorImage:
-      repository: otel/opentelemetry-collector-contrib
 
 otelOperatorCrs:
 - name: otel-add-on
