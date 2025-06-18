@@ -33,7 +33,8 @@
       "fileMatch": [
         "(^|/)README.md$",
         "(^|/)examples/metric-pu(ll|sh)/(README.md|setup.sh)$",
-        "(^|/)examples/(dapr,otel-operator)/(README.md|setup.sh)$",
+        "(^|/)examples/dapr/(README.md|setup.sh)$",
+        "(^|/)examples/otel-operator/setup.sh$",
         "(^|/)helmchart/otel-add-on/README.md$",
         "(^|/)helmchart/otel-add-on/_helm-docs-template.gotmpl$",
       ],

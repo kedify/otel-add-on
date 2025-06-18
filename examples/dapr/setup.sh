@@ -1,8 +1,6 @@
 #!/bin/bash
 set -e
 
-OTEL_SCALER_VERSION=v0.0.4
-
 k3d cluster delete dapr-demo
 k3d cluster create dapr-demo -p "8080:31222@server:0"
 
@@ -26,7 +24,7 @@ helm upgrade -i keda kedify/keda --namespace keda --create-namespace  --version 
 
 
 # deploy otel scaler
-cat <<VALUES | helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=${OTEL_SCALER_VERSION} -f -
+cat <<VALUES | helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.11 -f -
 otelCollector:
   alternateConfig:
     processors:
