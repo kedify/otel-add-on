@@ -41,6 +41,7 @@ Following components were installed:
 
 Architecture:
 {{- $char := "" -}}
+{{- $isAnySidecar := false -}}
 {{- $m := "" -}}
 {{- if .Values.otelOperator.enabled }}
                    ┏━━━━┓
@@ -72,8 +73,12 @@ Architecture:
 {{- printf "\n" -}}
 {{- range $collectors }}
 {{- $m = .mode -}}
-{{- if and .targetAllocatorEnabled (eq .mode "sidecar") -}}
+
+{{- if eq .mode "sidecar" -}}
+{{- $isAnySidecar = true -}}
+{{- if .targetAllocatorEnabled -}}
 {{- $m = "statefulset" -}}
+{{- end -}}
 {{- end -}}
 {{- printf "   │ %-13s│    " (printf "•%s" ($m | trunc 11)) -}}
 {{- end }}
@@ -107,4 +112,10 @@ Architecture:
 {{- printf "  │ KEDA OTel Scaler 🐿  │ ←╴╴╴╴╴→ │ KEDA │\n" -}}
 {{- if $collectors -}}{{- printf "     " -}}{{- end -}}
 {{- printf "  ╰─────────────────────╯         ╰╶╶╶╶╶╶╯\n" -}}
+{{- end }}
+
+{{- if and $isAnySidecar (or (not .Values.otelOperator.admissionWebhooks.create) (eq .Values.otelOperator.manager.env.ENABLE_WEBHOOKS "false")) }}
+!!! WARNING !!!
+sidecar injection is not going to work without enabling the mutating webhooks,
+use helm ... -f https://raw.githubusercontent.com/kedify/otel-add-on/refs/heads/main/helmchart/otel-add-on/enable-operator-hooks-values.yaml
 {{- end }}

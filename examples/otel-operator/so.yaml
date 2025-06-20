@@ -16,8 +16,9 @@ spec:
         targetValue: "100"
         clampMin: "0"
         clampMax: "300"
-        operationOverTime: "max"
+        operationOverTime: "last_one"
   maxReplicaCount: 3
+  minReplicaCount: 1
   advanced:
     horizontalPodAutoscalerConfig:
       behavior:
@@ -25,3 +26,4 @@ spec:
           stabilizationWindowSeconds: 1
         scaleUp:
           stabilizationWindowSeconds: 10
+

@@ -27,7 +27,7 @@ kubectl rollout status -n keda --timeout=300s deploy/keda-otel-scaler
 kubectl rollout status --timeout=300s deploy/podinfo
 
 # create scaled objects
-kubectl apply -f podinfo-so.yaml
+kubectl apply -f ${DIR}/podinfo-so.yaml
 
 # create some traffic
 (hey -n 7000 -z 180s http://localhost:8181/delay/2 &> /dev/null)&

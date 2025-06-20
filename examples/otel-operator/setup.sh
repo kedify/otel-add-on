@@ -1,11 +1,11 @@
 #!/bin/bash
 DIR="${DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )}"
 
-export PR_BRANCH=
-export GH_PAT=
+#export PR_BRANCH=
+#export GH_PAT=
 
 command -v figlet &> /dev/null && figlet OTel Operator + GitHub receiver
-[ -z "${PR_BRANCH}" ] && echo "Set BRANCH env variable to a branch name from which a PR is opened against kedify/otel-add-on repo" && exit 1
+[ -z "${PR_BRANCH}" ] && echo "Set PR_BRANCH env variable to a branch name from which a PR is opened against kedify/otel-add-on repo" && exit 1
 [ -z "${GH_PAT}" ] && echo "Set GH_PAT env variable to a PAT token that has read permissions for content on kedify/otel-add-on repo"  && exit 1
 
 # setup helm repos
@@ -33,7 +33,7 @@ for d in \
   keda-operator-metrics-apiserver \
   otel-operator \
   keda-otel-scaler \
-  otel-add-on-otc-collector ; do
+  otel-add-on-collector ; do
     kubectl rollout status -n keda --timeout=600s deploy/${d}
   done
 
