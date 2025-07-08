@@ -10,9 +10,9 @@ filtering so that scaler receives only those metrics that are needed for scaling
 ([example](https://github.com/kedify/otel-add-on/blob/v0.0.0-1/helmchart/otel-add-on/values.yaml#L133-L147)).
 
 The application consist of three parts:
-- receiver
+- OTLP receiver
 - simple metric storage
-- scaler
+- external scaler for KEDA
 
 #### Receiver
 
