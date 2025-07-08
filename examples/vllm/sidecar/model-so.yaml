@@ -1,0 +1,38 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: model-sidecar-approach
+  annotations:
+    autoscaling.keda.sh/paused: "false"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vllm-llama3-deployment-vllm
+  triggers:
+    - type: external
+      metadata:
+        scalerAddress: "keda-otel-scaler.keda.svc:4318"
+        metricQuery: "sum(vllm:gpu_cache_usage_perc{deployment=vllm-llama3-deployment-vllm})"
+        operationOverTime: "avg"
+        targetValue: ".5" # for scaling 1 -> 2
+    - type: external
+      metadata:
+        scalerAddress: "keda-otel-scaler.keda.svc:4318"
+        metricQuery: "sum(vllm:num_requests_waiting{deployment=vllm-llama3-deployment-vllm})"
+        operationOverTime: "avg"
+        targetValue: "40" # for scaling 2 -> 3
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  fallback:
+    failureThreshold: 10
+    replicas: 1
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          # this should be higher in prod
+          stabilizationWindowSeconds: 1200
+        scaleUp:
+          # this should be much higher in prod
+          stabilizationWindowSeconds: 1

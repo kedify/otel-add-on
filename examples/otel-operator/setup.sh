@@ -25,7 +25,7 @@ helm upgrade -i keda kedify/keda --namespace keda --create-namespace --version $
 
 kubectl create secret -nkeda generic gh-token --from-literal=GH_PAT=${GH_PAT}
 helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.11 -f ${DIR}/scaler-with-operator-with-collector-values.yaml
-#helm upgrade -i kedify-otel -nkeda ${DIR}/../../helmchart/otel-add-on -f ${DIR}/scaler-with-operator-with-collector-values.yaml
+#helm upgrade -i keda-otel-scaler -nkeda ${DIR}/../../helmchart/otel-add-on -f ${DIR}/scaler-with-operator-with-collector-values.yaml
 
 # wait for components
 for d in \
@@ -44,7 +44,7 @@ kubectl apply -f <(cat ${DIR}/so.yaml | envsubst)
 sleep 5
 kubectl get hpa -A
 
-# eventually, you shoul be able to see 3 replicas of OTel operator deployment
+# eventually, you should be able to see 3 replicas of OTel operator deployment
 sleep 40
 kubectl get hpa -A
 
