@@ -1,0 +1,25 @@
+settings:
+  metricStoreRetentionSeconds: 60
+  # logs:
+  #   logLvl: debug
+
+otelOperator:
+  enabled: true
+  # manager:
+  #   extraArgs:
+  #   - --zap-log-level=debug
+
+otelOperatorCrs:
+- name: otel-sidecar-template
+  enabled: true
+  # debug: true
+  mode: sidecar
+  namespace: default
+  prometheusScrapeConfigs:
+    - job_name: 'otel-collector'
+      scrape_interval: 5s
+      static_configs:
+        - targets: [ '0.0.0.0:8000' ]
+  includeMetrics:
+    - vllm:gpu_cache_usage_perc
+    - vllm:num_requests_waiting

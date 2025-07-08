@@ -1,0 +1,30 @@
+settings:
+  metricStoreRetentionSeconds: 60
+  logs:
+    logLvl: debug
+
+otelOperator:
+  enabled: true
+  # manager:
+  #   extraArgs:
+  #   - --zap-log-level=debug
+
+otelOperatorCrs:
+- name: vllm-metrics
+  enabled: true
+  debug: true
+  mode: deployment
+  namespace: default
+  prometheusScrapeConfigs:
+    - job_name: 'otel-collector'
+      scrape_interval: 5s
+      static_configs:
+        - targets: [ 'vllm-router-service.default.svc:80' ]
+  includeMetrics:
+    - vllm:gpu_cache_usage_perc
+    - vllm:num_requests_waiting
+    - vllm:current_qps
+    - vllm:num_requests_swapped
+    - vllm:num_requests_running
+    - vllm:avg_latency
+
