@@ -172,11 +172,15 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 			mLen := sm.At(j).Metrics().Len()
 			metrics := sm.At(j).Metrics()
 			for k := 0; k < mLen; k++ {
+				mType := metrics.At(k).Type()
 				r.p("-  name: %+v\n", metrics.At(k).Name())
+				if mType == pmetric.MetricTypeHistogram || mType == pmetric.MetricTypeExponentialHistogram || mType == pmetric.MetricTypeSummary {
+					r.p("   exposed as: %+v\n", metrics.At(k).Name()+countSuffix)
+				}
 				r.p("   type: %+v\n", metrics.At(k).Type())
 				metricName := metrics.At(k).Name()
 				var dataPoints pmetric.NumberDataPointSlice
-				switch metrics.At(k).Type() {
+				switch mType {
 				case pmetric.MetricTypeGauge:
 					dataPoints = metrics.At(k).Gauge().DataPoints()
 					r.storeDatapoints(metricName, dataPoints, pod, podFound)
@@ -213,8 +217,23 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 							Labels:           addPodLabel(exHistogram.Attributes().AsRaw(), pod, podFound),
 						})
 					}
+				case pmetric.MetricTypeSummary:
+					summaryDataPoints := metrics.At(k).Summary().DataPoints()
+					for m := 0; m < summaryDataPoints.Len(); m++ {
+						summaryDataPoint := summaryDataPoints.At(m)
+						r.p("     - time: %+v\n", summaryDataPoint.Timestamp())
+						r.p("       tags: %+v\n", summaryDataPoint.Attributes().AsRaw())
+						r.p("       count: %+v\n", summaryDataPoint.Count())
+						r.p("       sum: %+v\n", summaryDataPoint.Sum())
+						r.metricMemStore.Put(types.NewMetricEntry{
+							Name:             types.MetricName(metrics.At(k).Name() + countSuffix),
+							MeasurementValue: float64(summaryDataPoint.Count()),
+							MeasurementTime:  summaryDataPoint.Timestamp(),
+							Labels:           addPodLabel(summaryDataPoint.Attributes().AsRaw(), pod, podFound),
+						})
+					}
 				default:
-					// ignore others (MetricTypeEmpty & MetricTypeSummary)
+					// ignore others (MetricTypeEmpty)
 					return pmetricotlp.NewExportResponse(), nil
 				}
 			}
