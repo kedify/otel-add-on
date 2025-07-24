@@ -213,8 +213,23 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 							Labels:           addPodLabel(exHistogram.Attributes().AsRaw(), pod, podFound),
 						})
 					}
+				case pmetric.MetricTypeSummary:
+					summaryDataPoints := metrics.At(k).Summary().DataPoints()
+					for m := 0; m < summaryDataPoints.Len(); m++ {
+						summaryDataPoint := summaryDataPoints.At(m)
+						r.p("     - time: %+v\n", summaryDataPoint.Timestamp())
+						r.p("       tags: %+v\n", summaryDataPoint.Attributes().AsRaw())
+						r.p("       count: %+v\n", summaryDataPoint.Count())
+						r.p("       sum: %+v\n", summaryDataPoint.Sum())
+						r.metricMemStore.Put(types.NewMetricEntry{
+							Name:             types.MetricName(metrics.At(k).Name() + countSuffix),
+							MeasurementValue: float64(summaryDataPoint.Count()),
+							MeasurementTime:  summaryDataPoint.Timestamp(),
+							Labels:           addPodLabel(summaryDataPoint.Attributes().AsRaw(), pod, podFound),
+						})
+					}
 				default:
-					// ignore others (MetricTypeEmpty & MetricTypeSummary)
+					// ignore others (MetricTypeEmpty)
 					return pmetricotlp.NewExportResponse(), nil
 				}
 			}
