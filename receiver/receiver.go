@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"go.opentelemetry.io/collector/consumer/consumererror"
+	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	"go.uber.org/zap"
 
@@ -29,6 +30,7 @@ import (
 
 const (
 	countSuffix = "_count"
+	sumSuffix   = "_sum"
 	hostName    = "host.name"
 )
 
@@ -151,6 +153,14 @@ func New(nextConsumer consumer.Metrics, obsreport *receiverhelper.ObsReport, mem
 	}
 }
 
+// HasCountSum common denominator iface for HistogramDataPoint, ExponentialHistogramDataPoint and SummaryDataPoint
+type HasCountSum interface {
+	Sum() float64
+	Count() uint64
+	Timestamp() pcommon.Timestamp
+	Attributes() pcommon.Map
+}
+
 // Export implements the service Export metrics func.
 func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (pmetricotlp.ExportResponse, error) {
 	md := req.Metrics()
@@ -176,6 +186,7 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 				r.p("-  name: %+v\n", metrics.At(k).Name())
 				if mType == pmetric.MetricTypeHistogram || mType == pmetric.MetricTypeExponentialHistogram || mType == pmetric.MetricTypeSummary {
 					r.p("   exposed as: %+v\n", metrics.At(k).Name()+countSuffix)
+					r.p("   exposed as: %+v\n", metrics.At(k).Name()+sumSuffix)
 				}
 				r.p("   type: %+v\n", metrics.At(k).Type())
 				metricName := metrics.At(k).Name()
@@ -191,46 +202,19 @@ func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (p
 					histograms := metrics.At(k).Histogram().DataPoints()
 					for m := 0; m < histograms.Len(); m++ {
 						histogram := histograms.At(m)
-						r.p("     - time: %+v\n", histogram.Timestamp())
-						r.p("       tags: %+v\n", histogram.Attributes().AsRaw())
-						r.p("       count: %+v\n", histogram.Count())
-						r.p("       sum: %+v\n", histogram.Sum())
-						r.metricMemStore.Put(types.NewMetricEntry{
-							Name:             types.MetricName(metrics.At(k).Name() + countSuffix),
-							MeasurementValue: float64(histogram.Count()),
-							MeasurementTime:  histogram.Timestamp(),
-							Labels:           addPodLabel(histogram.Attributes().AsRaw(), pod, podFound),
-						})
+						r.storeCountAndSumDatapoints(metricName, histogram, pod, podFound)
 					}
 				case pmetric.MetricTypeExponentialHistogram:
 					exHistograms := metrics.At(k).ExponentialHistogram().DataPoints()
 					for m := 0; m < exHistograms.Len(); m++ {
 						exHistogram := exHistograms.At(m)
-						r.p("     - time: %+v\n", exHistogram.Timestamp())
-						r.p("       tags: %+v\n", exHistogram.Attributes().AsRaw())
-						r.p("       count: %+v\n", exHistogram.Count())
-						r.p("       sum: %+v\n", exHistogram.Sum())
-						r.metricMemStore.Put(types.NewMetricEntry{
-							Name:             types.MetricName(metrics.At(k).Name() + countSuffix),
-							MeasurementValue: float64(exHistogram.Count()),
-							MeasurementTime:  exHistogram.Timestamp(),
-							Labels:           addPodLabel(exHistogram.Attributes().AsRaw(), pod, podFound),
-						})
+						r.storeCountAndSumDatapoints(metricName, exHistogram, pod, podFound)
 					}
 				case pmetric.MetricTypeSummary:
 					summaryDataPoints := metrics.At(k).Summary().DataPoints()
 					for m := 0; m < summaryDataPoints.Len(); m++ {
 						summaryDataPoint := summaryDataPoints.At(m)
-						r.p("     - time: %+v\n", summaryDataPoint.Timestamp())
-						r.p("       tags: %+v\n", summaryDataPoint.Attributes().AsRaw())
-						r.p("       count: %+v\n", summaryDataPoint.Count())
-						r.p("       sum: %+v\n", summaryDataPoint.Sum())
-						r.metricMemStore.Put(types.NewMetricEntry{
-							Name:             types.MetricName(metrics.At(k).Name() + countSuffix),
-							MeasurementValue: float64(summaryDataPoint.Count()),
-							MeasurementTime:  summaryDataPoint.Timestamp(),
-							Labels:           addPodLabel(summaryDataPoint.Attributes().AsRaw(), pod, podFound),
-						})
+						r.storeCountAndSumDatapoints(metricName, summaryDataPoint, pod, podFound)
 					}
 				default:
 					// ignore others (MetricTypeEmpty)
@@ -278,6 +262,26 @@ func (r *Receiver) storeDatapoints(name string, dataPoints pmetric.NumberDataPoi
 			Labels:           addPodLabel(datapoint.Attributes().AsRaw(), podName, podFound),
 		})
 	}
+}
+
+func (r *Receiver) storeCountAndSumDatapoints(name string, dataPoint HasCountSum, podName any, podFound bool) {
+	labels := dataPoint.Attributes().AsRaw()
+	r.p("     - time: %+v\n", dataPoint.Timestamp())
+	r.p("       tags: %+v\n", labels)
+	r.p("       count: %+v\n", dataPoint.Count())
+	r.p("       sum: %+v\n", dataPoint.Sum())
+	r.metricMemStore.Put(types.NewMetricEntry{
+		Name:             types.MetricName(name + countSuffix),
+		MeasurementValue: float64(dataPoint.Count()),
+		MeasurementTime:  dataPoint.Timestamp(),
+		Labels:           addPodLabel(labels, podName, podFound),
+	})
+	r.metricMemStore.Put(types.NewMetricEntry{
+		Name:             types.MetricName(name + sumSuffix),
+		MeasurementValue: dataPoint.Sum(),
+		MeasurementTime:  dataPoint.Timestamp(),
+		Labels:           addPodLabel(labels, podName, podFound),
+	})
 }
 
 func GetStatusFromError(err error) error {
