@@ -11,6 +11,7 @@ require (
 	github.com/kedacore/keda/v2 v2.17.1
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/prometheus/client_golang v1.22.0
+	github.com/stretchr/testify v1.10.0
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.4
@@ -22,9 +23,13 @@ require (
 	go.opentelemetry.io/collector/consumer v1.32.0
 	go.opentelemetry.io/collector/consumer/consumererror v0.126.0
 	go.opentelemetry.io/collector/pdata v1.32.0
+	go.opentelemetry.io/collector/pdata/testdata v0.126.0
 	go.opentelemetry.io/collector/receiver v1.32.0
 	go.opentelemetry.io/collector/receiver/otlpreceiver v0.126.0
 	go.opentelemetry.io/collector/receiver/receiverhelper v0.126.0
+	go.opentelemetry.io/collector/receiver/receivertest v0.126.0
+	go.opentelemetry.io/otel v1.35.0
+	go.opentelemetry.io/otel/sdk/metric v1.35.0
 	go.uber.org/mock v0.5.2
 	go.uber.org/zap v1.27.0
 	golang.org/x/sync v0.14.0
@@ -32,6 +37,7 @@ require (
 	google.golang.org/protobuf v1.36.6
 	k8s.io/apimachinery v0.33.1
 	k8s.io/code-generator v0.33.1
+	k8s.io/utils v0.0.0-20250502105355-0f33e8f1c979
 	sigs.k8s.io/controller-runtime v0.20.4
 	sigs.k8s.io/kustomize/kustomize/v5 v5.6.0
 )
@@ -97,6 +103,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.64.0 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
@@ -130,11 +137,9 @@ require (
 	go.opentelemetry.io/contrib/bridges/otelzap v0.10.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.60.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.60.0 // indirect
-	go.opentelemetry.io/otel v1.35.0 // indirect
 	go.opentelemetry.io/otel/log v0.11.0 // indirect
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.35.0 // indirect
-	go.opentelemetry.io/otel/sdk/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.17.0 // indirect
@@ -158,7 +163,6 @@ require (
 	k8s.io/gengo/v2 v2.0.0-20250513215321-e3bc6f1e78b4 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff // indirect
-	k8s.io/utils v0.0.0-20250502105355-0f33e8f1c979 // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/kustomize/api v0.19.0 // indirect
 	sigs.k8s.io/kustomize/cmd/config v0.19.0 // indirect
