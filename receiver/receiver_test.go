@@ -29,7 +29,6 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/kedify/otel-add-on/metric"
-	"github.com/kedify/otel-add-on/util"
 )
 
 const (
@@ -69,15 +68,16 @@ func TestOTLPReceiverGRPCMetricsIngest(t *testing.T) {
 			expectedCode: codes.OK,
 		},
 	}
-	expectedReceivedBatches := len(util.FlatMap(ingestionStates, func(ist ingestionStateTest) []bool {
+	expectedReceivedBatches := 0
+	for _, ist := range ingestionStates {
 		if ist.okToIngest {
-			return []bool{true}
+			expectedReceivedBatches++
 		}
-		return []bool{}
-	}))
+	}
 	expectedIngestionBlockedRPCs := len(ingestionStates) - expectedReceivedBatches
 
 	// two random metric types, each having 2 measurements so 4 metric datapoints in total
+	dataPointsPerMetricCount := 2
 	metricsCount := 2
 	md := testdata.GenerateMetrics(metricsCount)
 	protoMarshaler := &pmetric.ProtoMarshaler{}
@@ -126,7 +126,7 @@ func TestOTLPReceiverGRPCMetricsIngest(t *testing.T) {
 	require.NotNil(t, sink.consumeErrCount)
 	require.Equal(t, *sink.consumeErrCount, expectedIngestionBlockedRPCs, "two calls should be blocked")
 
-	assertReceiverMetrics(t, tt, otlpReceiverID, "grpc", int64(expectedReceivedBatches*metricsCount*2), int64(expectedIngestionBlockedRPCs*metricsCount*2))
+	assertReceiverMetrics(t, tt, otlpReceiverID, "grpc", int64(expectedReceivedBatches*metricsCount*dataPointsPerMetricCount), int64(expectedIngestionBlockedRPCs*metricsCount*2))
 }
 
 func createDefaultConfig() component.Config {
