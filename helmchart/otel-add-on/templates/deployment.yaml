@@ -41,10 +41,17 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
+            # Ports
             - name: OTLP_RECEIVER_PORT
               value: {{ .Values.service.otlpReceiverPort | quote }}
             - name: KEDA_EXTERNAL_SCALER_PORT
               value: {{ .Values.service.kedaExternalScalerPort | quote }}
+            - name: INTERNAL_METRICS_PORT
+              value: {{ .Values.settings.internalMetricsPort | quote }}
+            - name: REST_API_PORT
+              value: {{ .Values.settings.restApiPort | quote }}
+
+            # Metric Store
             - name: METRIC_STORE_RETENTION_SECONDS
               value: {{ .Values.settings.metricStore.retentionSeconds | quote }}
             - name: METRIC_STORE_LAZY_SERIES
@@ -57,15 +64,21 @@ spec:
               value: {{ .Values.settings.metricStore.valueIfNotFound | quote }}
             - name: IS_ACTIVE_POLLING_INTERVAL_MS
               value: {{ .Values.settings.isActivePollingIntervalMilliseconds | quote }}
-            - name: INTERNAL_METRICS_PORT
-              value: {{ .Values.settings.internalMetricsPort | quote }}
-            - name: REST_API_PORT
-              value: {{ .Values.settings.restApiPort | quote }}
-      {{- if .Values.settings.noColor }}
+
+            # TLS
+            - name: OTLP_TLS_CA_FILE
+              value: {{ .Values.settings.tls.caFile | quote }}
+            - name: OTLP_TLS_CERT_FILE
+              value: {{ .Values.settings.tls.certFile | quote }}
+            - name: OTLP_TLS_KEY_FILE
+              value: {{ .Values.settings.tls.keyFile | quote }}
+            - name: OTLP_CERTIFICATE_RELOAD_INTERVAL
+              value: {{ .Values.settings.tls.reloadInterval | quote }}
+      {{- if .Values.settings.logs.noColor }}
             - name: NO_COLOR
               value: {{ .Values.settings.logs.noColor | quote }}
       {{- end }}
-      {{- if .Values.settings.noBanner }}
+      {{- if .Values.settings.logs.noBanner }}
             - name: NO_BANNER
               value: {{ .Values.settings.logs.noBanner | quote }}
       {{- end }}

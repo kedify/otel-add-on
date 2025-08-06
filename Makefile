@@ -18,6 +18,20 @@ endif
 CGO        ?=0
 TARGET_OS  ?=linux
 
+define SERVER_DOMAINS
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth, clientAuth
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = localhost
+DNS.2 = *.keda.svc.cluster.local
+DNS.3 = *.keda.svc
+DNS.4 = *.keda
+IP.1 = 127.0.0.1
+endef
+export SERVER_DOMAINS
+
 GO_BUILD_VARS= GO111MODULE=on CGO_ENABLED=$(CGO) GOOS=$(TARGET_OS) GOARCH=$(ARCH)
 
 ###############################
@@ -49,7 +63,7 @@ build-image-goreleaser: ## Builds the multi-arch container image using gorelease
 	goreleaser release --skip=validate,publish,sbom --clean --snapshot
 
 .PHONY: test
-test:  ## Runs golang unit tests.
+test: test-certs  ## Runs golang unit tests.
 	@$(call say,Running golang unit tests)
 	go test -race -v ./...
 
@@ -80,6 +94,26 @@ deploy-helm:  ## Deploys helm chart with otel-collector and otel scaler.
 	cd helmchart/otel-add-on && \
 	helm dependency build && \
 	helm upgrade -i kedify-otel .
+
+.PHONY: rootca-test-certs
+rootca-test-certs:
+	@$(call say,CA cert)
+	rm -rf certs
+	mkdir -p certs
+	openssl req -x509 -nodes -new -sha256 -days 1024 -newkey rsa:2048 -keyout certs/rootCA.key -out certs/rootCA.crt -subj "/C=US/CN=Keda-OTel-Scaler-Root-CA"
+	rm -rf certs/rootCA.srl
+
+.PHONY: rootca-test-certs
+test-certs: rootca-test-certs ## Generates certs for local unit and e2e tests
+	@$(call say,Server cert)
+	echo "$$SERVER_DOMAINS" > certs/domains.ext
+	openssl req -new -nodes -newkey rsa:2048 -keyout certs/server.key -out certs/server.csr -subj "/C=US/ST=KedaState/L=KedaCity/O=Test-Certificates/CN=keda-otel-scaler.keda.svc"
+	openssl x509 -req -sha256 -days 1024 -in certs/server.csr -CA certs/rootCA.crt -CAkey certs/rootCA.key -CAcreateserial -extfile certs/domains.ext -out certs/server.crt
+
+	@$(call say,Client cert)
+	openssl req -new -nodes -newkey rsa:2048 -keyout certs/client.key -out certs/client.csr -subj "/C=US/ST=KedaState/L=KedaCity/O=Test-Certificates/CN=client"
+	openssl x509 -req -sha256 -days 1024 -in certs/client.csr -CA certs/rootCA.crt -CAkey certs/rootCA.key -CAcreateserial -out certs/client.crt
+	rm -rf  certs/*.{csr,srl,ext}
 
 .PHONY: logs
 logs:
