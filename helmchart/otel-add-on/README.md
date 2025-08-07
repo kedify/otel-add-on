@@ -316,7 +316,7 @@ false
           </tr>
           <tr>
                <td id="deploymentStrategy">
-               <a href="./values.yaml#L59">deploymentStrategy</a><br/>
+               <a href="./values.yaml#L70">deploymentStrategy</a><br/>
                (string)
                </td>
                <td>
@@ -332,7 +332,7 @@ false
           </tr>
           <tr>
                <td id="deployScaler">
-               <a href="./values.yaml#L62">deployScaler</a><br/>
+               <a href="./values.yaml#L73">deployScaler</a><br/>
                (bool)
                </td>
                <td>
@@ -348,7 +348,7 @@ true
           </tr>
           <tr>
                <td id="validatingAdmissionPolicy--enabled">
-               <a href="./values.yaml#L66">validatingAdmissionPolicy.enabled</a><br/>
+               <a href="./values.yaml#L77">validatingAdmissionPolicy.enabled</a><br/>
                (bool)
                </td>
                <td>
@@ -364,7 +364,7 @@ false
           </tr>
           <tr>
                <td id="asciiArt">
-               <a href="./values.yaml#L70">asciiArt</a><br/>
+               <a href="./values.yaml#L81">asciiArt</a><br/>
                (bool)
                </td>
                <td>
@@ -380,7 +380,7 @@ true
           </tr>
           <tr>
                <td id="imagePullSecrets">
-               <a href="./values.yaml#L73">imagePullSecrets</a><br/>
+               <a href="./values.yaml#L84">imagePullSecrets</a><br/>
                (list)
                </td>
                <td>
@@ -396,7 +396,7 @@ true
           </tr>
           <tr>
                <td id="serviceAccount--create">
-               <a href="./values.yaml#L79">serviceAccount.create</a><br/>
+               <a href="./values.yaml#L90">serviceAccount.create</a><br/>
                (bool)
                </td>
                <td>
@@ -412,7 +412,7 @@ true
           </tr>
           <tr>
                <td id="serviceAccount--annotations">
-               <a href="./values.yaml#L82">serviceAccount.annotations</a><br/>
+               <a href="./values.yaml#L93">serviceAccount.annotations</a><br/>
                (object)
                </td>
                <td>
@@ -428,7 +428,7 @@ true
           </tr>
           <tr>
                <td id="serviceAccount--name">
-               <a href="./values.yaml#L84">serviceAccount.name</a><br/>
+               <a href="./values.yaml#L95">serviceAccount.name</a><br/>
                (string)
                </td>
                <td>
@@ -444,7 +444,7 @@ true
           </tr>
           <tr>
                <td id="podAnnotations">
-               <a href="./values.yaml#L87">podAnnotations</a><br/>
+               <a href="./values.yaml#L98">podAnnotations</a><br/>
                (object)
                </td>
                <td>
@@ -460,7 +460,7 @@ true
           </tr>
           <tr>
                <td id="podLabels">
-               <a href="./values.yaml#L90">podLabels</a><br/>
+               <a href="./values.yaml#L101">podLabels</a><br/>
                (object)
                </td>
                <td>
@@ -476,7 +476,7 @@ true
           </tr>
           <tr>
                <td id="podSecurityContext">
-               <a href="./values.yaml#L93">podSecurityContext</a><br/>
+               <a href="./values.yaml#L104">podSecurityContext</a><br/>
                (object)
                </td>
                <td>
@@ -492,7 +492,7 @@ true
           </tr>
           <tr>
                <td id="securityContext--readOnlyRootFilesystem">
-               <a href="./values.yaml#L100">securityContext.readOnlyRootFilesystem</a><br/>
+               <a href="./values.yaml#L111">securityContext.readOnlyRootFilesystem</a><br/>
                (bool)
                </td>
                <td>
@@ -508,7 +508,7 @@ true
           </tr>
           <tr>
                <td id="securityContext--runAsNonRoot">
-               <a href="./values.yaml#L102">securityContext.runAsNonRoot</a><br/>
+               <a href="./values.yaml#L113">securityContext.runAsNonRoot</a><br/>
                (bool)
                </td>
                <td>
@@ -524,7 +524,7 @@ true
           </tr>
           <tr>
                <td id="securityContext--runAsUser">
-               <a href="./values.yaml#L104">securityContext.runAsUser</a><br/>
+               <a href="./values.yaml#L115">securityContext.runAsUser</a><br/>
                (int)
                </td>
                <td>
@@ -540,7 +540,7 @@ true
           </tr>
           <tr>
                <td id="service--type">
-               <a href="./values.yaml#L109">service.type</a><br/>
+               <a href="./values.yaml#L120">service.type</a><br/>
                (string)
                </td>
                <td>
@@ -556,7 +556,7 @@ true
           </tr>
           <tr>
                <td id="service--otlpReceiverPort">
-               <a href="./values.yaml#L111">service.otlpReceiverPort</a><br/>
+               <a href="./values.yaml#L122">service.otlpReceiverPort</a><br/>
                (int)
                </td>
                <td>
@@ -572,7 +572,7 @@ true
           </tr>
           <tr>
                <td id="service--kedaExternalScalerPort">
-               <a href="./values.yaml#L113">service.kedaExternalScalerPort</a><br/>
+               <a href="./values.yaml#L124">service.kedaExternalScalerPort</a><br/>
                (int)
                </td>
                <td>
@@ -588,7 +588,7 @@ true
           </tr>
           <tr>
                <td id="resources--limits--cpu">
-               <a href="./values.yaml#L118">resources.limits.cpu</a><br/>
+               <a href="./values.yaml#L129">resources.limits.cpu</a><br/>
                (string)
                </td>
                <td>
@@ -604,7 +604,7 @@ true
           </tr>
           <tr>
                <td id="resources--limits--memory">
-               <a href="./values.yaml#L120">resources.limits.memory</a><br/>
+               <a href="./values.yaml#L131">resources.limits.memory</a><br/>
                (string)
                </td>
                <td>
@@ -620,7 +620,7 @@ true
           </tr>
           <tr>
                <td id="resources--requests--cpu">
-               <a href="./values.yaml#L123">resources.requests.cpu</a><br/>
+               <a href="./values.yaml#L134">resources.requests.cpu</a><br/>
                (string)
                </td>
                <td>
@@ -636,7 +636,7 @@ true
           </tr>
           <tr>
                <td id="resources--requests--memory">
-               <a href="./values.yaml#L125">resources.requests.memory</a><br/>
+               <a href="./values.yaml#L136">resources.requests.memory</a><br/>
                (string)
                </td>
                <td>
@@ -652,7 +652,7 @@ true
           </tr>
           <tr>
                <td id="nodeSelector">
-               <a href="./values.yaml#L139">nodeSelector</a><br/>
+               <a href="./values.yaml#L150">nodeSelector</a><br/>
                (object)
                </td>
                <td>
@@ -668,7 +668,7 @@ true
           </tr>
           <tr>
                <td id="tolerations">
-               <a href="./values.yaml#L142">tolerations</a><br/>
+               <a href="./values.yaml#L153">tolerations</a><br/>
                (list)
                </td>
                <td>
@@ -684,7 +684,7 @@ true
           </tr>
           <tr>
                <td id="affinity">
-               <a href="./values.yaml#L145">affinity</a><br/>
+               <a href="./values.yaml#L156">affinity</a><br/>
                (object)
                </td>
                <td>
@@ -700,7 +700,7 @@ true
           </tr>
           <tr>
                <td id="kubectlImage">
-               <a href="./values.yaml#L148">kubectlImage</a><br/>
+               <a href="./values.yaml#L159">kubectlImage</a><br/>
                (object)
                </td>
                <td>
@@ -721,7 +721,7 @@ true
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate">
-               <a href="./values.yaml#L155">otelOperatorCrDefaultTemplate</a><br/>
+               <a href="./values.yaml#L166">otelOperatorCrDefaultTemplate</a><br/>
                (object)
                </td>
                <td>
@@ -798,7 +798,7 @@ true
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--debug">
-               <a href="./values.yaml#L157">otelOperatorCrDefaultTemplate.debug</a><br/>
+               <a href="./values.yaml#L168">otelOperatorCrDefaultTemplate.debug</a><br/>
                (bool)
                </td>
                <td>
@@ -814,7 +814,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--mode">
-               <a href="./values.yaml#L160">otelOperatorCrDefaultTemplate.mode</a><br/>
+               <a href="./values.yaml#L171">otelOperatorCrDefaultTemplate.mode</a><br/>
                (string)
                </td>
                <td>
@@ -830,7 +830,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--targetAllocatorEnabled">
-               <a href="./values.yaml#L163">otelOperatorCrDefaultTemplate.targetAllocatorEnabled</a><br/>
+               <a href="./values.yaml#L174">otelOperatorCrDefaultTemplate.targetAllocatorEnabled</a><br/>
                (bool)
                </td>
                <td>
@@ -846,7 +846,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--targetAllocatorClusterRoles">
-               <a href="./values.yaml#L165">otelOperatorCrDefaultTemplate.targetAllocatorClusterRoles</a><br/>
+               <a href="./values.yaml#L176">otelOperatorCrDefaultTemplate.targetAllocatorClusterRoles</a><br/>
                (list)
                </td>
                <td>
@@ -865,7 +865,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--targetAllocator--prometheusCR--serviceMonitorSelector">
-               <a href="./values.yaml#L174">otelOperatorCrDefaultTemplate.targetAllocator.prometheusCR.serviceMonitorSelector</a><br/>
+               <a href="./values.yaml#L185">otelOperatorCrDefaultTemplate.targetAllocator.prometheusCR.serviceMonitorSelector</a><br/>
                (object)
                </td>
                <td>
@@ -881,7 +881,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--targetAllocator--prometheusCR--podMonitorSelector">
-               <a href="./values.yaml#L178">otelOperatorCrDefaultTemplate.targetAllocator.prometheusCR.podMonitorSelector</a><br/>
+               <a href="./values.yaml#L189">otelOperatorCrDefaultTemplate.targetAllocator.prometheusCR.podMonitorSelector</a><br/>
                (object)
                </td>
                <td>
@@ -897,7 +897,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--resources">
-               <a href="./values.yaml#L199">otelOperatorCrDefaultTemplate.resources</a><br/>
+               <a href="./values.yaml#L210">otelOperatorCrDefaultTemplate.resources</a><br/>
                (object)
                </td>
                <td>
@@ -922,7 +922,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--alternateOtelConfig">
-               <a href="./values.yaml#L208">otelOperatorCrDefaultTemplate.alternateOtelConfig</a><br/>
+               <a href="./values.yaml#L219">otelOperatorCrDefaultTemplate.alternateOtelConfig</a><br/>
                (object)
                </td>
                <td>
@@ -938,7 +938,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--prometheusScrapeConfigs">
-               <a href="./values.yaml#L212">otelOperatorCrDefaultTemplate.prometheusScrapeConfigs</a><br/>
+               <a href="./values.yaml#L223">otelOperatorCrDefaultTemplate.prometheusScrapeConfigs</a><br/>
                (list)
                </td>
                <td>
@@ -966,7 +966,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--alternateReceivers">
-               <a href="./values.yaml#L218">otelOperatorCrDefaultTemplate.alternateReceivers</a><br/>
+               <a href="./values.yaml#L229">otelOperatorCrDefaultTemplate.alternateReceivers</a><br/>
                (object)
                </td>
                <td>
@@ -982,7 +982,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--includeMetrics">
-               <a href="./values.yaml#L222">otelOperatorCrDefaultTemplate.includeMetrics</a><br/>
+               <a href="./values.yaml#L233">otelOperatorCrDefaultTemplate.includeMetrics</a><br/>
                (list)
                </td>
                <td>
@@ -998,7 +998,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrs">
-               <a href="./values.yaml#L251">otelOperatorCrs</a><br/>
+               <a href="./values.yaml#L262">otelOperatorCrs</a><br/>
                (list)
                </td>
                <td>
@@ -1026,7 +1026,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrs[0]">
-               <a href="./values.yaml#L253">otelOperatorCrs[0]</a><br/>
+               <a href="./values.yaml#L264">otelOperatorCrs[0]</a><br/>
                (object)
                </td>
                <td>
@@ -1046,7 +1046,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrs[0]--name">
-               <a href="./values.yaml#L255">otelOperatorCrs[0].name</a><br/>
+               <a href="./values.yaml#L266">otelOperatorCrs[0].name</a><br/>
                (string)
                </td>
                <td>
@@ -1062,7 +1062,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrs[0]--namespace">
-               <a href="./values.yaml#L257">otelOperatorCrs[0].namespace</a><br/>
+               <a href="./values.yaml#L268">otelOperatorCrs[0].namespace</a><br/>
                (string)
                </td>
                <td>
@@ -1078,7 +1078,7 @@ false
           </tr>
           <tr>
                <td id="otelCollector--mode">
-               <a href="./values.yaml#L288">otelCollector.mode</a><br/>
+               <a href="./values.yaml#L299">otelCollector.mode</a><br/>
                (string)
                </td>
                <td>
