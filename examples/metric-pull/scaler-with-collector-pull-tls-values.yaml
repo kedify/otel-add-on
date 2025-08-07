@@ -1,0 +1,130 @@
+settings:
+  metricStoreRetentionSeconds: 20
+  tls:
+    caFile: "/etc/ca-certificate/rootCA.crt"
+    # kubectl -nkeda create secret tls server-tls --cert=certs/server.crt --key=certs/server.key
+    certFile: "/etc/server-tls/tls.crt"
+    keyFile: "/etc/server-tls/tls.key"
+    # optional section, if present the secrets will be mounted to scaler's deployment and no need to
+    # set the .volumes and .volumeMounts. Use either this or .volume & .volumeMounts approach for the scaler itself.
+    # Configuring TLS for the client (most likely OTel collector) is done under .otelCollector or .otelCollectorCrs
+    secrets:
+      - name: root-ca
+        mountPath: /etc/ca-certificate
+      - name: server-tls
+        mountPath: /etc/server-tls
+  logs:
+    logLvl: debug
+
+otelCollector:
+  enabled: true
+  ports:
+    metrics:
+      enabled: true
+  clusterRole:
+    create: true
+    # additional rbac for upstream otel collector to be able to find services w/ prometheus.io/scrape annotation
+    # not needed, when only static targets are used
+    rules:
+     - apiGroups:
+       - ''
+       resources:
+       - 'pods'
+       verbs:
+       - 'get'
+       - 'list'
+       - 'watch'
+  extraVolumes:
+    - name: client-tls
+      secret:
+        defaultMode: 420
+        # kubectl -nkeda create secret tls client-tls --cert=certs/client.crt --key=certs/client.key
+        secretName: client-tls
+    - name: ca-certificate
+      secret:
+        defaultMode: 420
+        # when using CertManager & CA Issuer, use the existing CA issuer's secret
+        # kubectl -nkeda create secret generic root-ca --from-file=rootCA.crt=certs/rootCA.crt
+        secretName: root-ca
+  extraVolumeMounts:
+    - mountPath: /etc/client-tls
+      name: client-tls
+      readOnly: true
+    - mountPath: /etc/ca-certificate
+      name: ca-certificate
+      readOnly: true
+  alternateConfig:
+    receivers:
+      opencensus:
+      # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/prometheusreceiver/README.md
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: 'otelcol'
+              scrape_interval: 5s
+              static_configs:
+                - targets: ['0.0.0.0:8888']
+            - job_name: k8s
+              scrape_interval: 2s
+              kubernetes_sd_configs:
+                - role: pod
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+                  regex: "true"
+                  action: keep
+                - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+                  action: replace
+                  target_label: __metrics_path__
+                  regex: (.+)
+                - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+                  action: replace
+                  target_label: __address__
+                  regex: (.+)(?::\d+);(\d+)
+                  replacement: $1:$2
+                - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scheme]
+                  action: replace
+                  target_label: __scheme__
+                  regex: (.+)
+                # all the 'implicit' labels starting with __ will be dropped, so we need to preserve the pod identity
+                - source_labels: [__meta_kubernetes_pod_name]
+                  action: replace
+                  target_label: pod_name
+    exporters:
+      otlp:
+        endpoint: keda-otel-scaler.keda.svc:4317
+        compression: "none"
+        tls:
+          insecure: false
+          insecure_skip_verify: false
+          ca_file: /etc/ca-certificate/rootCA.crt
+          # optional
+          cert_file: /etc/client-tls/tls.crt
+          key_file: /etc/client-tls/tls.key
+          reload_interval: 5m
+      debug:
+        verbosity: detailed
+    processors:
+      filter/ottl:
+        error_mode: ignore
+        metrics:
+          metric:
+            - | # drop all other metrics that are not whitelisted here
+              name != "http_request_duration_seconds"
+#            - resource.attributes["method"] == "GET"
+#            - resource.attributes["path"] == "delay"
+
+    service:
+      pipelines:
+        metrics:
+          receivers:
+            - prometheus
+          processors:
+            - filter/ottl
+          exporters:
+            - debug
+            - otlp
+      telemetry:
+        logs:
+          level: DEBUG
+        metrics:
+          address: 0.0.0.0:8888

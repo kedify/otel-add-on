@@ -11,12 +11,12 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/component/componenttest"
 	"go.opentelemetry.io/collector/config/configgrpc"
 	"go.opentelemetry.io/collector/config/confignet"
+	"go.opentelemetry.io/collector/config/configtls"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/pdata/pmetric"
 	rec "go.opentelemetry.io/collector/receiver"
@@ -24,6 +24,8 @@ import (
 	"golang.org/x/sync/errgroup"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
+
+	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 
 	"github.com/kedify/otel-add-on/build"
 	"github.com/kedify/otel-add-on/metric"
@@ -70,13 +72,17 @@ func main() {
 		}
 		startRestServer(eg, restApiPort, info, ms)
 
-		if e = startReceiver(ctx, otlpReceiverPort, ms); !util.IsIgnoredErr(e) {
-			setupLog.Error(e, "grpc server failed (OTLP receiver)")
+		tlsSettings, tlsEnabled := makeTlsSettings(cfg)
+		if e = startReceiver(ctx, otlpReceiverPort, tlsSettings, ms); !util.IsIgnoredErr(e) {
+			setupLog.Error(e, "gRPC server failed (OTLP receiver)")
 			return e
+		}
+		if tlsEnabled {
+			setupLog.Info("TLS for gRPC server enabled (OTLP receiver)", "tlsSettings", tlsSettings)
 		}
 
 		if e = startGrpcServer(ctx, ctrl.Log, ms, mp, cfg); !util.IsIgnoredErr(e) {
-			setupLog.Error(e, "grpc server failed (KEDA external scaler)")
+			setupLog.Error(e, "gRPC server failed (KEDA external scaler)")
 			return e
 		}
 
@@ -89,6 +95,22 @@ func main() {
 	}
 
 	setupLog.Info("Bye!")
+}
+
+func makeTlsSettings(cfg *util.Config) (*configtls.ServerConfig, bool) {
+	if len(cfg.TLSCaFile) == 0 && (len(cfg.TLSCertFile) == 0 || len(cfg.TLSKeyFile) == 0) {
+		return &configtls.ServerConfig{}, false
+	}
+	return &configtls.ServerConfig{
+		Config: configtls.Config{
+			CAFile:         cfg.TLSCaFile,
+			CertFile:       cfg.TLSCertFile,
+			KeyFile:        cfg.TLSKeyFile,
+			ReloadInterval: cfg.CertReloadInterval,
+		},
+		ClientCAFile:       cfg.TLSCaFile,
+		ReloadClientCAFile: true,
+	}, true
 }
 
 func startRestServer(eg *errgroup.Group, restApiPort int, info prometheus.Labels, ms types.MemStore) {
@@ -124,9 +146,9 @@ func startInternalMetricsServer(ctx context.Context, cfg *util.Config) (promethe
 	return info, nil
 }
 
-func startReceiver(ctx context.Context, otlpReceiverPort int, ms types.MemStore) error {
+func startReceiver(ctx context.Context, otlpReceiverPort int, tlsSettings *configtls.ServerConfig, ms types.MemStore) error {
 	addr := fmt.Sprintf("0.0.0.0:%d", otlpReceiverPort)
-	setupLog.Info("starting the grpc server for OTLP receiver", "address", addr)
+	setupLog.Info("starting the gRPC server for OTLP receiver", "address", addr)
 	conf := &otlpreceiver.Config{
 		Protocols: otlpreceiver.Protocols{
 			GRPC: &configgrpc.ServerConfig{
@@ -134,15 +156,8 @@ func startReceiver(ctx context.Context, otlpReceiverPort int, ms types.MemStore)
 					Endpoint:  addr,
 					Transport: confignet.TransportTypeTCP4,
 				},
-				//TLSSetting: &configtls.ServerConfig{},
-				//TLSSetting: &configtls.ServerConfig{
-				//	Config: configtls.Config{
-				//		CAFile: "",
-				//		CertFile: "",
-				//		KeyFile: "",
-				//	},
-				//	ClientCAFile: "",
-				//},
+				TLSSetting:      tlsSettings,
+				IncludeMetadata: true,
 			},
 		},
 	}
@@ -174,7 +189,7 @@ func startGrpcServer(
 	cfg *util.Config,
 ) error {
 	kedaExternalScalerAddr := fmt.Sprintf("0.0.0.0:%d", cfg.KedaExternalScalerPort)
-	setupLog.Info("starting the grpc server for KEDA scaler", "address", kedaExternalScalerAddr)
+	setupLog.Info("starting the gRPC server for KEDA scaler", "address", kedaExternalScalerAddr)
 	lis, err := net.Listen("tcp", kedaExternalScalerAddr)
 	if err != nil {
 		return err

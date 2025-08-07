@@ -54,6 +54,17 @@ settings:
 
     # -- if anything else than 'false', the log will not print the ascii logo
     noBanner: false
+  
+  tls:
+    caFile: ""
+    certFile: ""
+    keyFile: ""
+    reloadInterval: "5m"
+    secrets: []
+#      - name: root-ca
+#        mountPath: /etc/ca-certificate
+#      - name: server-tls
+#        mountPath: /etc/server-tls
 
 # -- one of: RollingUpdate, Recreate ([details](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy))
 deploymentStrategy: RollingUpdate

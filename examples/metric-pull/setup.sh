@@ -1,6 +1,7 @@
 #!/bin/bash
 
 DIR="${DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )}"
+#export SETUP_ONLY=true
 
 command -v figlet &> /dev/null && figlet Autoscaling podinfo
 
@@ -19,8 +20,10 @@ helm upgrade -i podinfo podinfo/podinfo -f ${DIR}/podinfo-values.yaml
 KEDA_VERSION=$(curl -s https://api.github.com/repos/kedify/charts/releases | jq -r '[.[].tag_name | select(. | startswith("keda/")) | sub("^keda/"; "")] | first')
 KEDA_VERSION=${KEDA_VERSION:-v2.17.1-0}
 helm upgrade -i keda kedify/keda --namespace keda --create-namespace --version ${KEDA_VERSION}
-helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.13 -f ${DIR}/scaler-with-collector-pull-values.yaml
-#helm upgrade -i keda-otel-scaler -nkeda ${DIR}/../../helmchart/otel-add-on -f ${DIR}/scaler-with-collector-pull-values.yaml
+#helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.13 -f ${DIR}/scaler-with-collector-pull-values.yaml
+helm upgrade -i keda-otel-scaler -nkeda ${DIR}/../../helmchart/otel-add-on -f ${DIR}/scaler-with-collector-pull-values.yaml
+
+[ "x${SETUP_ONLY}" = "xtrue" ] && exit 0
 
 kubectl rollout status -n keda --timeout=300s deploy/keda-operator
 kubectl rollout status -n keda --timeout=300s deploy/keda-operator-metrics-apiserver

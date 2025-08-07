@@ -15,3 +15,7 @@ helmchart/otel-add-on/*.tgz
 
 # Other
 /vendor/
+
+# Tests
+/certs
+values_tmp

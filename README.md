@@ -98,6 +98,26 @@ helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on 
 k apply -f examples/so.yaml
 ```
 
+### Advanced setups
+
+Check some prepared examples in the [`./examples`](./examples) directory and also checked the `dev.Makefile` if you want to
+set up mTLS between a collector and this scaler. 
+
+```bash
+λ make -f dev.Makefile
+Usage:
+  make <target>
+Demos
+  demo-podinfo              setup ./examples/metric-pull
+  demo-podinfo-tls          setup ./examples/metric-pull with TLS
+  demo-otel-upstream        setup ./examples/metric-push
+  demo-operator             setup ./examples/otel-operator
+  demo-operator-tls         setup ./examples/otel-operator with TLS
+  
+λ make -f dev.Makefile demo-podinfo-tls
+...
+```
+
 ## Troubleshooting
 
 To figure out the actual value of a metric query, there is a simple REST api that can be used:

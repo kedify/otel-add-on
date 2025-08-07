@@ -3,9 +3,9 @@
 ###############################
 SHELL       = /bin/bash
 GH_REPO_ORG = kedify
-VERSION 		?= main
+VERSION 	?= main
 GIT_COMMIT  ?= $(shell git rev-list -1 HEAD)
-LATEST_TAG ?= $(shell git fetch --force --tags &> /dev/null ; git describe --tags $(git rev-list --tags --max-count=1))
+LATEST_TAG  ?= $(shell git fetch --force --tags &> /dev/null ; git describe --tags $(git rev-list --tags --max-count=1))
 GO_LDFLAGS="-X github.com/${GH_REPO_ORG}/otel-add-on/build.version=${VERSION} -X github.com/${GH_REPO_ORG}/otel-add-on/build.gitCommit=${GIT_COMMIT}"
 BUILD_PLATFORMS ?= linux/amd64,linux/arm64
 
@@ -18,6 +18,20 @@ endif
 CGO        ?=0
 TARGET_OS  ?=linux
 
+define SERVER_DOMAINS
+basicConstraints=CA:FALSE
+keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth, clientAuth
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = localhost
+DNS.2 = *.keda.svc.cluster.local
+DNS.3 = *.keda.svc
+DNS.4 = *.keda
+IP.1 = 127.0.0.1
+endef
+export SERVER_DOMAINS
+
 GO_BUILD_VARS= GO111MODULE=on CGO_ENABLED=$(CGO) GOOS=$(TARGET_OS) GOARCH=$(ARCH)
 
 ###############################
@@ -25,22 +39,20 @@ GO_BUILD_VARS= GO111MODULE=on CGO_ENABLED=$(CGO) GOOS=$(TARGET_OS) GOARCH=$(ARCH
 ###############################
 all: help
 
+##@ Build
+
 .PHONY: build
-build:  ## Builds the binary.
+build: ## Builds the binary.
 	@$(call say,Build the binary)
 	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -o bin/otel-add-on .
 
-.PHONY: run
-run:  ## Runs the scaler locally.
-	go run ./main.go
-
 .PHONY: build-image
-build-image: build  ## Builds the container image for current arch.
+build-image: build ## Builds the container image for current arch.
 	@$(call say,Build container image $(CONTAINER_IMAGE))
 	docker build . -t ${CONTAINER_IMAGE} --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
 
 .PHONY: build-image-multiarch
-build-image-multiarch:  ## Builds the container image for arm64 and amd64.
+build-image-multiarch: ## Builds the container image for arm64 and amd64.
 	@$(call say,Build container image $(CONTAINER_IMAGE))
 	docker buildx build --output=type=registry --platform=${BUILD_PLATFORMS} . -t ${CONTAINER_IMAGE} --build-arg VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
 
@@ -48,13 +60,19 @@ build-image-multiarch:  ## Builds the container image for arm64 and amd64.
 build-image-goreleaser: ## Builds the multi-arch container image using goreleaser.
 	goreleaser release --skip=validate,publish,sbom --clean --snapshot
 
+##@ General
+
+.PHONY: run
+run: ## Runs the scaler locally.
+	go run ./main.go
+
 .PHONY: test
-test:  ## Runs golang unit tests.
+test: test-certs ## Runs golang unit tests.
 	@$(call say,Running golang unit tests)
 	go test -race -v ./...
 
 .PHONY: e2e-test
-e2e-test:  ## Runs end to end tests. This will spawn a k3d cluster.
+e2e-test: ## Runs end to end tests. This will spawn a k3d cluster.
 	@$(call say,Running end to end tests)
 	cd e2e-tests && go test -count=1 -race -v ./...
 
@@ -75,11 +93,31 @@ codegen: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and 
 	./hack/update-codegen.sh
 
 .PHONY: deploy-helm
-deploy-helm:  ## Deploys helm chart with otel-collector and otel scaler.
+deploy-helm: ## Deploys helm chart with otel-collector and otel scaler.
 	@$(call say,Deploy helm chart to current k8s context)
 	cd helmchart/otel-add-on && \
 	helm dependency build && \
 	helm upgrade -i kedify-otel .
+
+.PHONY: rootca-test-certs
+rootca-test-certs:
+	@$(call say,CA cert)
+	rm -rf certs
+	mkdir -p certs
+	openssl req -x509 -nodes -new -sha256 -days 1024 -newkey rsa:2048 -keyout certs/rootCA.key -out certs/rootCA.crt -subj "/C=US/CN=Keda-OTel-Scaler-Root-CA"
+	rm -rf certs/rootCA.srl
+
+.PHONY: rootca-test-certs
+test-certs: rootca-test-certs ## Generates certs for local unit and e2e tests
+	@$(call say,Server cert)
+	echo "$$SERVER_DOMAINS" > certs/domains.ext
+	openssl req -new -nodes -newkey rsa:2048 -keyout certs/server.key -out certs/server.csr -subj "/C=US/ST=KedaState/L=KedaCity/O=Test-Certificates/CN=keda-otel-scaler.keda.svc"
+	openssl x509 -req -sha256 -days 1024 -in certs/server.csr -CA certs/rootCA.crt -CAkey certs/rootCA.key -CAcreateserial -extfile certs/domains.ext -out certs/server.crt
+
+	@$(call say,Client cert)
+	openssl req -new -nodes -newkey rsa:2048 -keyout certs/client.key -out certs/client.csr -subj "/C=US/ST=KedaState/L=KedaCity/O=Test-Certificates/CN=client"
+	openssl x509 -req -sha256 -days 1024 -in certs/client.csr -CA certs/rootCA.crt -CAkey certs/rootCA.key -CAcreateserial -out certs/client.crt
+	rm -rf certs/*.{csr,srl,ext}
 
 .PHONY: logs
 logs:
@@ -95,8 +133,8 @@ gomodifytags: ## Download gomodifytags locally if necessary.
 	GOBIN=$(shell pwd)/bin go install github.com/fatih/gomodifytags@v1.17.0
 
 .PHONY: help
-help: ## Show this help.
-	@egrep -h '\s##\s' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
+help: ## Display this help.
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-24s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 
 ###############################
