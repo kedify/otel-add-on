@@ -60,6 +60,11 @@ settings:
     certFile: ""
     keyFile: ""
     reloadInterval: "5m"
+    secrets: []
+#      - name: root-ca
+#        mountPath: /etc/ca-certificate
+#      - name: server-tls
+#        mountPath: /etc/server-tls
 
 # -- one of: RollingUpdate, Recreate ([details](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy))
 deploymentStrategy: RollingUpdate

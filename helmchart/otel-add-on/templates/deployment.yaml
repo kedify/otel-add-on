@@ -103,13 +103,28 @@ spec:
             failureThreshold: 3
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          {{- with .Values.volumeMounts }}
+          {{- if or .Values.volumeMounts .Values.settings.tls.secrets }}
           volumeMounts:
+          {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
-      {{- with .Values.volumes }}
+          {{- range .Values.settings.tls.secrets }}
+            - mountPath: {{ .mountPath }}
+              name: {{ .name }}
+              readOnly: true
+          {{- end }}
+          {{- end }}
+      {{- if or .Values.volumes .Values.settings.tls.secrets }}
       volumes:
+      {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+          {{- range .Values.settings.tls.secrets }}
+        - name: {{ .name }}
+          secret:
+            defaultMode: 420
+            secretName: {{ .name }}
+          {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

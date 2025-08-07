@@ -27,6 +27,7 @@ kubectl create secret -nkeda generic gh-token --from-literal=GH_PAT=${GH_PAT}
 helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.13 -f ${DIR}/scaler-with-operator-with-collector-values.yaml
 #helm upgrade -i keda-otel-scaler -nkeda ${DIR}/../../helmchart/otel-add-on -f ${DIR}/scaler-with-operator-with-collector-values.yaml
 
+[ "x${SETUP_ONLY}" = "xtrue" ] && exit 0
 # wait for components
 for d in \
   keda-operator \

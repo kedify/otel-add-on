@@ -5,26 +5,16 @@ settings:
     # kubectl -nkeda create secret tls server-tls --cert=certs/server.crt --key=certs/server.key
     certFile: "/etc/server-tls/tls.crt"
     keyFile: "/etc/server-tls/tls.key"
+    # optional section, if present the secrets will be mounted to scaler's deployment and no need to
+    # set the .volumes and .volumeMounts. Use either this or .volume & .volumeMounts approach for the scaler itself.
+    # Configuring TLS for the client (most likely OTel collector) is done under .otelCollector or .otelCollectorCrs
+    secrets:
+      - name: root-ca
+        mountPath: /etc/ca-certificate
+      - name: server-tls
+        mountPath: /etc/server-tls
   logs:
     logLvl: debug
-
-volumes:
-  - name: server-tls
-    secret:
-      defaultMode: 420
-      secretName: server-tls
-  - name: ca-certificate
-    secret:
-      defaultMode: 420
-      secretName: root-ca
-
-volumeMounts:
-  - mountPath: /etc/server-tls
-    name: server-tls
-    readOnly: true
-  - mountPath: /etc/ca-certificate
-    name: ca-certificate
-    readOnly: true
 
 otelCollector:
   enabled: true
@@ -105,10 +95,12 @@ otelCollector:
         compression: "none"
         tls:
           insecure: false
+          insecure_skip_verify: false
           ca_file: /etc/ca-certificate/rootCA.crt
           # optional
           cert_file: /etc/client-tls/tls.crt
           key_file: /etc/client-tls/tls.key
+          reload_interval: 5m
       debug:
         verbosity: detailed
     processors:

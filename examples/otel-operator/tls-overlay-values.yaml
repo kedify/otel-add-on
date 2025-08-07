@@ -1,0 +1,29 @@
+# use this together with the hack/mergeValues.sh <base> <overlay>
+# also don't forget: make -f dev.Makefile k8s-certs
+
+settings:
+  tls:
+    caFile: "/etc/ca-certificate/rootCA.crt"
+    certFile: "/etc/server-tls/tls.crt"
+    keyFile: "/etc/server-tls/tls.key"
+    reloadInterval: 15s
+    secrets:
+      - name: root-ca
+        mountPath: /etc/ca-certificate
+      - name: server-tls
+        mountPath: /etc/server-tls
+
+otelOperatorCrs:
+- name: otel-add-on
+  tls:
+    caFile: "/etc/ca-certificate/rootCA.crt"
+    certFile: "/etc/client-tls/tls.crt"
+    keyFile: "/etc/client-tls/tls.key"
+    # https://github.com/open-telemetry/opentelemetry-collector/blob/main/config/configtls/README.md
+    extraSettings:
+      reload_interval: 15s
+    secrets:
+      - name: root-ca
+        mountPath: /etc/ca-certificate
+      - name: client-tls
+        mountPath: /etc/client-tls

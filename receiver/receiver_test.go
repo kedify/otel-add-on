@@ -61,7 +61,7 @@ var (
 )
 
 // both client and server has their own cert-and-key pair and common the caCert
-func TestOTLPReceiverMutualTLS(t *testing.T) {
+func TestOTLPReceiverMutualTLSWithCA(t *testing.T) {
 	tt := componenttest.NewTelemetry()
 	t.Cleanup(func() { require.NoError(t, tt.Shutdown(context.Background())) })
 
@@ -130,6 +130,46 @@ func TestOTLPReceiverTLSCaCertOnly(t *testing.T) {
 	// keda-otel-scaler.keda.svc is one of the server cert's SANs (*.keda.svc)
 	tc, err := credentials.NewClientTLSFromFile(caCertFilePath, "keda-otel-scaler.keda.svc")
 	require.NoError(t, err)
+
+	cc, err := grpc.NewClient(addr, grpc.WithTransportCredentials(tc))
+	require.NoError(t, err)
+	defer func() {
+		assert.NoError(t, cc.Close())
+	}()
+
+	assertCanReceiveMetrics(t, sink, cc, tt)
+}
+
+// both client and server has their own cert-and-key pair, but we don't check the certificate chain nor the hostname
+func TestOTLPReceiverMutualTLSNoCA(t *testing.T) {
+	tt := componenttest.NewTelemetry()
+	t.Cleanup(func() { require.NoError(t, tt.Shutdown(context.Background())) })
+
+	cfg := createDefaultConfig().(*otlpreceiver.Config)
+	cfg.GRPC.NetAddr.Endpoint = addr
+	cfg.GRPC.TLSSetting = &configtls.ServerConfig{
+		Config: configtls.Config{
+			CertFile: serverCertFilePath,
+			KeyFile:  serverKeyFilePath,
+		},
+	}
+	cfg.HTTP = nil
+	sink := &testmc{
+		consumeSuccessCount: ptr.To(0),
+		consumeErrCount:     ptr.To(0),
+	}
+	recv := newReceiver(t, tt.NewTelemetrySettings(), cfg, otlpReceiverID, sink)
+	require.NotNil(t, recv)
+	require.NoError(t, recv.Start(context.Background(), componenttest.NewNopHost()))
+	t.Cleanup(func() { require.NoError(t, recv.Shutdown(context.Background())) })
+	clientCert, err := tls.LoadX509KeyPair(clientCertFilePath, clientKeyFilePath)
+	require.NoError(t, err)
+	tc := credentials.NewTLS(&tls.Config{
+		// don't check the cert, but establish TLS
+		// this is the insecure_skip_verify configuration option for exporter's tls so we want to support both methods
+		InsecureSkipVerify: true,
+		Certificates:       []tls.Certificate{clientCert},
+	})
 
 	cc, err := grpc.NewClient(addr, grpc.WithTransportCredentials(tc))
 	require.NoError(t, err)

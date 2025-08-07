@@ -48,6 +48,21 @@ data:
       targetAllocator:
         {{- toYaml .targetAllocator | nindent 8 }}
       {{- end }}
+      {{- with .tls.secrets }}
+      volumes:
+      {{- range . }}
+        - name: {{ .name }}
+          secret:
+            defaultMode: 420
+            secretName: {{ .name }}
+      {{- end }}
+      volumeMounts:
+      {{- range . }}
+        - mountPath: {{ .mountPath }}
+          name: {{ .name }}
+          readOnly: true
+      {{- end }}
+      {{- end }}
 
       config:
         {{- if .alternateOtelConfig }}
@@ -136,7 +151,21 @@ data:
             endpoint: {{ $.Release.Name }}.{{ $.Values.namespace | default $.Release.Namespace }}.svc:4317
             compression: "none"
             tls:
+              {{- if or .tls.caFile (and .tls.certFile .tls.keyFile) }}
+              insecure: false
+                {{- if not .tls.caFile }}
+              insecure_skip_verify: true
+                {{- else }}
+              ca_file: {{ .tls.caFile }}
+                {{- end }}
+              cert_file: {{ .tls.certFile }}
+              key_file: {{ .tls.keyFile }}
+              {{- with .tls.extraSettings }}
+              {{- toYaml . | nindent 14 }}
+              {{- end }}
+              {{- else }}
               insecure: true
+              {{- end }}
           {{- if .debug }}
           debug:
             verbosity: detailed
