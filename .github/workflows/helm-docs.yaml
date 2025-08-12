@@ -22,7 +22,7 @@ jobs:
       - name: Generate docs for helm chart - helmchart/otel-add-on/README.md
         uses: docker://jnorwood/helm-docs@sha256:7e562b49ab6b1dbc50c3da8f2dd6ffa8a5c6bba327b1c6335cc15ce29267979c
         with:
-          args: --template-files=_helm-docs-template.gotmpl --sort-values-order=file --ignore-non-descriptions
+          args: --template-files=_helm-docs-helpers.gotmpl --template-files=_helm-docs-README.md.gotmpl --sort-values-order=file --ignore-non-descriptions
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f # v7.0.5
         id: cpr

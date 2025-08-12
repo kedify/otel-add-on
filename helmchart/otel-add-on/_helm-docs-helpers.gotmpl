@@ -1,0 +1,78 @@
+
+{{/*Custom renderer for default values*/}}
+{{ define "chart.customValueColumnRender" }}
+{{- $defaultValue := (default .Default .AutoDefault)  -}}
+{{- $notationType := .NotationType }}
+{{- if (and (hasPrefix "`" $defaultValue) (hasSuffix "`" $defaultValue) ) -}}
+{{- $defaultValue = (toPrettyJson (fromJson (trimAll "`" (default .Default .AutoDefault) ) ) ) -}}
+{{- $notationType = "json" }}
+{{- end }}
+{{- if (eq $notationType "tpl" ) }}
+<pre lang="{{ $notationType }}">
+{{ .Key }}: |
+{{- $defaultValue | nindent 2 }}
+</pre>
+{{- else }}
+<pre lang="{{ $notationType }}">
+{{ $defaultValue }}
+</pre>
+{{- end }}
+{{ end }}
+
+{{/*Custom renderer for default type field. If it starts with k8s/ it creates the link to k8s docs*/}}
+{{ define "chart.typeRender" }}
+{{- if (hasPrefix "k8s/" .Type )}}
+{{- $k8sDocsPath := trimPrefix "k8s/" .Type -}}
+{{- $typeName := last (regexSplit "/|#" $k8sDocsPath -1) -}}
+<br/>
+(Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/{{$k8sDocsPath}}">{{$typeName}}</a>)
+{{- else }}
+(Type: {{ .Type }})
+{{- end }}
+{{- end }}
+
+{{/*Custom renderer for keys so that it's wrapped when long*/}}
+{{ define "chart.keyRender" }}
+{{- $key := .Key -}}
+{{- if gt (len $key) 30 }}
+{{- $key = $key | replace "." "<br/>." -}}
+{{- end }}
+<a href="./values.yaml#L{{ .LineNumber }}">{{ $key }}</a><br/>
+{{ end }}
+
+{{/*Custom renderer for description to allow simple code highlight in markdown*/}}
+{{ define "chart.customDescriptionColumnRender" }}
+{{- $defaultDescription := (default .Description .AutoDescription)  -}}
+     {{- if ne .Type "raw" }}
+          {{- $defaultDescription = regexReplaceAll "`([^`]+)`" $defaultDescription "<code>${1}</code>"  -}}
+          {{- $defaultDescription = regexReplaceAll "\\[([^\\]]+)\\]\\(([^\\)]+)\\)" $defaultDescription "<a href=\"${2}\">${1}</a>" -}}
+     {{- end }}
+{{- $defaultDescription -}}
+{{ end }}
+
+{{/*Custom structure of the table representing the value file*/}}
+{{ define "chart.valuesTableHtml" }}
+<table>
+     <thead>
+          <th>Key</th>
+          <th width="100px;">Description</th>
+          <th>Default</th>
+     </thead>
+     <tbody>
+     {{- range .Values }}
+          <tr>
+               <td id="{{ .Key | replace "." "--" }}">
+               {{- template "chart.keyRender" . -}}
+               {{- template "chart.typeRender" . -}}
+               </td>
+               <td>
+               {{ template "chart.customDescriptionColumnRender" . }}
+               </td>
+               <td>
+                    <div style="max-width: 200px;">{{ template "chart.customValueColumnRender" . }}</div>
+               </td>
+          </tr>
+     {{- end }}
+     </tbody>
+</table>
+{{ end }}

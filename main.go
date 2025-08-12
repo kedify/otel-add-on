@@ -63,6 +63,7 @@ func main() {
 	ms := metric.NewMetricStore(cfg)
 	mp := metric.NewParser()
 
+	defer metric.Metrics().Unregister()
 	eg.Go(func() error {
 		var e error
 		var info prometheus.Labels
