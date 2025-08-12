@@ -24,4 +24,4 @@
 
 # Custom
 otel-add-on*.tgz
-_helm-docs-template.gotmpl
+_helm-docs-*

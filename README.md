@@ -100,7 +100,7 @@ k apply -f examples/so.yaml
 
 ### Advanced setups
 
-Check some prepared examples in the [`./examples`](./examples) directory and also checked the `dev.Makefile` if you want to
+Check some prepared examples in the [`./examples`](./examples) directory and also check the `dev.Makefile` if you want to
 set up mTLS between a collector and this scaler. 
 
 ```bash

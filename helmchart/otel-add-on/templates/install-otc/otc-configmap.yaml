@@ -31,7 +31,7 @@ data:
       {{- else }}
       mode: {{ .mode }}
       {{- end}}
-      {{- with .serviceAccount.name }}
+      {{- with (.serviceAccount).name }}
       serviceAccount: {{ . }}
       {{- end }}
       upgradeStrategy: none
@@ -48,7 +48,7 @@ data:
       targetAllocator:
         {{- toYaml .targetAllocator | nindent 8 }}
       {{- end }}
-      {{- with .tls.secrets }}
+      {{- with (.tls).secrets }}
       volumes:
       {{- range . }}
         - name: {{ .name }}
@@ -140,18 +140,27 @@ data:
                   {{- end }}
           {{- end }}
 
-          {{- with .metricsgeneration.rules }}
+          {{- with (.metricsgeneration).rules }}
           {{- $processors = append $processors "metricsgeneration" }}
           metricsgeneration:
             rules:
               {{- toYaml . | nindent 14 }}
           {{- end }}
+        {{- $exporters := list }}
         exporters:
+        {{- if .alternateExporters }}
+        {{- range $exporter, $exporterCfg := .alternateExporters }}
+          {{- $exporters = append $exporters $exporter }}
+          {{ $exporter }}:
+            {{- toYaml $exporterCfg | nindent 12 }}
+        {{- end }}
+        {{- else}}
+          {{- $exporters = append $exporters "otlp/keda" }}
           otlp/keda:
             endpoint: {{ $.Release.Name }}.{{ $.Values.namespace | default $.Release.Namespace }}.svc:4317
             compression: "none"
             tls:
-              {{- if or .tls.caFile (and .tls.certFile .tls.keyFile) }}
+              {{- if or (.tls).caFile (and (.tls).certFile (.tls).keyFile) }}
               insecure: false
                 {{- if not .tls.caFile }}
               insecure_skip_verify: true
@@ -167,18 +176,35 @@ data:
               insecure: true
               {{- end }}
           {{- if .debug }}
+          {{- $exporters = append $exporters "debug" }}
           debug:
             verbosity: detailed
           {{- end }}
+        {{- end }}
+
+        {{- $connectors := list }}
+        {{- with .alternateConnectors }}
+        connectors:
+        {{- range $connector, $connectorCfg := . }}
+          {{- $connectors = append $connectors $connector }}
+          {{ $connector }}:
+            {{- toYaml $connectorCfg | nindent 12 }}
+        {{- end }}
+        {{- end }}
+
         service:
           {{- with $extensions }}
           extensions: [{{- join "," . -}}]
           {{- end }}
           pipelines:
+            {{- if .alternatePipelines }}
+            {{- toYaml .alternatePipelines | nindent 12 }}
+            {{- else}}
             metrics:
               receivers: [{{- join "," $receivers -}}]
               processors: [{{- join "," $processors -}}]
-              exporters: [{{- if .debug -}}debug, {{- end -}}otlp/keda]
+              exporters: [{{- join "," $exporters -}}]
+            {{- end }}
         {{- end }}
 ---
 {{- end }}

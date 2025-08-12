@@ -70,7 +70,7 @@ Merge the default settings
         {{- $merged := dict }}
         {{- range .Values.otelOperatorCrs }}
           {{- if .enabled }}
-          {{- $merged = mergeOverwrite $.Values.otelOperatorCrDefaultTemplate . }}
+          {{- $merged = mergeOverwrite (deepCopy $.Values.otelOperatorCrDefaultTemplate) . }}
           {{- $allmerged = append $allmerged $merged }}
           {{- end }}
         {{- end }}

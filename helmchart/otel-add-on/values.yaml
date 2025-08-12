@@ -8,7 +8,7 @@ namespace: ""
 image:
   # -- Image to use for the Deployment
   repository: ghcr.io/kedify/otel-add-on
-  # -- Image pull policy, consult [docs](https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy)
+  # -- (k8s/containers/images/#image-pull-policy) image pull policy for KEDA OTel Scaler pod
   pullPolicy: Always
   # -- Image version to use for the Deployment, if not specified, it defaults to `.Chart.AppVersion`
   tag: ""
@@ -56,17 +56,24 @@ settings:
     noBanner: false
   
   tls:
+    # -- (optional) path to CA certificate. When provided, the client certificate will be verified using this CA where "client" ~ another OTLP exporter.
     caFile: ""
+    # -- (optional) path to TLS certificate that will be used for OTLP receiver
     certFile: ""
+    # -- (optional) path to TLS key that will be used for OTLP receiver
     keyFile: ""
+    # -- (optional) specifies the duration after which the certificates will be reloaded.
+    # This is useful when using the CertManager for rotating the certs mounted as Secrets.
     reloadInterval: "5m"
+    # -- (optional) list of secrets that will be mounted to deployment's pod. One entry in this list, will create one volume and one volumeMount for pod.
+    # This is a convenient way for mounting the certs for TLS, but using `.volumes & .volumeMounts` for anything advanced will also work.
     secrets: []
 #      - name: root-ca
 #        mountPath: /etc/ca-certificate
 #      - name: server-tls
 #        mountPath: /etc/server-tls
 
-# -- one of: RollingUpdate, Recreate ([details](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy))
+# -- (k8s/workloads/controllers/deployment/#strategy) one of: RollingUpdate, Recreate
 deploymentStrategy: RollingUpdate
 
 # -- when disabled, the deployment with KEDA Scaler will not be rendered
@@ -80,7 +87,7 @@ validatingAdmissionPolicy:
 # -- should the ascii logo be printed when this helm chart is installed
 asciiArt: true
 
-# -- [details](https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod)
+# -- (k8s/containers/images/#specifying-imagepullsecrets-on-a-pod) imagePullSecrets for KEDA OTel Scaler pod
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
@@ -100,39 +107,35 @@ podAnnotations: {}
 # -- additional custom pod labels that will be used for pod
 podLabels: {}
 
-# -- [details](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+# -- (k8s/security/pod-security-standards) securityContext for KEDA OTel Scaler pod
 podSecurityContext: {}
 
+# -- (k8s/security/pod-security-standards) securityContext for KEDA OTel Scaler container
+# @notationType -- yaml
 securityContext:
   capabilities:
     drop:
       - ALL
-  # -- [details](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/)
   readOnlyRootFilesystem: true
-  # -- [details](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#implicit-group-memberships-defined-in-etc-group-in-the-container-image)
   runAsNonRoot: true
-  # -- [details](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#implicit-group-memberships-defined-in-etc-group-in-the-container-image)
   runAsUser: 1000
 
 service:
-  # -- Under this service, the otel add on needs to be reachable by KEDA operator and OTel collector
-  # ([details](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types))
+  # -- (k8s/services-networking/service/#publishing-services-service-types) Under this service, the otel add on needs to be reachable by KEDA operator and OTel collector
   type: ClusterIP
   # -- OTLP receiver will be opened on this port. OTel exporter configured in the OTel collector needs to have this value set.
   otlpReceiverPort: 4317
   # -- KEDA external scaler will be opened on this port. ScaledObject's `.spec.triggers[].metadata.scalerAddress` needs to be set to this svc and this port.
   kedaExternalScalerPort: 4318
 
+# -- (k8s/configuration/manage-resources-containers) resources for the OTel Scaler pod
+# @notationType -- yaml
 resources:
   limits:
-    # -- cpu limit for the pod, enforced by cgroups ([details](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/))
     cpu: 500m
-    # -- memory limit for the pod, used by oomkiller ([details](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/))
     memory: 256Mi
   requests:
-    # -- cpu request for the pod, used by k8s scheduler ([details](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/))
     cpu: 500m
-    # -- memory request for the pod, used by k8s scheduler ([details](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/))
     memory: 128Mi
 
 volumes: []
@@ -146,29 +149,128 @@ volumeMounts: []
 #   mountPath: "/etc/foo"
 #   readOnly: true
 
-# -- [details](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector)
+# -- (k8s/scheduling-eviction/assign-pod-node/#nodeselector) node selector for KEDA OTel Scaler pod
 nodeSelector: {}
 
-# -- [details](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
+# -- (k8s/scheduling-eviction/taint-and-toleration) tolerations for KEDA OTel Scaler pod
 tolerations: []
 
-# -- [details](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity)
+# -- (k8s/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity) affinity for KEDA OTel Scaler pod
 affinity: {}
 
 # -- helper container image that creates the OpenTelemetryCollector CR as post-install helm hook
+# @notationType -- yaml
 kubectlImage:
   tag: "v1.33.1"
   repository: ghcr.io/kedify/kubectl
   pullPolicy: Always
   pullSecrets: []
 
-# -- default template for OpenTelemetryCollector CR. Override the specifics under `otelOperatorCrs` section
+# -- (raw)
+# @raw
+# @notationType -- yaml
+# **This field defines the default template for `OpenTelemetryCollector` CR**
+#
+# Vast majority of the fields has its counterpart described in OpenTelemetryCollector CRD.
+# In order to check their description, install the CRD and run:
+# ```bash
+#  kubectl explain otelcol.spec
+# ```
+# These defaults are then used as a base layer of configuration for all the items in the `.otelOperatorCrs` list.
+# So given we have this values:
+#
+# ```yaml
+# otelOperatorCrDefaultTemplate:
+#   mode: deployment
+# otelOperatorCrs:
+#   - enabled: true
+#     name: "foo"
+#     mode: "daemonset"
+#   - enabled: true
+#     name: "bar"
+# ```
+# It will render[^fn1] two OpenTelemetryCollector CRs called `foo` and `bar` where `foo` will have the `.spec.mode` set to
+# `daemonset` and `foo` will inherit the default mode from `.otelOperatorCrDefaultTemplate.mode` => `deployment`
+# [^fn1]: Well in fact it doesn't render the OpenTelemetryCollector CRs directly, but nested as part of a ConfigMap. Then this
+# CM is read durin post-install hook and CR is created. This is because we can't render CRD and its instances in one helm command.
+#
+#  > [!NOTE]
+#  > When specifying custom receivers, processors, exporters or extensions. Use `alternate{Receivers,Processors,Exporters,Extensions}`.
+#  > And there is no need to enable these under pipeline section. This is done automagically [here](https://github.com/kedify/otel-add-on/blob/main/helmchart/otel-add-on/templates/install-otc/otc-configmap.yaml).
+#
+#  > [!TIP]
+#  > For overriding the whole OTel config, use the `.alternateOtelConfig` field.
+#
+# Advanced example:
+# <details>
+# <summary>Expand</summary>
+#
+# `values.yaml:`
+# ```yaml
+# otelOperator:
+#   enabled: true
+# otelOperatorCrDefaultTemplate:
+#   mode: deployment
+#   alternateReceivers:
+#     otlp:
+#       protocols:
+#         grpc:
+#           endpoint: 0.0.0.0:4317
+#   alternateExporters:
+#     otlp:
+#       endpoint: col-fanout-collector:4317
+#       tls:
+#         insecure: true
+# otelOperatorCrs:
+#   - enabled: true
+#     name: "col-in-1"
+#   - enabled: true
+#     name: "col-in-2"
+#   - enabled: true
+#     name: "col-fanout"
+#     alternateExporters:
+#       otlp/external:
+#         endpoint: external-collector:4317
+#       otlp/keda:
+#         endpoint: keda-otel-scaler.keda.svc:4317
+#         tls:
+#           insecure: true
+#     alternateConnectors:
+#       routing:
+#         default_pipelines: [metrics/all]
+#         table:
+#           - context: metric
+#             condition: metric.name == "http_requests_total"
+#             pipelines: [metrics/keda]
+#     alternatePipelines:
+#       metrics/in:
+#         receivers: [otlp]
+#         exporters: [routing]
+#       metrics/keda:
+#         receivers: [routing]
+#         exporters: [otlp/keda]
+#       metrics/all:
+#         receivers: [routing]
+#         exporters: [otlp/external]
+# ```
+#  resulting architecture:
+# ```mermaid
+# graph TD;
+#     A[col-in-1] -- metrics --> C{col-fanout}
+#     B[col-in-2] -- metrics, traces --> C{col-fanout}
+#     C -- one metric --> D(KEDA Scaler)
+#     C -- all --> E((external-col))
+# ```
+#
+# </details>
+# @notationType -- tpl/yaml
 otelOperatorCrDefaultTemplate:
   # -- container image for post-install helm hook that help with OpenTelemetryCollector CR installation
   debug: false
 
   # -- how the otel collector should be deployed: sidecar, statefulset, deployment, daemonset
-  mode: sidecar
+  # note: make sure the CertManager is installed and admission webhooks are enabled for the OTel operator when using mode=sidecar
+  mode: deployment
   # -- whether TargetAllocator feature (Prometheus Custom Resources for service discovery) should be enabled ([details](https://github.com/open-telemetry/opentelemetry-operator?tab=readme-ov-file#target-allocator))
   # make sure the mode is not set to `sidecar` when this is enabled
   targetAllocatorEnabled: false
@@ -181,11 +283,11 @@ otelOperatorCrDefaultTemplate:
     enabled: true
     prometheusCR:
       enabled: true
-      # -- further narrow the ServiceMonitor CRs
+      # -- further narrow the ServiceMonitor CRs (labels)
       serviceMonitorSelector: {}
       #        matchLabels:
       #          foo: bar
-      # -- further narrow the ServiceMonitor CRs
+      # -- further narrow the PodMonitor CRs
       podMonitorSelector: {}
       allowNamespaces: []
       denyNamespaces: []
@@ -193,6 +295,24 @@ otelOperatorCrDefaultTemplate:
     create: false
     annotations: {}
     name: ""
+  # -- TLS settings for OTel collector's exporter that feeds the metrics to KEDA OTel scaler
+  # it is not in scope of this helm chart to create the secrets with certificate, however this is a convenient way
+  # of configuring volumes and volumeMounts for each secret with cert. It has the same structure as tls settings for
+  # the scaler (check .Values.tls). One significant difference is that here we specify a client cert for OTLP exporter, while
+  # .Values.tls specify the server cert for OTLP receiver
+  tls: {}
+#    caFile: "/etc/ca-certificate/rootCA.crt"
+#    certFile: "/etc/client-tls/tls.crt"
+#    keyFile: "/etc/client-tls/tls.key"
+#    # https://github.com/open-telemetry/opentelemetry-collector/blob/main/config/configtls/README.md
+#    extraSettings:
+#      reload_interval: 15s
+#    secrets:
+#      - name: root-ca
+#        mountPath: /etc/ca-certificate
+#      - name: client-tls
+#        mountPath: /etc/client-tls
+
   clusterRole:
     create: false
     annotations: {}
@@ -206,7 +326,8 @@ otelOperatorCrDefaultTemplate:
   #      - 'get'
   #      - 'list'
   #      - 'watch'
-  # -- resources for the OTel collector container
+  # -- (k8s/configuration/manage-resources-containers) resources for the OTel collector container
+  # @notationType -- yaml
   resources:
     limits:
       cpu: 400m
@@ -234,6 +355,9 @@ otelOperatorCrDefaultTemplate:
   #    - vllm:gpu_cache_usage_perc
   #    - vllm:gpu_cache_usage_perc_scaled
   #    - customload
+  alternateExporters: {}
+#    debug:
+#      verbosity: detailed
   metricsgeneration:
     rules: []
   #      - name: vllm:gpu_cache_usage_perc_scaled
@@ -249,6 +373,8 @@ otelOperatorCrDefaultTemplate:
   alternateExtensions: {}
   #    bearertokenauth/github:
   #      token: ${env:GH_PAT}
+  alternateConnectors: {}
+  alternatePipelines: {}
 
   envFrom: []
   #  - secretRef:
@@ -258,7 +384,8 @@ otelOperatorCrDefaultTemplate:
 #      value: "**"
 
 # -- create also OpenTelemetryCollector CRs that will be reconciled by OTel Operator
-# it takes all the default settings defined in `otelOperatorCrDefaultTemplate` and allows overriding them
+# it takes all the default settings defined in `otelOperatorCrDefaultTemplate` and allows overriding them here
+# @notationType -- yaml
 otelOperatorCrs:
   # -- if enabled, the OpenTelemetryCollector CR will be created using post-install hook job_name
 - enabled: false
@@ -273,8 +400,9 @@ otelOperatorCrs:
   mode: deployment
 
 
-# otel operator helm chart:
-# https://github.com/open-telemetry/opentelemetry-helm-charts/blob/opentelemetry-operator-0.88.6/charts/opentelemetry-operator/values.yaml
+# -- values for OTel operator helm chart - these values overrides the defaults defined [here](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/opentelemetry-operator-0.92.3/charts/opentelemetry-operator/values.yaml)
+# by default the operator is `disabled`
+# @notationType -- yaml
 otelOperator:
   enabled: false
   fullnameOverride: otel-operator
@@ -289,15 +417,17 @@ otelOperator:
 
   admissionWebhooks:
     create: false
-# otel collector helm chart:
-# https://github.com/open-telemetry/opentelemetry-helm-charts/tree/opentelemetry-collector-0.110.0/charts/opentelemetry-collector/values.yaml
-#--------------------------
-# example configuration of otel collector to work as an opencensus receiver and forwarder to otel-add-on
+
+# -- values for OTel collector helm chart - these values overrides the defaults defined [here](https://github.com/open-telemetry/opentelemetry-helm-charts/tree/opentelemetry-collector-0.110.0/charts/opentelemetry-collector/values.yaml)
+# by default the collector is `disabled`
+# @notationType -- yaml
 otelCollector:
+  # -- If enabled, the OTel collector sub-chart will be rendered
   enabled: false
   # -- Valid values are "daemonset", "deployment", "sidecar" and "statefulset"
   mode: deployment
   image:
+    # -- Container image - OTel collector distribution
     repository: otel/opentelemetry-collector-k8s
   fullnameOverride: otelcol
   ports:
@@ -307,6 +437,8 @@ otelCollector:
       servicePort: 55678
       hostPort: 55678
       protocol: TCP
+  # -- Configuration for OTel collector that will be installed
+  # @notationType -- yaml
   alternateConfig:
     receivers:
       # https://grafana.com/docs/alloy/latest/reference/components/otelcol/otelcol.receiver.opencensus/

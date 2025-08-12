@@ -1,0 +1,135 @@
+{{ template "chart.header" . }}
+
+{{ template "chart.deprecationWarning" . }}
+
+{{ template "chart.badgesSection" . }}
+
+[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/otel-add-on)](https://artifacthub.io/packages/search?repo=otel-add-on)
+
+{{ template "chart.description" . }}
+
+```
+:::^.     .::::^:     :::::::::::::::    .:::::::::.                   .^.
+7???~   .^7????~.     7??????????????.   :?????????77!^.              .7?7.
+7???~  ^7???7~.       ~!!!!!!!!!!!!!!.   :????!!!!7????7~.           .7???7.
+7???~^7????~.                            :????:    :~7???7.         :7?????7.
+7???7????!.           ::::::::::::.      :????:      .7???!        :7??77???7.
+7????????7:           7???????????~      :????:       :????:      :???7?5????7.
+7????!~????^          !77777777777^      :????:       :????:     ^???7?#P7????7.
+7???~  ^????~                            :????:      :7???!     ^???7J#@J7?????7.
+7???~   :7???!.                          :????:   .:~7???!.    ~???7Y&@#7777????7.
+7???~    .7???7:      !!!!!!!!!!!!!!!    :????7!!77????7^     ~??775@@@GJJYJ?????7.
+7???~     .!????^     7?????????????7.   :?????????7!~:      !????G@@@@@@@@5??????7:
+::::.       :::::     :::::::::::::::    .::::::::..        .::::JGGGB@@@&7:::::::::
+        _       _               _     _                               ?@@#~
+   ___ | |_ ___| |     __ _  __| | __| |     ___  _ __                P@B^
+  / _ \| __/ _ \ |    / _` |/ _` |/ _` |___ / _ \| '_ \             :&G:
+ | (_) | ||  __/ |   | (_| | (_| | (_| |___| (_) | | | |            !5.
+  \___/ \__\___|_|    \__,_|\__,_|\__,_|    \___/|_| |_|            ,
+                                                                    .
+```
+
+{{ template "chart.homepageLine" . }}
+
+## Usage
+
+Check available version in OCI repo:
+```bash
+crane ls ghcr.io/kedify/charts/otel-add-on | grep -E '^v?[0-9]'
+```
+
+Install specific version:
+```bash
+helm upgrade -i oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.13
+```
+
+Advanced stuff:
+```bash
+# check /examples dir in project root
+find ./../../examples -name '*-values.yaml'
+```
+
+{{ template "chart.maintainersSection" . }}
+
+{{ template "chart.sourcesSection" . }}
+
+{{ template "chart.requirementsSection" . }}
+
+## OTel Collector Sub-Chart
+
+This helm chart, when enabled by `--set otelCollector.enabled=true`, installs the OTel collector using
+its upstream [helm chart](https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-collector).
+
+To check all the possible values for this dependent helm chart, consult [values.yaml](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/charts/opentelemetry-collector/values.yaml)
+or [docs](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/charts/opentelemetry-collector/README.md).
+
+All these values goes under `otelCollector` section.
+
+Example:
+
+```yaml
+settings:
+  metricStoreRetentionSeconds: 60
+otelCollector:
+  enabled: true
+  # <HERE>
+  alternateConfig:
+    receivers:
+    ...
+```
+
+## OTel Operator Sub-Chart
+Using the `otelCollector` sub-chart (described in the previous section) we can install one instance of OTel collector. However, all
+the helm chart values needs to be passed in advance including the OTel collector configuration section. One limitation of Helm is the absence
+of templating the helm chart values itself. This would be very useful, because some things in the OTel configuration are dynamic (addresses etc.)
+
+We can achieve that by using the upstream OTel [Operator](https://opentelemetry.io/docs/platforms/kubernetes/operator/) and render[^fn1] its CRDs using this helm chart.
+
+Configuration of `OpenTelemetryCollector` CR is driven by:
+- `.otelOperatorCrDefaultTemplate` (defaults)
+- `.otelOperatorCrs` (overrides)
+
+> [!TIP]
+> If there is a default set on `.otelOperatorCrDefaultTemplate` level, say:
+>    ```yaml
+>    otelOperatorCrDefaultTemplate:
+>      alternateExporters:
+>        otlp/central:
+>          protocols:
+>            grpc:
+>              endpoint: external-backup:4317
+>    ```
+> and we want to make the field `alternateExporters` empty, we can do that by:
+>    ```yaml
+>    otelOperatorCrDefaultTemplate:
+>      alternateExporters:
+>        otlp/central:
+>          protocols:
+>            grpc:
+>              endpoint: external-backup:4317
+>    otelOperatorCrs:
+>      - enabled: true
+>        name: "nonDefault"
+>        alternateExporters: null
+>    ```
+> Otherwise, the behavior of the config merge is as expected ([code](https://github.com/kedify/otel-add-on/blob/v0.0.13/helmchart/otel-add-on/templates/_helpers.tpl#L64-L79)).
+> Also if the `alternateExporters` field in the merged config is empty, we will create an implicit exporter that will feed the metrics into KEDA OTel scaler with preconfigured service name.
+> If from any reason you would like to disable all the exporters for the OTel collector, add only a dummy `debug` exporter:
+>    ```bash
+>    noglob helm template oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.13 \
+>       --set otelOperatorCrs[0].alternateExporters.debug.verbosity=basic \
+>       --set otelOperatorCrs[0].enabled=true
+>    ```
+
+So one can deploy whole metric pipeline including multiple OTel collectors with different settings as one helm release using this chart.
+You can check the description for `otelOperatorCrDefaultTemplate` in Values [section](#values) for such example.
+
+{{ template "chart.valuesSectionHtml" . }}
+
+<!-- uncomment this for markdown style (use either valuesTableHtml or valuesSection)
+docs: https://github.com/norwoodj/helm-docs?tab=readme-ov-file#markdown-rendering
+(( template "chart.valuesSection" . )) -->
+
+<p align="center">
+  <img height="200" src="../../otel_keda-scaler.png">
+</p>
