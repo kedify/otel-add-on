@@ -1,0 +1,21 @@
+# Caller workflow for repository backup - add this file to each repo
+# Required org/repo secrets: GCP_GH_BACKUP_SA_KEY (service account JSON key)
+# Triggers daily at 02:00 UTC, supports manual dispatch for testing
+
+name: Repository Backup
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 02:00 UTC
+  workflow_dispatch:     # Manual trigger for testing
+
+jobs:
+  backup:
+    uses: kedify/github-meta/.github/workflows/repo-backup-template.yml@main
+    with:
+      bucket: kedify-github-backups
+    secrets:
+      # Map the caller repo's GITHUB_TOKEN into the reusable workflow GH_TOKEN
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Map org-level service-account JSON key 
+      GCP_SA_KEY: ${{ secrets.GCP_GH_BACKUP_SA_KEY }}
