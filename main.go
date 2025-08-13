@@ -73,12 +73,12 @@ func main() {
 		}
 		startRestServer(eg, restApiPort, info, ms)
 
-		tlsSettings, tlsEnabled := makeTlsSettings(cfg)
+		tlsSettings := makeTlsSettings(cfg)
 		if e = startReceiver(ctx, otlpReceiverPort, tlsSettings, ms); !util.IsIgnoredErr(e) {
 			setupLog.Error(e, "gRPC server failed (OTLP receiver)")
 			return e
 		}
-		if tlsEnabled {
+		if tlsSettings != nil {
 			setupLog.Info("TLS for gRPC server enabled (OTLP receiver)", "tlsSettings", tlsSettings)
 		}
 
@@ -98,9 +98,9 @@ func main() {
 	setupLog.Info("Bye!")
 }
 
-func makeTlsSettings(cfg *util.Config) (*configtls.ServerConfig, bool) {
+func makeTlsSettings(cfg *util.Config) *configtls.ServerConfig {
 	if len(cfg.TLSCaFile) == 0 && (len(cfg.TLSCertFile) == 0 || len(cfg.TLSKeyFile) == 0) {
-		return &configtls.ServerConfig{}, false
+		return nil
 	}
 	return &configtls.ServerConfig{
 		Config: configtls.Config{
@@ -111,7 +111,7 @@ func makeTlsSettings(cfg *util.Config) (*configtls.ServerConfig, bool) {
 		},
 		ClientCAFile:       cfg.TLSCaFile,
 		ReloadClientCAFile: true,
-	}, true
+	}
 }
 
 func startRestServer(eg *errgroup.Group, restApiPort int, info prometheus.Labels, ms types.MemStore) {
@@ -157,10 +157,12 @@ func startReceiver(ctx context.Context, otlpReceiverPort int, tlsSettings *confi
 					Endpoint:  addr,
 					Transport: confignet.TransportTypeTCP4,
 				},
-				TLSSetting:      tlsSettings,
-				IncludeMetadata: true,
+				//IncludeMetadata: true,
 			},
 		},
+	}
+	if tlsSettings != nil {
+		conf.GRPC.TLSSetting = tlsSettings
 	}
 	settings := &rec.Settings{
 		ID:                component.MustNewIDWithName("id", "otlp-receiver"),

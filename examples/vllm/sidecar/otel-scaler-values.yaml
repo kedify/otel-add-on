@@ -1,13 +1,15 @@
 settings:
-  metricStoreRetentionSeconds: 60
+  metricStore:
+    retentionSeconds: 60
   # logs:
   #   logLvl: debug
 
 otelOperator:
   enabled: true
-  # manager:
-  #   extraArgs:
-  #   - --zap-log-level=debug
+  manager:
+    env: []
+  admissionWebhooks:
+    create: true
 
 otelOperatorCrs:
 - name: otel-sidecar-template

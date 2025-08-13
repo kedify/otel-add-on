@@ -135,13 +135,14 @@ var _ = ReportAfterSuite("ReportAfterSuite", func(report Report) {
 	if !report.SuiteSucceeded {
 		ctx.t.Log("Test suite failed, leaving k3d cluster alive for inspection..")
 		if printLogs == "true" {
-			wrapInSection("HPA", "get -nkead hpa keda-hpa-github-metrics -oyaml")
+			wrapInSection("HPA", "get -nkeda hpa keda-hpa-github-metrics -oyaml")
 			wrapInSection("SO", "get -nkeda so github-metrics -oyaml")
 			wrapInSection("PODS", "get pods -A")
 			for _, nameAndNs := range []string{
 				"podinfo -ndefault",
 				"keda-operator -nkeda",
-				"otel-add-on-otc-collector -ndefault",
+				"otel-add-on-otc-collector -nkeda",
+				"otelCollector -nkeda",
 				"otelOperator -nkeda",
 				"otel-add-on -nkeda"} {
 				wrapInSection(fmt.Sprintf("Logs for %s", nameAndNs), fmt.Sprintf("logs -lapp.kubernetes.io/name=%s --tail=-1", nameAndNs))

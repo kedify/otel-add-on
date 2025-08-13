@@ -1,5 +1,6 @@
 settings:
-  metricStoreRetentionSeconds: 20
+  metricStore:
+    retentionSeconds: 20
   tls:
     caFile: "/etc/ca-certificate/rootCA.crt"
     # kubectl -nkeda create secret tls server-tls --cert=certs/server.crt --key=certs/server.key

@@ -19,6 +19,6 @@ spec:
     horizontalPodAutoscalerConfig:
       behavior:
         scaleDown:
-          stabilizationWindowSeconds: 2
+          stabilizationWindowSeconds: 0
         scaleUp:
-          stabilizationWindowSeconds: 2
+          stabilizationWindowSeconds: 0
