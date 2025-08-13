@@ -3,7 +3,7 @@ DIR="${DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )}"
 
 #export HF_TOKEN=
 
-command -v figlet &> /dev/null && figlet OTel Operator + vLLM stack
+command -v figlet &> /dev/null && figlet -w155 OTel Operator + vLLM stack
 [ -z "${HF_TOKEN}" ] && echo "Set HF_TOKEN env variable (https://huggingface.co/docs/hub/en/security-tokens)" && exit 1
 
 # make sure your k8s cluster supports GPUs and have at least one accelerator on a node
@@ -38,7 +38,7 @@ KEDA_VERSION=${KEDA_VERSION:-v2.17.1-0}
 helm upgrade -i keda kedify/keda --namespace keda --create-namespace --version ${KEDA_VERSION}
 
 # deploy vLLM Stack
-helm upgrade -i vllm vllm/vllm-stack --version 0.1.5 -f ./../vllm-stack-values.yaml --set "servingEngineSpec.modelSpec[0].hf_token=${HF_TOKEN}"
+helm upgrade -i vllm vllm/vllm-stack --version 0.1.5 -f ${DIR}/vllm-stack-values.yaml --set "servingEngineSpec.modelSpec[0].hf_token=${HF_TOKEN}"
 
 # wait for components
 for d in \

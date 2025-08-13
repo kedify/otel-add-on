@@ -139,7 +139,7 @@ var _ = Describe("Helm chart:", func() {
 							case <-cancelHey:
 								return
 							default:
-								hey("-n 9999 -z 35s http://localhost:8181/delay/1")
+								hey("-z 60s http://localhost:8181/delay/1")
 							}
 						}
 					}()
@@ -197,7 +197,7 @@ func PrintLogs() {
 		wrapInSection("PODS", "get pods -A")
 		for _, nameAndNs := range []string{"podinfo -ndefault",
 			"keda-operator -nkeda",
-			"opentelemetry-collector -nkeda",
+			"otelCollector -nkeda",
 			"otel-add-on -nkeda"} {
 			wrapInSection(fmt.Sprintf("Logs for %s", nameAndNs), fmt.Sprintf("logs -lapp.kubernetes.io/name=%s --tail=-1", nameAndNs))
 		}

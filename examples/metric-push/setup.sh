@@ -1,7 +1,7 @@
 #!/bin/bash
 DIR="${DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )}"
 
-command -v figlet &> /dev/null && figlet Autoscaling OTel demo
+command -v figlet &> /dev/null && figlet -w105 Autoscaling OTel demo
 
 # setup helm repos
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts

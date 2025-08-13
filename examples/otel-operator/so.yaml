@@ -22,8 +22,6 @@ spec:
   advanced:
     horizontalPodAutoscalerConfig:
       behavior:
-        scaleDown:
-          stabilizationWindowSeconds: 1
         scaleUp:
-          stabilizationWindowSeconds: 10
+          stabilizationWindowSeconds: 5
 

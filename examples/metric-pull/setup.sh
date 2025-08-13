@@ -3,7 +3,7 @@
 DIR="${DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )}"
 #export SETUP_ONLY=true
 
-command -v figlet &> /dev/null && figlet Autoscaling podinfo
+command -v figlet &> /dev/null && figlet -w95 Autoscaling podinfo
 
 # setup helm repos
 helm repo add podinfo https://stefanprodan.github.io/podinfo
@@ -25,9 +25,10 @@ helm upgrade -i keda-otel-scaler -nkeda ${DIR}/../../helmchart/otel-add-on -f ${
 
 [ "x${SETUP_ONLY}" = "xtrue" ] && exit 0
 
-kubectl rollout status -n keda --timeout=300s deploy/keda-operator
-kubectl rollout status -n keda --timeout=300s deploy/keda-operator-metrics-apiserver
-kubectl rollout status -n keda --timeout=300s deploy/keda-otel-scaler
+kubectl rollout status -n keda --timeout=300s \
+ deploy/keda-operator \
+ deploy/keda-operator-metrics-apiserver \
+ deploy/keda-otel-scaler
 kubectl rollout status --timeout=300s deploy/podinfo
 
 # create scaled objects

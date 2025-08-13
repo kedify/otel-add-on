@@ -1,6 +1,7 @@
 # helm upgrade -i keda-otel-scaler oci://ghcr.io/kedify/charts/otel-add-on -nkeda --version=v0.0.11 -f ./dcgm-values.yaml
 settings:
-  metricStoreRetentionSeconds: 60
+  metricStore:
+    retentionSeconds: 60
   # logs:
   #   logLvl: debug
 
