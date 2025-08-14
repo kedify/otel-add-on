@@ -2,6 +2,13 @@
 # Required org/repo secrets: GCP_GH_BACKUP_SA_KEY (service account JSON key)
 # Triggers daily at 02:00 UTC, supports manual dispatch for testing
 
+#############################################################################################
+# WARNING: 
+# UPDATE THIS FILE ONLY in kedify/github-meta/.github/workflows/repo-backup-template.yml
+#
+# Copy paste this file if needed to run from a public repo.
+#############################################################################################
+
 name: Repository Backup
 
 on:
