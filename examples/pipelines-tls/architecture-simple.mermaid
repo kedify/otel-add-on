@@ -1,0 +1,11 @@
+%% mermaid-ascii -f architecture-simple.mermaid -x 18 > architecture.ascii
+
+graph LR
+classDef red color:#ff0000
+nginxN -->|OTLP/gRPC| router:::red
+router:::red -->|Remote-Write| Prometheus
+router:::red -->|OTLP/gRPC| KEDA-Scaler
+Prometheus -->|HTTP| Grafana
+KEDA-Scaler -->|gRPC| KEDA
+
+OTelOperator

@@ -382,6 +382,22 @@ otelOperatorCrDefaultTemplate:
   env: []
 #    - name: GH_PAT
 #      value: "**"
+  volumes: []
+#    - name: logs
+#      emptyDir:
+#        sizeLimit: 500Mi
+  volumeMounts: []
+#    - mountPath: /var/log/collector
+#      name: logs
+  volumeClaimTemplates: []
+  imagePullPolicy: IfNotPresent
+  lifecycle: {}
+  nodeSelector: {}
+  podAnnotations: {}
+  podSecurityContext: {}
+  securityContext: {}
+  topologySpreadConstraints: []
+  tolerations: []
 
 # -- create also OpenTelemetryCollector CRs that will be reconciled by OTel Operator
 # it takes all the default settings defined in `otelOperatorCrDefaultTemplate` and allows overriding them here

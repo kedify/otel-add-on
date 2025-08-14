@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: index-html
+data:
+    index.html: |
+      <html>
+        <body style="align-content: center; background: cadetblue; width: 20%; margin: auto;">
+          <h1 style="font-family: monospace; color: white; text-shadow: 2px 2px 6px #444444;">
+              Hello KEDA OTel Scaler!
+          </h1>
+        </body>
+      </html>
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+data:
+  nginx.conf: |
+    server {
+      listen 8080;
+      root /usr/share/nginx/html/;
+      
+      location /status {
+        stub_status on;
+        access_log  on;
+        allow all;
+      }
+      
+      location / {
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        sidecar.opentelemetry.io/inject: "otel-sidecar"
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: nginx.conf
+            - name: nginx-index
+              mountPath: /usr/share/nginx/html/
+#        - name: nginx-exporter
+#          image: nginx/nginx-prometheus-exporter
+#          args:
+#            - "-nginx.scrape-uri=http://localhost:8080/status"
+#          resources:
+#            limits:
+#              memory: 128Mi
+#              cpu: 300m
+#          ports:
+#            - containerPort: 9113
+      volumes:
+        - name: nginx-index
+          configMap:
+            name: index-html
+            defaultMode: 420
+        - name: nginx-config
+          configMap:
+            name: nginx-config
+            defaultMode: 420
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      name: http
+      nodePort: 31197
+#    - port: 9113
+#      name: metrics
+  selector:
+    app: nginx

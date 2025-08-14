@@ -107,11 +107,11 @@ Architecture:
 {{- end }}
 
 {{- if .Values.deployScaler }}
-{{- printf "  ╭─────────────────────╮         ╭╶╶╶╶╶╶╮\n" -}}
+{{- printf "  ╭──────────────────────╮         ╭╶╶╶╶╶╶╮\n" -}}
 {{- if $collectors -}}{{- printf " └╴╴→" -}}{{- end -}}
-{{- printf "  │ KEDA OTel Scaler 🐿 │ ←╴╴╴╴╴→ │ KEDA │\n" -}}
+{{- printf "  │ KEDA OTel Scaler %2s  │ ←╴╴╴╴╴→ │ KEDA │\n" "🐿" -}}
 {{- if $collectors -}}{{- printf "     " -}}{{- end -}}
-{{- printf "  ╰─────────────────────╯         ╰╶╶╶╶╶╶╯\n" -}}
+{{- printf "  ╰──────────────────────╯         ╰╶╶╶╶╶╶╯\n" -}}
 {{- end }}
 
 {{- if and $isAnySidecar (or (not .Values.otelOperator.admissionWebhooks.create) (eq .Values.otelOperator.manager.env.ENABLE_WEBHOOKS "false")) }}

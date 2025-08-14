@@ -14,8 +14,13 @@ settings:
       - name: server-tls
         mountPath: /etc/server-tls
 
+# cert manager needs to be installed for sidecar injection to work well
 otelOperator:
   enabled: true
+  manager:
+    env: []
+  admissionWebhooks:
+    create: true
 
 otelOperatorCrs:
 - name: otel-add-on
