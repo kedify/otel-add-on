@@ -1,0 +1,29 @@
+# https://github.com/grafana/helm-charts/blob/grafana-8.10.3/charts/grafana/values.yaml
+# helm install --create-namespace -n observability grafana grafana/grafana -f grafana-values.yaml
+
+datasources:
+  precreated-datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Internal Prometheus
+        type: prometheus
+        url: http://prometheus-server
+        isDefault: true
+        uid: prometheus
+
+service:
+  type: NodePort
+
+sidecar:
+  dashboards:
+    enabled: true
+
+testFramework:
+  enabled: false
+
+grafana.ini:
+  # don't use this in prod
+  auth.anonymous:
+    enabled: true
+    allow_assign_grafana_admin: true
+    org_role: Admin

@@ -1,0 +1,24 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: nginx
+  namespace: app
+spec:
+  scaleTargetRef:
+    name: nginx
+  triggers:
+    - type: external
+      metadata:
+        scalerAddress: "keda-otel-scaler.keda.svc:4318"
+        metricQuery: "sum(nginx_http_requests_total)"
+        operationOverTime: "rate"
+        targetValue: "2"
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 5
+        scaleUp:
+          stabilizationWindowSeconds: 5

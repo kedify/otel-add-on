@@ -3,7 +3,10 @@ DIR="${DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )}"
 
 #export HF_TOKEN=
 
-command -v figlet &> /dev/null && figlet -w155 OTel Operator + vLLM stack
+command -v figlet &> /dev/null && {
+  __wid=$(/usr/bin/tput cols) && _wid=$((__wid<155?_wid:155))
+  figlet -w${_wid} OTel Operator + vLLM stack
+}
 [ -z "${HF_TOKEN}" ] && echo "Set HF_TOKEN env variable (https://huggingface.co/docs/hub/en/security-tokens)" && exit 1
 
 # make sure your k8s cluster supports GPUs and have at least one accelerator on a node

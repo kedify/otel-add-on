@@ -1,0 +1,36 @@
+# https://github.com/prometheus-community/helm-charts/blob/main/charts/prometheus/values.yaml
+# helm install --create-namespace -n observability prometheus prometheus-community/prometheus -f prometheus-values.yaml
+
+prometheus-node-exporter:
+  enabled: false
+
+prometheus-pushgateway:
+  enabled: false
+
+kube-state-metrics:
+  enabled: false
+
+alertmanager:
+  enabled: false
+
+configmapReload:
+  prometheus:
+    enabled: false
+
+server:
+  extraFlags:
+    - web.enable-remote-write-receiver
+  readinessProbeInitialDelay: 240
+  retention: "7d"
+  retentionSize: "1GB"
+  resources:
+    limits:
+      cpu: 600m
+      memory: 2Gi
+    requests:
+      cpu: 400m
+      memory: 800Mi
+  service:
+    type: NodePort
+  tsdb:
+    out_of_order_time_window: 60s

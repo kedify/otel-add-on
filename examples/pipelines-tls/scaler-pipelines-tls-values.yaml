@@ -1,0 +1,168 @@
+settings:
+  metricStore:
+    retentionSeconds: 30
+  logs:
+    logLvl: debug
+  tls:
+#    caFile: "/etc/ca-certificate/rootCA.crt"
+    certFile: "/etc/scaler-tls/tls.crt"
+    keyFile: "/etc/scaler-tls/tls.key"
+    reloadInterval: "15s"
+    secrets:
+      - name: keda-otel-root-ca-bundle
+        mountPath: /etc/ca-certificate
+      - name: keda-otel-scaler-cert-secret
+        mountPath: /etc/scaler-tls
+
+otelOperator:
+  enabled: true
+  manager:
+    env:
+      ENABLE_WEBHOOKS: "true"
+  admissionWebhooks:
+    create: true
+
+otelOperatorCrs:
+  - enabled: true
+    name: "otel-sidecar"
+    namespace: app
+    mode: sidecar
+    alternateReceivers:
+      nginx:
+        endpoint: "http://localhost:8080/status"
+        collection_interval: 5s
+#    prometheusScrapeConfigs:
+#      - job_name: 'otel-collector'
+#        scrape_interval: 5s
+#        static_configs:
+#          - targets: [ '0.0.0.0:8000' ]
+#    includeMetrics:
+#      - vllm:gpu_cache_usage_perc
+#      - vllm:num_requests_waiting
+    alternateExporters:
+      otlp:
+        endpoint: router-collector.observability.svc:4317
+        tls:
+          insecure: false
+#          ca_file: "/etc/ca-certificate/rootCA.crt"
+          cert_file: "/etc/client-tls/tls.crt"
+          key_file: "/etc/client-tls/tls.key"
+          insecure_skip_verify: true
+          reload_interval: 15s
+    tls:
+      secrets:
+        - name: keda-otel-root-ca-bundle
+          mountPath: /etc/ca-certificate
+        - name: sidecar-collector-cert-secret
+          mountPath: /etc/client-tls
+
+  - enabled: true
+    name: "router"
+    mode: deployment
+    namespace: observability
+    resources:
+      limits:
+        cpu: 400m
+        memory: 600Mi
+      requests:
+        cpu: 200m
+        memory: 400Mi
+
+    volumes:
+      - name: logs
+        emptyDir:
+          sizeLimit: 500Mi
+    volumeMounts:
+      - mountPath: /var/log/collector
+        name: logs
+
+    tls:
+      secrets:
+        - name: keda-otel-root-ca-bundle
+          mountPath: /etc/ca-certificate
+        - name: router-collector-cert-secret
+          mountPath: /etc/tls
+
+    alternateOtelConfig:
+      receivers:
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:4317
+              tls:
+#                ca_file: "/etc/ca-certificate/rootCA.crt"
+                cert_file: "/etc/tls/tls.crt"
+                key_file: "/etc/tls/tls.key"
+#                insecure_skip_verify: true
+                reload_interval: 15s
+      exporters:
+        prometheus:
+          endpoint: "0.0.0.0:8080"
+          send_timestamps: true
+          metric_expiration: 180m
+          enable_open_metrics: true
+          resource_to_telemetry_conversion:
+            enabled: true
+        prometheusremotewrite:
+          endpoint: "http://prometheus-server.observability.svc/api/v1/write"
+          external_labels:
+            keda_is: great
+          tls:
+            insecure: true
+#            ca_file: "/etc/ca-certificate/rootCA.crt"
+#            cert_file: "/etc/tls/tls.crt"
+#            key_file: "/etc/tls/tls.key"
+#            reload_interval: 15s
+        otlp/keda:
+          endpoint: keda-otel-scaler.keda.svc:4317
+          tls:
+            insecure: false
+#            ca_file: "/etc/ca-certificate/rootCA.crt"
+            cert_file: "/etc/tls/tls.crt"
+            key_file: "/etc/tls/tls.key"
+            insecure_skip_verify: true
+            reload_interval: 15s
+        file/keda:
+          path: /var/log/collector/keda.json
+        file/keda-proto:
+          path: /var/log/collector/keda.proto
+          rotation:
+            max_megabytes: 5
+            max_days: 3
+            max_backups: 3
+            localtime: true
+          format: proto
+        file/prometheus:
+          path: /var/log/collector/all.json
+
+      processors:
+        memory_limiter:
+          limit_mib: 550
+          check_interval: 5s
+        filter:
+          metrics:
+            include:
+              match_type: strict
+              metric_names:
+                - "nginx_http_requests_total"
+                - "nginx_connections_active"
+
+      extensions:
+        zpages:
+          endpoint: 0.0.0.0:55679
+        health_check:
+
+      service:
+        pipelines:
+          metrics/keda:
+            receivers: [otlp]
+            processors: [filter]
+            exporters: [file/keda, file/keda-proto, otlp/keda]
+          metrics/all:
+            receivers: [otlp]
+            processors: []
+            exporters: [file/prometheus, prometheus, prometheusremotewrite]
+        extensions: [zpages, health_check]
+        telemetry:
+          logs:
+            level: DEBUG
