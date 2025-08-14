@@ -24,7 +24,7 @@ helm upgrade -i keda kedify/keda --namespace keda --create-namespace  --version 
 
 
 # deploy otel scaler
-cat <<VALUES | helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.13 -f -
+cat <<VALUES | helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.0 -f -
 otelCollector:
   alternateConfig:
     processors:

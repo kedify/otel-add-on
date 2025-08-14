@@ -3,7 +3,7 @@
 # namely service nvidia-dcgm-exporter.gpu-operator.svc
 
 # install KEDA OTel Scaler & OTel Operator
-helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.13 -f ./dcgm-values.yaml
+helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.0 -f ./dcgm-values.yaml
 #helm upgrade -i keda-otel-scaler -nkeda ${DIR}/../../helmchart/otel-add-on -f ${DIR}/dcgm-values.yaml
 
 # roll the deployments so that mutating webhooks (un)injects the sidecars (if the sidecar setup was run before)
