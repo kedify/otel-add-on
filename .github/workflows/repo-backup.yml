@@ -4,7 +4,9 @@
 
 #############################################################################################
 # WARNING: 
-# UPDATE THIS FILE ONLY in kedify/github-meta/.github/workflows/repo-backup-template.yml
+# UPDATE THIS FILE ONLY in kedify/github-meta/.github/workflows/repo-backup.yml
+#
+# THE ONLY EXCEPTION is the PRIVATE / PUBLIC REPO distinction below.
 #
 # Copy paste this file if needed to run from a public repo.
 #############################################################################################

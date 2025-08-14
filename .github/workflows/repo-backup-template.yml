@@ -2,6 +2,13 @@
 # SOC 2 Compliance: Complete git repository backup using bare mirror clone preserving all branches, tags, and history
 # Required org secrets: GH_TOKEN (repo access), GCP_GH_BACKUP_SA_KEY (service account JSON key)
 
+#############################################################################################
+# WARNING: 
+# UPDATE THIS FILE ONLY in kedify/github-meta/.github/workflows/repo-backup-template.yml
+#
+# Copy paste this file if needed to run from a public repo.
+############################################################################################
+
 name: "Repo Backup: backup repo to GCS"
 
 on:
