@@ -1,0 +1,103 @@
+# Reusable template workflow for backing up repositories to Google Cloud Storage
+# SOC 2 Compliance: Complete git repository backup using bare mirror clone preserving all branches, tags, and history
+# Required org secrets: GH_TOKEN (repo access), GCP_GH_BACKUP_SA_KEY (service account JSON key)
+
+name: "Repo Backup: backup repo to GCS"
+
+on:
+  workflow_call:
+    inputs:
+      bucket:
+        description: "GCS bucket name for backup storage (e.g. kedify-github-backups)"
+        required: true
+        type: string
+    secrets:
+      GH_TOKEN:
+        description: "Token used to clone the repository (map from caller's secrets.GITHUB_TOKEN or a PAT)"
+        required: true
+      GCP_SA_KEY:
+        description: "GCP Service Account JSON key for authentication"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Verify required tools
+        run: |
+          set -euo pipefail
+          echo "Verifying required tools..."
+          command -v git >/dev/null || { echo "git not found"; exit 1; }
+          command -v tar >/dev/null || { echo "tar not found"; exit 1; }
+          command -v gsutil >/dev/null || { echo "gsutil not found"; exit 1; }
+          echo "All required tools available"
+
+      - name: Create git mirror backup
+        run: |
+          set -euo pipefail
+          DATE=$(date +%F)
+          REPO_FULL="${{ github.repository }}"
+          SANITIZED_REPO="${REPO_FULL//\//_}"
+          ARCHIVE_NAME="${SANITIZED_REPO}-${DATE}.tar.gz"
+          echo "ARCHIVE_NAME=${ARCHIVE_NAME}" >> "$GITHUB_ENV"
+
+          TEMP_DIR=$(mktemp -d)
+          trap 'rm -rf "$TEMP_DIR" 2>/dev/null || true' EXIT
+          cd "$TEMP_DIR"
+
+          git config --global url."https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          git clone --mirror "https://github.com/${{ github.repository }}" repo.git
+
+          tar -czf "${ARCHIVE_NAME}" repo.git/
+          mv "${ARCHIVE_NAME}" "${GITHUB_WORKSPACE}/${ARCHIVE_NAME}"
+          ls -lh "${GITHUB_WORKSPACE}/${ARCHIVE_NAME}"
+          echo "✓ Git mirror backup created"
+
+      - name: Upload backup to GCS (daily + monthly snapshot handling)
+        shell: bash
+        env:
+          ARCHIVE_NAME: ${{ env.ARCHIVE_NAME }}
+        run: |
+          set -euo pipefail
+          ORG="${{ github.repository_owner }}"
+          REPO_NAME=$(basename "${{ github.repository }}")
+          BUCKET="${{ inputs.bucket }}"
+
+          DAILY_PATH="gs://${BUCKET}/daily/${ORG}/${REPO_NAME}/"
+          MONTHLY_PATH="gs://${BUCKET}/monthly/${ORG}/${REPO_NAME}/"
+
+          echo "Uploading ${GITHUB_WORKSPACE}/${ARCHIVE_NAME} -> ${DAILY_PATH}"
+          gsutil cp "${GITHUB_WORKSPACE}/${ARCHIVE_NAME}" "${DAILY_PATH}"
+
+          if gsutil -q stat "${DAILY_PATH}${ARCHIVE_NAME}"; then
+            echo "✓ Daily backup uploaded: ${DAILY_PATH}${ARCHIVE_NAME}"
+          else
+            echo "✗ Failed to validate daily upload"
+            gsutil ls -l "${DAILY_PATH}"
+            exit 1
+          fi
+
+          DAY_OF_MONTH=$(date +%d)
+          if [ "$DAY_OF_MONTH" = "01" ]; then
+            echo "First of month — creating monthly snapshot copy -> ${MONTHLY_PATH}"
+            gsutil cp "${GITHUB_WORKSPACE}/${ARCHIVE_NAME}" "${MONTHLY_PATH}"
+
+            if gsutil -q stat "${MONTHLY_PATH}${ARCHIVE_NAME}"; then
+              echo "✓ Monthly snapshot uploaded: ${MONTHLY_PATH}${ARCHIVE_NAME}"
+            else
+              echo "✗ Failed to validate monthly snapshot upload"
+              gsutil ls -l "${MONTHLY_PATH}"
+              exit 1
+            fi
+          fi
