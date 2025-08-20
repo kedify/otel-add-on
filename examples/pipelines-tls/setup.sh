@@ -2,7 +2,7 @@
 DIR="${DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )}"
 
 command -v figlet &> /dev/null && {
-  __wid=$(/usr/bin/tput cols) && _wid=$((__wid<155?_wid:155))
+  __wid=$(/usr/bin/tput cols) && _wid=$(( __wid < 155 ? __wid : 155 ))
   figlet -w${_wid} OTel Operator + multiple collectors
 }
 echo "Architecture (all communication goes via TLS):"
