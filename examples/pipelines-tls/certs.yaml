@@ -60,8 +60,8 @@ metadata:
   namespace: observability
 spec:
   secretName: router-collector-cert-secret
-  duration: 24h
-  renewBefore: 23h
+  duration: 1h
+  renewBefore: 45m
   privateKey:
     rotationPolicy: Always
   usages:
@@ -83,8 +83,8 @@ metadata:
   namespace: app
 spec:
   secretName: sidecar-collector-cert-secret
-  duration: 24h
-  renewBefore: 23h
+  duration: 1h
+  renewBefore: 45m
   privateKey:
     rotationPolicy: Always
   usages:
@@ -106,8 +106,8 @@ metadata:
   namespace: keda
 spec:
   secretName: keda-otel-scaler-cert-secret
-  duration: 24h
-  renewBefore: 23h
+  duration: 1h
+  renewBefore: 45m
   privateKey:
     rotationPolicy: Always
   usages:
@@ -129,8 +129,8 @@ metadata:
   namespace: observability
 spec:
   secretName: prometheus-cert-secret
-  duration: 24h
-  renewBefore: 23h
+  duration: 1h
+  renewBefore: 45m
   privateKey:
     rotationPolicy: Always
   usages:
@@ -152,8 +152,8 @@ metadata:
   namespace: observability
 spec:
   secretName: grafana-cert-secret
-  duration: 24h
-  renewBefore: 23h
+  duration: 1h
+  renewBefore: 45m
   privateKey:
     rotationPolicy: Always
   usages:
