@@ -133,6 +133,17 @@ Configuration of `OpenTelemetryCollector` CR is driven by:
 So one can deploy whole metric pipeline including multiple OTel collectors with different settings as one helm release using this chart.
 You can check the description for `otelOperatorCrDefaultTemplate` in Values [section](#values) for such example.
 
+For:
+ - receivers
+ - exporters
+ - processors
+ - extensions
+ - pipelines
+You can use the `alternate{Receivers,Exporters,Processors,Extensions,Pipelines}` config options on both CR level and default-template level to
+tweak the OTel collector config. This has the benefit that it will also enable it under the `.service.pipelines` option so there is no need to
+repeat yourself. However, if you want to provide the full OTel collector configuration, you can do that by putting it under `alternateOtelConfig` (again CR level or default template).
+When `alternateOtelConfig` is set, all the `alternate{Receivers,Exporters,Processors,Extensions,Pipelines}` are ignored.
+
 ## Values
 
 <table>
@@ -1123,7 +1134,7 @@ requests:
           </tr>
           <tr>
                <td id="otelOperatorCrs">
-<a href="./values.yaml#L389">otelOperatorCrs</a><br/>
+<a href="./values.yaml#L405">otelOperatorCrs</a><br/>
 
 (Type: yaml)</td>
                <td>
@@ -1149,7 +1160,7 @@ requests:
           </tr>
           <tr>
                <td id="otelOperatorCrs[0]">
-<a href="./values.yaml#L391">otelOperatorCrs[0]</a><br/>
+<a href="./values.yaml#L407">otelOperatorCrs[0]</a><br/>
 
 (Type: object)</td>
                <td>
@@ -1169,7 +1180,7 @@ requests:
           </tr>
           <tr>
                <td id="otelOperatorCrs[0]--name">
-<a href="./values.yaml#L393">otelOperatorCrs[0].name</a><br/>
+<a href="./values.yaml#L409">otelOperatorCrs[0].name</a><br/>
 
 (Type: string)</td>
                <td>
@@ -1185,7 +1196,7 @@ requests:
           </tr>
           <tr>
                <td id="otelOperatorCrs[0]--namespace">
-<a href="./values.yaml#L395">otelOperatorCrs[0].namespace</a><br/>
+<a href="./values.yaml#L411">otelOperatorCrs[0].namespace</a><br/>
 
 (Type: string)</td>
                <td>
@@ -1201,7 +1212,7 @@ requests:
           </tr>
           <tr>
                <td id="otelOperator">
-<a href="./values.yaml#L406">otelOperator</a><br/>
+<a href="./values.yaml#L422">otelOperator</a><br/>
 
 (Type: yaml)</td>
                <td>
@@ -1229,11 +1240,11 @@ admissionWebhooks:
           </tr>
           <tr>
                <td id="otelCollector">
-<a href="./values.yaml#L424">otelCollector</a><br/>
+<a href="./values.yaml#L440">otelCollector</a><br/>
 
 (Type: yaml)</td>
                <td>
-               values for OTel collector helm chart - these values overrides the defaults defined <a href="https://github.com/open-telemetry/opentelemetry-helm-charts/tree/opentelemetry-collector-0.131.0/charts/opentelemetry-collector/values.yaml">here</a> by default the collector is <code>disabled</code>
+               values for OTel collector helm chart - these values overrides the defaults defined <a href="https://github.com/open-telemetry/opentelemetry-helm-charts/tree/opentelemetry-collector-0.110.0/charts/opentelemetry-collector/values.yaml">here</a> by default the collector is <code>disabled</code>
                </td>
                <td>
                     <div style="max-width: 200px;">
@@ -1300,7 +1311,7 @@ alternateConfig:
           </tr>
           <tr>
                <td id="otelCollector--enabled">
-<a href="./values.yaml#L426">otelCollector.enabled</a><br/>
+<a href="./values.yaml#L442">otelCollector.enabled</a><br/>
 
 (Type: bool)</td>
                <td>
@@ -1316,7 +1327,7 @@ false
           </tr>
           <tr>
                <td id="otelCollector--mode">
-<a href="./values.yaml#L428">otelCollector.mode</a><br/>
+<a href="./values.yaml#L444">otelCollector.mode</a><br/>
 
 (Type: string)</td>
                <td>
@@ -1332,7 +1343,7 @@ false
           </tr>
           <tr>
                <td id="otelCollector--image--repository">
-<a href="./values.yaml#L431">otelCollector.image.repository</a><br/>
+<a href="./values.yaml#L447">otelCollector.image.repository</a><br/>
 
 (Type: string)</td>
                <td>
@@ -1348,7 +1359,7 @@ false
           </tr>
           <tr>
                <td id="otelCollector--alternateConfig">
-<a href="./values.yaml#L442">otelCollector.alternateConfig</a><br/>
+<a href="./values.yaml#L458">otelCollector.alternateConfig</a><br/>
 
 (Type: yaml)</td>
                <td>
