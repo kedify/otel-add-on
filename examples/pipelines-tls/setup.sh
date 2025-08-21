@@ -6,7 +6,7 @@ command -v figlet &> /dev/null && {
   figlet -w${_wid} OTel Operator + multiple collectors
 }
 echo "Architecture (all communication goes via TLS):"
-cat architecture.ascii
+cat ${DIR}/architecture.ascii
 set -e
 
 # setup helm repos
@@ -40,7 +40,10 @@ kubectl apply -f ${DIR}/certs.yaml
 # KEDA
 KEDA_VERSION=$(curl -s https://api.github.com/repos/kedify/charts/releases | jq -r '[.[].tag_name | select(. | startswith("keda/")) | sub("^keda/"; "")] | first')
 KEDA_VERSION=${KEDA_VERSION:-v2.17.1-0}
-helm upgrade -i keda kedify/keda --namespace keda --create-namespace --version ${KEDA_VERSION}
+helm upgrade -i keda kedify/keda --namespace keda --create-namespace --version ${KEDA_VERSION} \
+  --set certificates.certManager.enabled=true \
+  --set certificates.certManager.issuer.generate=true \
+  --set certificates.certManager.generateCA=true
 # prometheus
 helm upgrade -i --create-namespace -n observability prometheus prometheus-community/prometheus -f ${DIR}/prometheus-values.yaml
 # grafana
@@ -77,7 +80,14 @@ kubectl patch service grafana \
 # nginx workload
 kubectl apply -n app -f ${DIR}/workload.yaml
 kubectl rollout status -n observability --timeout=600s deploy/prometheus-server
-kubectl apply -f ${DIR}/so.yaml
+
+# SO
+kubectl wait -nkeda --for condition=ready --timeout=300s cert/keda-operator-tls-certificates
+certSecret="-nkeda secret/keda-otel-scaler-cert-secret"
+export _caCertPem=$(kubectl get $(echo $certSecret) -o'go-template={{index .data "ca.crt"}}' | base64 -d | awk '{ print "          " $0 }')
+export _tlsClientKey=$(kubectl get $(echo $certSecret) -o'go-template={{index .data "tls.key"}}' | base64 -d | awk '{ print "          " $0 }')
+export _tlsClientCert=$(kubectl get $(echo $certSecret) -o'go-template={{index .data "tls.crt"}}' | base64 -d | awk '{ print "          " $0 }')
+kubectl apply -f <(cat ${DIR}/so.yaml | envsubst)
 
 cat <<USAGE
 🚀
@@ -88,7 +98,7 @@ open http://localhost:8080
 # prometheus
 open http://localhost:8081
 
-# grafana
+# grafana dashboard
 open http://localhost:8082/dashboards
 
 # check collectors
@@ -98,16 +108,19 @@ k get otelcol -A
 k get cert -A -owide
 
 # create traffic
-(hey -z 60s http://localhost:8080 &> /dev/null)&
+(hey -z 30s http://localhost:8080 &> /dev/null)&
 
 # check how it scales out
 k get hpa -A && k get so -A
 
 # verify SSL works
-kubectl debug -it -n observability router-collector-59cfdd7967-p8bjq --image=dockersec/tcpdump --target otc-container -- tcpdump -i any 'port 4317 and (tcp[tcpflags] & (tcp-syn|tcp-ack) == tcp-syn)'
-and you should be able to observe beginnings of SSL handshakes (kill nginx pod to force one)
-15:40:34.519246 eth0  In  IP 10.42.0.25.47070 > router-collector-59cfdd7967-p8bjq.4317: Flags [S], seq 3108166900, win 64860, options [mss 1410,sackOK,TS val 1743122799 ecr 0,nop,wscale 7], length 0
-also tcpdump -n port 4317 -nn -A should return some arbitrary encrypted data
+kubectl debug -it -n observability $(kubectl get po -nobservability -lapp.kubernetes.io/name=router-collector --no-headers -ocustom-columns=":metadata.name") --image=dockersec/tcpdump --target otc-container -- tcpdump -i any 'port 4317 and (tcp[tcpflags] & (tcp-syn|tcp-ack) == tcp-syn)'
+# and you should be able to observe beginnings of SSL handshakes (kill nginx pod to force one)
+
+# force cert rotations
+cmctl renew -A --all
+
+🚀
 USAGE
 
 # k3d cluster delete pipelines-tls

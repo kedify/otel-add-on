@@ -58,13 +58,16 @@ func Init(restApiPort int, info prometheus.Labels, ms types.MemStore, isDebug bo
 		a.lggr.Error(err, "Disabling trusted proxies failed")
 	}
 	docs.SwaggerInfo.BasePath = "/"
+	router.GET("/", func(ctx *gin.Context) {
+		ctx.Redirect(http.StatusPermanentRedirect, "/swagger/index.html")
+	})
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 	router.GET("/memstore/names", a.getMetricNames)
 	router.GET("/memstore/data", a.getMetricData)
 	router.POST("/memstore/query", a.query)
 	router.POST("/memstore/reset", a.reset)
 	router.GET("/info", a.getInfo)
-	a.lggr.Info(fmt.Sprintf("Swagger docs available at: http://localhost:%d/swagger/index.html", restApiPort))
+	a.lggr.Info(fmt.Sprintf("Swagger docs available at: http://localhost:%d", restApiPort))
 	return router.Run(fmt.Sprintf(":%d", restApiPort))
 }
 

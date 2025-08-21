@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 
 	"github.com/kedify/otel-add-on/metric"

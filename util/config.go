@@ -11,7 +11,7 @@ type Config struct {
 	OTLPReceiverPort       int `envconfig:"OTLP_RECEIVER_PORT" default:"4317"`
 	KedaExternalScalerPort int `envconfig:"KEDA_EXTERNAL_SCALER_PORT" default:"4318"`
 	RestApiPort            int `envconfig:"REST_API_PORT" default:"9090"`
-	InternalMetricsPort    int `envconfig:"INTERNAL_METRICS_PORT" default:"8080"`
+	InternalMetricsPort    int `envconfig:"INTERNAL_METRICS_PORT" default:"8085"`
 
 	// Metric Store
 	MetricStoreRetentionSeconds int     `envconfig:"METRIC_STORE_RETENTION_SECONDS" default:"120"`
@@ -25,6 +25,9 @@ type Config struct {
 	TLSCertFile        string        `envconfig:"OTLP_TLS_CERT_FILE" default:""`
 	TLSKeyFile         string        `envconfig:"OTLP_TLS_KEY_FILE" default:""`
 	CertReloadInterval time.Duration `envconfig:"OTLP_CERTIFICATE_RELOAD_INTERVAL" default:"5m"`
+	TLSKedaComm        bool          `envconfig:"KEDA_TLS_ENABLED" default:"false"`
+	TLSKedaCertFile    string        `envconfig:"KEDA_TLS_CERT_FILE" default:""`
+	TLSKedaKeyFile     string        `envconfig:"KEDA_TLS_KEY_FILE" default:""`
 
 	// Other
 	NoColor  bool `envconfig:"NO_COLOR" default:"false"`
