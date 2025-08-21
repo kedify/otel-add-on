@@ -43,25 +43,37 @@ data:
       envFrom:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .imagePullPolicy }}
+      imagePullPolicy: {{ . }}
+      {{- end }}
 
       {{- if .targetAllocatorEnabled }}
       targetAllocator:
         {{- toYaml .targetAllocator | nindent 8 }}
       {{- end }}
-      {{- with (.tls).secrets }}
       volumes:
-      {{- range . }}
+      {{- range (.tls).secrets }}
         - name: {{ .name }}
           secret:
             defaultMode: 420
             secretName: {{ .name }}
       {{- end }}
+      {{- with .volumes }}
+        {{- toYaml . | nindent 8 -}}
+      {{- end }}
       volumeMounts:
-      {{- range . }}
+      {{- range (.tls).secrets }}
         - mountPath: {{ .mountPath }}
           name: {{ .name }}
           readOnly: true
       {{- end }}
+      {{- with .volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- $oc := . }}
+      {{- range list "volumeClaimTemplates" "lifecycle" "nodeSelector" "podAnnotations" "podSecurityContext" "securityContext" "topologySpreadConstraints" "tolerations" }}
+      {{ . }}:
+        {{- toYaml (get $oc .) | nindent 8 -}}
       {{- end }}
 
       config:

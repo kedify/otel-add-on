@@ -1,0 +1,14 @@
+%% mmdc -i architecture.mermaid -o architecture.svg
+
+graph LR
+subgraph workloads
+    1
+    2
+    3
+end
+1(nginx1) & 2(nginx2) & 3(nginxN) --OTLP/gRPC--> R{router}
+R --OTLP/gRPC--> KS(KEDA Scaler)
+KS <--gRPC--> K[KEDA]
+R --Remote-Write--> P[Prometheus]
+P ~~~ G[Grafana] <--HTTP--> P
+G ~~~ P

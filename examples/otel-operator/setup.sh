@@ -4,7 +4,10 @@ DIR="${DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )}"
 #export PR_BRANCH=
 #export GH_PAT=
 
-command -v figlet &> /dev/null && figlet -w155 OTel Operator + GitHub receiver
+command -v figlet &> /dev/null && {
+  __wid=$(/usr/bin/tput cols) && _wid=$((__wid<155?__wid:155))
+  figlet -w${_wid} OTel Operator + GitHub receiver
+}
 [ -z "${PR_BRANCH}" ] && echo "Set PR_BRANCH env variable to a branch name from which a PR is opened against kedify/otel-add-on repo" && exit 1
 [ -z "${GH_PAT}" ] && echo "Set GH_PAT env variable to a PAT token that has read permissions for content on kedify/otel-add-on repo"  && exit 1
 

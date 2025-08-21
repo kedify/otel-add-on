@@ -1,0 +1,169 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: keda-otel-root-ca-issuer-selfsigned
+spec:
+  selfSigned: {}
+---
+# kubectl get secret keda-otel-root-ca-secret -n cert-manager -o jsonpath='{.data.tls\.crt}' |  base64 --decode | openssl x509 -noout -text
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: keda-otel-root-ca-cert
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: keda-otel-root-ca
+  secretName: keda-otel-root-ca-secret
+  duration: 87600h # 10y
+  renewBefore: 78840h # 9y
+  privateKey:
+    rotationPolicy: Always
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: keda-otel-root-ca-issuer-selfsigned
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: keda-otel-ca-issuer
+spec:
+  ca:
+    secretName: keda-otel-root-ca-secret
+---
+# this CR will make sure the CA cert is available in all k8s namespaces
+# if we don't want to expose the root CA directly, we would create an intermediate CA signed by root CA and expose
+# this one to a sub set of services
+apiVersion: trust.cert-manager.io/v1alpha1
+kind: Bundle
+metadata:
+  name: keda-otel-root-ca-bundle
+  namespace: cert-manager
+spec:
+  sources:
+    - useDefaultCAs: false
+    - secret:
+        name: keda-otel-root-ca-secret
+        key: "tls.crt"
+  target:
+    secret:
+      key: "rootCA.crt"
+---
+# CERTS:
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: router-collector-cert
+  namespace: observability
+spec:
+  secretName: router-collector-cert-secret
+  duration: 1h
+  renewBefore: 45m
+  privateKey:
+    rotationPolicy: Always
+  usages:
+    - server auth
+    - client auth
+  dnsNames:
+    - "router-collector.observability.svc.cluster.local"
+    - "router-collector.observability.svc"
+    - "router-collector"
+  issuerRef:
+    name:  keda-otel-root-ca-issuer-selfsigned
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: sidecar-collector-cert
+  namespace: app
+spec:
+  secretName: sidecar-collector-cert-secret
+  duration: 1h
+  renewBefore: 45m
+  privateKey:
+    rotationPolicy: Always
+  usages:
+    - server auth
+    - client auth
+  dnsNames:
+    - "nginx.app.svc.cluster.local"
+    - "nginx.app.svc"
+    - "nginx"
+  issuerRef:
+    name:  keda-otel-root-ca-issuer-selfsigned
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: keda-otel-scaler-cert
+  namespace: keda
+spec:
+  secretName: keda-otel-scaler-cert-secret
+  duration: 1h
+  renewBefore: 45m
+  privateKey:
+    rotationPolicy: Always
+  usages:
+    - server auth
+    - client auth
+  dnsNames:
+    - "keda-otel-scaler.keda.svc.cluster.local"
+    - "keda-otel-scaler.keda.svc"
+    - "keda-otel-scaler"
+  issuerRef:
+    name:  keda-otel-root-ca-issuer-selfsigned
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: prometheus-cert
+  namespace: observability
+spec:
+  secretName: prometheus-cert-secret
+  duration: 1h
+  renewBefore: 45m
+  privateKey:
+    rotationPolicy: Always
+  usages:
+    - server auth
+    - client auth
+  dnsNames:
+    - "prometheus.observability.svc.cluster.local"
+    - "prometheus.observability.svc"
+    - "prometheus"
+  issuerRef:
+    name:  keda-otel-root-ca-issuer-selfsigned
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: grafana-cert
+  namespace: observability
+spec:
+  secretName: grafana-cert-secret
+  duration: 1h
+  renewBefore: 45m
+  privateKey:
+    rotationPolicy: Always
+  usages:
+    - server auth
+    - client auth
+  dnsNames:
+    - "grafana.observability.svc.cluster.local"
+    - "grafana.observability.svc"
+    - "grafana"
+  issuerRef:
+    name:  keda-otel-root-ca-issuer-selfsigned
+    kind: ClusterIssuer
+    group: cert-manager.io

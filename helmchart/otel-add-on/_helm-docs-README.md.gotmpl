@@ -125,6 +125,17 @@ Configuration of `OpenTelemetryCollector` CR is driven by:
 So one can deploy whole metric pipeline including multiple OTel collectors with different settings as one helm release using this chart.
 You can check the description for `otelOperatorCrDefaultTemplate` in Values [section](#values) for such example.
 
+For:
+ - receivers
+ - exporters
+ - processors
+ - extensions
+ - pipelines
+You can use the `alternate{Receivers,Exporters,Processors,Extensions,Pipelines}` config options on both CR level and default-template level to
+tweak the OTel collector config. This has the benefit that it will also enable it under the `.service.pipelines` option so there is no need to
+repeat yourself. However, if you want to provide the full OTel collector configuration, you can do that by putting it under `alternateOtelConfig` (again CR level or default template).
+When `alternateOtelConfig` is set, all the `alternate{Receivers,Exporters,Processors,Extensions,Pipelines}` are ignored.
+
 {{ template "chart.valuesSectionHtml" . }}
 
 <!-- uncomment this for markdown style (use either valuesTableHtml or valuesSection)

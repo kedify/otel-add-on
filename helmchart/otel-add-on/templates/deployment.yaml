@@ -86,17 +86,17 @@ spec:
             - --zap-log-level={{ .Values.settings.logs.logLvl }}
             - --zap-stacktrace-level={{ .Values.settings.logs.stackTracesLvl }}
           livenessProbe:
-            grpc:
-              port: {{ .Values.service.kedaExternalScalerPort }}
-              service: liveness
+            httpGet:
+              port: {{ .Values.settings.restApiPort }}
+              path: /info
             timeoutSeconds: 5
             periodSeconds: 5
             successThreshold: 1
             failureThreshold: 6
           readinessProbe:
-            grpc:
-              port: {{ .Values.service.kedaExternalScalerPort }}
-              service: readiness
+            httpGet:
+              port: {{ .Values.settings.restApiPort }}
+              path: /info
             timeoutSeconds: 1
             periodSeconds: 5
             successThreshold: 1
