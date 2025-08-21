@@ -2,7 +2,7 @@
 
 # otel-add-on
 
-![Version: v0.0.13](https://img.shields.io/badge/Version-v0.0.13-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.0.13](https://img.shields.io/badge/AppVersion-v0.0.13-informational?style=flat-square)
+![Version: v0.1.0](https://img.shields.io/badge/Version-v0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.0](https://img.shields.io/badge/AppVersion-v0.1.0-informational?style=flat-square)
 
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/otel-add-on)](https://artifacthub.io/packages/search?repo=otel-add-on)
 
@@ -40,7 +40,7 @@ crane ls ghcr.io/kedify/charts/otel-add-on | grep -E '^v?[0-9]'
 
 Install specific version:
 ```bash
-helm upgrade -i oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.0
+helm upgrade -i oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.13
 ```
 
 Advanced stuff:
@@ -77,7 +77,8 @@ Example:
 
 ```yaml
 settings:
-  metricStoreRetentionSeconds: 60
+  metricStore:
+    retentionSeconds: 60
 otelCollector:
   enabled: true
   # <HERE>
@@ -124,7 +125,7 @@ Configuration of `OpenTelemetryCollector` CR is driven by:
 > Also if the `alternateExporters` field in the merged config is empty, we will create an implicit exporter that will feed the metrics into KEDA OTel scaler with preconfigured service name.
 > If from any reason you would like to disable all the exporters for the OTel collector, add only a dummy `debug` exporter:
 >    ```bash
->    noglob helm template oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.0 \
+>    noglob helm template oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.13 \
 >       --set otelOperatorCrs[0].alternateExporters.debug.verbosity=basic \
 >       --set otelOperatorCrs[0].enabled=true
 >    ```
