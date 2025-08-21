@@ -12,13 +12,14 @@ import (
 
 	"github.com/gruntwork-io/terratest/modules/logger"
 	"github.com/gruntwork-io/terratest/modules/shell"
-	"github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/typed/keda/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+
+	"github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/typed/keda/v1alpha1"
 )
 
 const (
@@ -67,6 +68,7 @@ type TestContext struct {
 	kedaClient *v1alpha1.KedaV1alpha1Client
 	k8sConfig  *rest.Config
 	hey        string
+	helm       string
 }
 
 func kubectl(args string) (string, error) {
@@ -163,20 +165,22 @@ func getClients() (*kubernetes.Clientset, *v1alpha1.KedaV1alpha1Client, *rest.Co
 }
 
 func addHelmRepo(repoName string, repoUrl string) error {
-	return execCmdE(fmt.Sprintf("helm repo add %s %s", repoName, repoUrl))
+	return execCmdE(fmt.Sprintf("%s repo add %s %s", ctx.helm, repoName, repoUrl))
 }
 
 func helmRepoUpdate(repoName string) error {
-	return execCmdE(fmt.Sprintf("helm repo update %s", repoName))
+	return execCmdE(fmt.Sprintf("%s repo update %s", ctx.helm, repoName))
 }
 
 func helmChartInstall(repoName string, params string) error {
-	return execCmdE(fmt.Sprintf("helm upgrade -i %s %s/%s %s", helmChartNames[repoName], repoName, helmChartNames[repoName], params))
+	return execCmdE(fmt.Sprintf("%s upgrade -i %s %s/%s %s", ctx.helm, helmChartNames[repoName], repoName, helmChartNames[repoName], params))
 }
 
 func installHelmCli() error {
+	ctx.helm = "helm"
 	_, err := exec.LookPath("helm")
-	if err != nil {
+	if err != nil || isCI == "true" {
+		ctx.hey = "./bin/helm"
 		err = execCmdE("curl -fsSL -o ./bin/get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3")
 		require.NoErrorf(ctx.t, err, "cannot download helm installation shell script - %s", err)
 
@@ -186,7 +190,7 @@ func installHelmCli() error {
 		err = execCmdE("./bin/get_helm.sh")
 		require.NoErrorf(ctx.t, err, "cannot download helm - %s", err)
 	}
-	err = execCmdE("helm version")
+	err = execCmdE(ctx.helm + " version")
 	return err
 }
 

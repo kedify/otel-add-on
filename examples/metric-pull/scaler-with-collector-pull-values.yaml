@@ -24,7 +24,6 @@ otelCollector:
        - 'watch'
   alternateConfig:
     receivers:
-      opencensus:
       # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/prometheusreceiver/README.md
       prometheus:
         config:
@@ -90,4 +89,3 @@ otelCollector:
         logs:
           level: DEBUG
         metrics:
-          address: 0.0.0.0:8888

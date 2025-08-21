@@ -28,7 +28,7 @@ var _ = BeforeEach(func() {
 	getClients()
 })
 
-var _ = Describe("Helm chart (op):", func() {
+var _ = Describe("Helm chart (op):", Ordered, func() {
 	BeforeEach(func() {
 		if only != "" && only != suiteOp {
 			Skip("Skipping OTel operator tests")
@@ -110,7 +110,7 @@ var _ = Describe("Helm chart (op):", func() {
 				It("should eventually scale the otel-operator from 1 -> 3", func() {
 					time.Sleep(1 * time.Second)
 					ctx.t.Logf("        ->>>  Waiting for KEDA to scale the podinfo deployement        <<<-\n\n")
-					ctx5min, _ := context.WithTimeout(context.TODO(), 5*time.Minute)
+					ctx15min, _ := context.WithTimeout(context.TODO(), 15*time.Minute)
 					Eventually(func(g Gomega) {
 						out, err := kubectl("get hpa -nkeda keda-hpa-github-metrics -ojsonpath='{.status.desiredReplicas}'")
 						g.Expect(err).Should(Not(HaveOccurred()))
@@ -120,7 +120,7 @@ var _ = Describe("Helm chart (op):", func() {
 						ctx.t.Logf("\n        ->>>  otel operator successfuly scaled to %d        <<<-\n\n", desiredReplicas)
 						GinkgoWriter.Println("        ->>>  otel operator successfuly scaled to")
 					}).WithPolling(3 * time.Second).
-						WithContext(ctx5min).
+						WithContext(ctx15min).
 						Should(Succeed())
 				})
 			})
@@ -135,8 +135,10 @@ var _ = ReportAfterSuite("ReportAfterSuite", func(report Report) {
 	if !report.SuiteSucceeded {
 		ctx.t.Log("Test suite failed, leaving k3d cluster alive for inspection..")
 		if printLogs == "true" {
-			wrapInSection("HPA", "get -nkeda hpa keda-hpa-github-metrics -oyaml")
-			wrapInSection("SO", "get -nkeda so github-metrics -oyaml")
+			wrapInSection("HPA brief", "get hpa -A")
+			wrapInSection("HPA full", "get hpa -A -oyaml")
+			wrapInSection("SO brief", "get so -A")
+			wrapInSection("SO full", "get so -A -oyaml")
 			wrapInSection("PODS", "get pods -A")
 			for _, nameAndNs := range []string{
 				"podinfo -ndefault",

@@ -70,11 +70,11 @@ demo-podinfo: ## setup ./examples/metric-pull
 	./examples/metric-pull/setup.sh
 
 .PHONY: demo-podinfo-dev
-demo-podinfo: ## setup ./examples/metric-pull
+demo-podinfo-dev: ## setup ./examples/metric-pull
 	SETUP_ONLY=true ./examples/metric-pull/setup.sh
 	$(MAKE) -f dev.Makefile dev-k3d
 	@$(call say,Done)
-	@echo "Continue with: (hey -n 7000 -z 180s http://localhost:8181/delay/2 &> /dev/null)&"
+	@echo "Continue with: (hey -z 180s http://localhost:8181/delay/2 &> /dev/null)&"
 
 .PHONY: demo-podinfo-tls
 demo-podinfo-tls: ## setup ./examples/metric-pull with TLS
@@ -84,7 +84,7 @@ demo-podinfo-tls: ## setup ./examples/metric-pull with TLS
 	$(MAKE) -f dev.Makefile dev-k3d
 	kubectl apply -f ./examples/metric-pull/podinfo-so.yaml
 	@$(call say,Done)
-	@echo "Continue with: (hey -n 7000 -z 180s http://localhost:8181/delay/2 &> /dev/null)&"
+	@echo "Continue with: (hey -z 180s http://localhost:8181/delay/2 &> /dev/null)&"
 
 .PHONY: demo-otel-upstream
 demo-otel-upstream: ## setup ./examples/metric-push
