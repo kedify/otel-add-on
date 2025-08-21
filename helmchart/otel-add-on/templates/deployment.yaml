@@ -65,7 +65,7 @@ spec:
             - name: IS_ACTIVE_POLLING_INTERVAL_MS
               value: {{ .Values.settings.isActivePollingIntervalMilliseconds | quote }}
 
-            # TLS
+            # TLS OTLP
             - name: OTLP_TLS_CA_FILE
               value: {{ .Values.settings.tls.caFile | quote }}
             - name: OTLP_TLS_CERT_FILE
@@ -74,6 +74,13 @@ spec:
               value: {{ .Values.settings.tls.keyFile | quote }}
             - name: OTLP_CERTIFICATE_RELOAD_INTERVAL
               value: {{ .Values.settings.tls.reloadInterval | quote }}
+            # TLS KEDA
+            - name: KEDA_TLS_ENABLED
+              value: {{ .Values.settings.tls.keda.enabled | quote }}
+            - name: KEDA_TLS_CERT_FILE
+              value: {{ .Values.settings.tls.keda.certFile | default .Values.settings.tls.certFile | quote }}
+            - name: KEDA_TLS_KEY_FILE
+              value: {{ .Values.settings.tls.keda.keyFile | default .Values.settings.tls.keyFile | quote }}
       {{- if .Values.settings.logs.noColor }}
             - name: NO_COLOR
               value: {{ .Values.settings.logs.noColor | quote }}
@@ -86,17 +93,17 @@ spec:
             - --zap-log-level={{ .Values.settings.logs.logLvl }}
             - --zap-stacktrace-level={{ .Values.settings.logs.stackTracesLvl }}
           livenessProbe:
-            grpc:
-              port: {{ .Values.service.kedaExternalScalerPort }}
-              service: liveness
+            httpGet:
+              port: {{ .Values.settings.restApiPort }}
+              path: /info
             timeoutSeconds: 5
             periodSeconds: 5
             successThreshold: 1
             failureThreshold: 6
           readinessProbe:
-            grpc:
-              port: {{ .Values.service.kedaExternalScalerPort }}
-              service: readiness
+            httpGet:
+              port: {{ .Values.settings.restApiPort }}
+              path: /info
             timeoutSeconds: 1
             periodSeconds: 5
             successThreshold: 1

@@ -20,7 +20,7 @@ configmapReload:
 server:
   extraFlags:
     - web.enable-remote-write-receiver
-  readinessProbeInitialDelay: 240
+  readinessProbeInitialDelay: 90
   retention: "7d"
   retentionSize: "1GB"
   resources:

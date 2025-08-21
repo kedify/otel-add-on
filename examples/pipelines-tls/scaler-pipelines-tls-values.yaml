@@ -4,9 +4,14 @@ settings:
   logs:
     logLvl: debug
   tls:
-    caFile: "/etc/ca-certificate/rootCA.crt"
+#    caFile: "/etc/ca-certificate/rootCA.crt"
+#    caFile: "/etc/scaler-tls/ca.crt"
     certFile: "/etc/scaler-tls/tls.crt"
     keyFile: "/etc/scaler-tls/tls.key"
+    keda:
+      enabled: true
+      certFile: "/etc/scaler-tls/tls.crt"
+      keyFile: "/etc/scaler-tls/tls.key"
     reloadInterval: "15s"
     secrets:
       - name: keda-otel-root-ca-bundle
@@ -44,7 +49,8 @@ otelOperatorCrs:
         endpoint: router-collector.observability.svc:4317
         tls:
           insecure: false
-          ca_file: "/etc/ca-certificate/rootCA.crt"
+#          ca_file: "/etc/ca-certificate/rootCA.crt"
+          ca_file: "/etc/client-tls/ca.crt"
           cert_file: "/etc/client-tls/tls.crt"
           key_file: "/etc/client-tls/tls.key"
           insecure_skip_verify: true
@@ -90,7 +96,8 @@ otelOperatorCrs:
             grpc:
               endpoint: 0.0.0.0:4317
               tls:
-                ca_file: "/etc/ca-certificate/rootCA.crt"
+#                ca_file: "/etc/ca-certificate/rootCA.crt"
+                ca_file: "/etc/tls/ca.crt"
                 cert_file: "/etc/tls/tls.crt"
                 key_file: "/etc/tls/tls.key"
                 reload_interval: 15s
@@ -107,20 +114,24 @@ otelOperatorCrs:
           external_labels:
             keda_is: great
           tls:
-            insecure: true
+            insecure: false
 #            ca_file: "/etc/ca-certificate/rootCA.crt"
-#            cert_file: "/etc/tls/tls.crt"
-#            key_file: "/etc/tls/tls.key"
-#            reload_interval: 15s
+            ca_file: "/etc/tls/ca.crt"
+            cert_file: "/etc/tls/tls.crt"
+            key_file: "/etc/tls/tls.key"
+            reload_interval: 15s
         otlp/keda:
           endpoint: keda-otel-scaler.keda.svc:4317
           tls:
             insecure: false
-            ca_file: "/etc/ca-certificate/rootCA.crt"
+#            ca_file: "/etc/ca-certificate/rootCA.crt"
+            ca_file: "/etc/tls/ca.crt"
             cert_file: "/etc/tls/tls.crt"
             key_file: "/etc/tls/tls.key"
-#            insecure_skip_verify: true
+            insecure_skip_verify: true
             reload_interval: 15s
+        debug:
+          verbosity: detailed
         file/keda:
           path: /var/log/collector/keda.json
         file/keda-proto:
@@ -143,8 +154,8 @@ otelOperatorCrs:
             include:
               match_type: strict
               metric_names:
-                - "nginx_http_requests_total"
-                - "nginx_connections_active"
+                - "nginx.requests"
+                - "nginx.connections_handled"
 
       extensions:
         zpages:
@@ -155,11 +166,11 @@ otelOperatorCrs:
         pipelines:
           metrics/keda:
             receivers: [otlp]
-            processors: [filter]
-            exporters: [file/keda, file/keda-proto, otlp/keda]
+            processors: [memory_limiter, filter]
+            exporters: [file/keda, file/keda-proto, otlp/keda, debug]
           metrics/all:
             receivers: [otlp]
-            processors: []
+            processors: [memory_limiter]
             exporters: [file/prometheus, prometheus, prometheusremotewrite]
         extensions: [zpages, health_check]
         telemetry:
