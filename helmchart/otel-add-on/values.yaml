@@ -65,6 +65,12 @@ settings:
     # -- (optional) specifies the duration after which the certificates will be reloaded.
     # This is useful when using the CertManager for rotating the certs mounted as Secrets.
     reloadInterval: "5m"
+    keda:
+      enabled: false
+      # -- (optional) path to TLS certificate that will be used for KEDA gRPC server. If empty, defaults to `settings.tls.certFile`
+      certFile: ""
+      # -- (optional) path to TLS key that will be used for KEDA gRPC server. If empty, defaults to `settings.tls.keyFile`
+      keyFile: ""
     # -- (optional) list of secrets that will be mounted to deployment's pod. One entry in this list, will create one volume and one volumeMount for pod.
     # This is a convenient way for mounting the certs for TLS, but using `.volumes & .volumeMounts` for anything advanced will also work.
     secrets: []

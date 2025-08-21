@@ -83,7 +83,6 @@ kubectl rollout status -n observability --timeout=600s deploy/prometheus-server
 
 # SO
 kubectl wait -nkeda --for condition=ready --timeout=300s cert/keda-operator-tls-certificates
-#certSecret="-nkeda secret/kedaorg-certs"
 certSecret="-nkeda secret/keda-otel-scaler-cert-secret"
 export _caCertPem=$(kubectl get $(echo $certSecret) -o'go-template={{index .data "ca.crt"}}' | base64 -d | awk '{ print "          " $0 }')
 export _tlsClientKey=$(kubectl get $(echo $certSecret) -o'go-template={{index .data "tls.key"}}' | base64 -d | awk '{ print "          " $0 }')
@@ -109,18 +108,17 @@ k get otelcol -A
 k get cert -A -owide
 
 # create traffic
-(hey -z 60s http://localhost:8080 &> /dev/null)&
+(hey -z 30s http://localhost:8080 &> /dev/null)&
 
 # check how it scales out
 k get hpa -A && k get so -A
 
 # verify SSL works
-_pod=$(kubectl get po -nobservability -lapp.kubernetes.io/name=router-collector --no-headers -ocustom-columns=":metadata.name")
-kubectl debug -it -n observability ${_pod} --image=dockersec/tcpdump --target otc-container -- tcpdump -i any 'port 4317 and (tcp[tcpflags] & (tcp-syn|tcp-ack) == tcp-syn)'
-and you should be able to observe beginnings of SSL handshakes (kill nginx pod to force one)
+kubectl debug -it -n observability $(kubectl get po -nobservability -lapp.kubernetes.io/name=router-collector --no-headers -ocustom-columns=":metadata.name") --image=dockersec/tcpdump --target otc-container -- tcpdump -i any 'port 4317 and (tcp[tcpflags] & (tcp-syn|tcp-ack) == tcp-syn)'
+# and you should be able to observe beginnings of SSL handshakes (kill nginx pod to force one)
 
-# force cert rotation in app ns
-cmctl renew --namespace=app --all
+# force cert rotations
+cmctl renew -A --all
 
 🚀
 USAGE

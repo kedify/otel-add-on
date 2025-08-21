@@ -25,6 +25,9 @@ type Config struct {
 	TLSCertFile        string        `envconfig:"OTLP_TLS_CERT_FILE" default:""`
 	TLSKeyFile         string        `envconfig:"OTLP_TLS_KEY_FILE" default:""`
 	CertReloadInterval time.Duration `envconfig:"OTLP_CERTIFICATE_RELOAD_INTERVAL" default:"5m"`
+	TLSKedaComm        bool          `envconfig:"KEDA_TLS_ENABLED" default:"false"`
+	TLSKedaCertFile    string        `envconfig:"KEDA_TLS_CERT_FILE" default:""`
+	TLSKedaKeyFile     string        `envconfig:"KEDA_TLS_KEY_FILE" default:""`
 
 	// Other
 	NoColor  bool `envconfig:"NO_COLOR" default:"false"`

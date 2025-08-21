@@ -8,6 +8,10 @@ settings:
 #    caFile: "/etc/scaler-tls/ca.crt"
     certFile: "/etc/scaler-tls/tls.crt"
     keyFile: "/etc/scaler-tls/tls.key"
+    keda:
+      enabled: true
+      certFile: "/etc/scaler-tls/tls.crt"
+      keyFile: "/etc/scaler-tls/tls.key"
     reloadInterval: "15s"
     secrets:
       - name: keda-otel-root-ca-bundle

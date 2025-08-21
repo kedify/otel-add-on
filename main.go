@@ -80,7 +80,7 @@ func main() {
 			setupLog.Info("🔒 TLS for gRPC server enabled (OTLP receiver)", "tlsSettings", tlsSettings)
 		}
 
-		if e = startGrpcServer(ctx, ctrl.Log, ms, mp, cfg); !util.IsIgnoredErr(e) {
+		if e = startKEDAGrpcServer(ctx, ctrl.Log, ms, mp, cfg); !util.IsIgnoredErr(e) {
 			setupLog.Error(e, "gRPC server failed (KEDA external scaler)")
 			return e
 		}
@@ -182,7 +182,7 @@ func startReceiver(ctx context.Context, otlpReceiverPort int, tlsSettings *confi
 	return nil
 }
 
-func startGrpcServer(
+func startKEDAGrpcServer(
 	ctx context.Context,
 	lggr logr.Logger,
 	ms types.MemStore,
@@ -197,14 +197,17 @@ func startGrpcServer(
 	}
 
 	var serverOpts []grpc.ServerOption
-	tlsSettings := makeTlsSettings(cfg)
-	if tlsSettings.CertFile != "" && tlsSettings.KeyFile != "" {
-		creds, e := credentials.NewServerTLSFromFile(tlsSettings.CertFile, tlsSettings.KeyFile)
-		if e != nil {
-			setupLog.Error(e, "failed to get certificates")
+	if cfg.TLSKedaComm {
+		if cfg.TLSKedaCertFile != "" && cfg.TLSKedaKeyFile != "" {
+			creds, e := credentials.NewServerTLSFromFile(cfg.TLSKedaCertFile, cfg.TLSKedaKeyFile)
+			if e != nil {
+				setupLog.Error(e, "failed to get certificates")
+				os.Exit(1)
+			}
+			setupLog.Info("🔒 TLS for gRPC server enabled (KEDA scaler <-> KEDA comm)", "cert", cfg.TLSKedaCertFile, "key", cfg.TLSKedaKeyFile)
+			setupLog.Info("🔒 caveat: ^ these are not being actively watched and automatically reloaded")
+			serverOpts = append(serverOpts, grpc.Creds(creds))
 		}
-		setupLog.Info("🔒 gRPC server for KEDA scaler has TLS enabled")
-		serverOpts = append(serverOpts, grpc.Creds(creds))
 	}
 
 	grpcServer := grpc.NewServer(serverOpts...)
