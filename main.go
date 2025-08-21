@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
@@ -22,6 +21,7 @@ import (
 	rec "go.opentelemetry.io/collector/receiver"
 	"go.opentelemetry.io/collector/receiver/otlpreceiver"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/credentials"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
@@ -36,8 +36,6 @@ import (
 	"github.com/kedify/otel-add-on/util"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -79,7 +77,7 @@ func main() {
 			return e
 		}
 		if tlsSettings != nil {
-			setupLog.Info("TLS for gRPC server enabled (OTLP receiver)", "tlsSettings", tlsSettings)
+			setupLog.Info("🔒 TLS for gRPC server enabled (OTLP receiver)", "tlsSettings", tlsSettings)
 		}
 
 		if e = startGrpcServer(ctx, ctrl.Log, ms, mp, cfg); !util.IsIgnoredErr(e) {
@@ -198,33 +196,19 @@ func startGrpcServer(
 		return err
 	}
 
-	grpcServer := grpc.NewServer()
-	reflection.Register(grpcServer)
-
-	hs := health.NewServer()
-	go func() {
-		lggr.Info("starting healthchecks loop")
-		ticker := time.NewTicker(time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			// handle cancellations/timeout
-			case <-ctx.Done():
-				hs.SetServingStatus("liveness", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
-				hs.SetServingStatus("readiness", grpc_health_v1.HealthCheckResponse_NOT_SERVING)
-				return
-			// do our regularly scheduled work
-			case <-ticker.C:
-				hs.SetServingStatus("liveness", grpc_health_v1.HealthCheckResponse_SERVING)
-				hs.SetServingStatus("readiness", grpc_health_v1.HealthCheckResponse_SERVING)
-			}
+	var serverOpts []grpc.ServerOption
+	tlsSettings := makeTlsSettings(cfg)
+	if tlsSettings.CertFile != "" && tlsSettings.KeyFile != "" {
+		creds, e := credentials.NewServerTLSFromFile(tlsSettings.CertFile, tlsSettings.KeyFile)
+		if e != nil {
+			setupLog.Error(e, "failed to get certificates")
 		}
-	}()
+		setupLog.Info("🔒 gRPC server for KEDA scaler has TLS enabled")
+		serverOpts = append(serverOpts, grpc.Creds(creds))
+	}
 
-	grpc_health_v1.RegisterHealthServer(
-		grpcServer,
-		hs,
-	)
+	grpcServer := grpc.NewServer(serverOpts...)
+	reflection.Register(grpcServer)
 
 	externalscaler.RegisterExternalScalerServer(
 		grpcServer,

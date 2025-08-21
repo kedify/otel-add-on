@@ -44,7 +44,7 @@ metadata:
   namespace: cert-manager
 spec:
   sources:
-    - useDefaultCAs: true
+    - useDefaultCAs: false
     - secret:
         name: keda-otel-root-ca-secret
         key: "tls.crt"

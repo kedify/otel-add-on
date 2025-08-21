@@ -10,7 +10,15 @@ spec:
     - type: external
       metadata:
         scalerAddress: "keda-otel-scaler.keda.svc:4318"
-        metricQuery: "sum(nginx_http_requests_total)"
+        enableTLS: "true"
+        unsafeSsl: "true"
+        caCert: |
+${_caCertPem}
+        tlsClientCert: |
+${_tlsClientCert}
+        tlsClientKey: |
+${_tlsClientKey}
+        metricQuery: "sum(nginx_requests{deployment=nginx, namespace=app})"
         operationOverTime: "rate"
         targetValue: "2"
   minReplicaCount: 1
