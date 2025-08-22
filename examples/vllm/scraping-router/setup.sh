@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # install KEDA OTel Scaler & OTel Operator
-helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.0 -f ./otel-scaler-values.yaml
+helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.1 -f ./otel-scaler-values.yaml
 #helm upgrade -i keda-otel-scaler -nkeda ${DIR}/../../helmchart/otel-add-on -f ${DIR}/otel-scaler-values.yaml
 
 # roll the deployments so that mutating webhooks (un)injects the sidecars (if the sidecar setup was run before)
