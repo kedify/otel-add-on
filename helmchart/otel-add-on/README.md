@@ -2,7 +2,7 @@
 
 # otel-add-on
 
-![Version: v0.1.0](https://img.shields.io/badge/Version-v0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.0](https://img.shields.io/badge/AppVersion-v0.1.0-informational?style=flat-square)
+![Version: v0.1.1](https://img.shields.io/badge/Version-v0.1.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.1](https://img.shields.io/badge/AppVersion-v0.1.1-informational?style=flat-square)
 
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/otel-add-on)](https://artifacthub.io/packages/search?repo=otel-add-on)
 
@@ -60,8 +60,8 @@ Kubernetes: `>= 1.19.0-0`
 
 | Repository | Name | Version |
 |------------|------|---------|
-| https://open-telemetry.github.io/opentelemetry-helm-charts | otelCollector(opentelemetry-collector) | 0.110.0 |
-| https://open-telemetry.github.io/opentelemetry-helm-charts | otelOperator(opentelemetry-operator) | 0.92.3 |
+| https://open-telemetry.github.io/opentelemetry-helm-charts | otelCollector(opentelemetry-collector) | 0.131.0 |
+| https://open-telemetry.github.io/opentelemetry-helm-charts | otelOperator(opentelemetry-operator) | 0.93.0 |
 
 ## OTel Collector Sub-Chart
 
@@ -1286,24 +1286,21 @@ enabled: false
 # -- Valid values are "daemonset", "deployment", "sidecar" and "statefulset"
 mode: deployment
 image:
+    #    repository: otel/opentelemetry-collector-k8s
+    repository: otel/opentelemetry-collector-contrib
     # -- Container image - OTel collector distribution
-    repository: otel/opentelemetry-collector-k8s
 fullnameOverride: otelcol
-ports:
-    opencensus:
-        enabled: true
-        containerPort: 55678
-        servicePort: 55678
-        hostPort: 55678
-        protocol: TCP
+#  ports:
+#    opencensus:
+#      enabled: true
+#      containerPort: 55678
+#      servicePort: 55678
+#      hostPort: 55678
+#      protocol: TCP
 # -- Configuration for OTel collector that will be installed
 # @notationType -- yaml
 alternateConfig:
-    receivers:
-        # https://grafana.com/docs/alloy/latest/reference/components/otelcol/otelcol.receiver.opencensus/
-        opencensus:
-            endpoint: 0.0.0.0:55678
-            include_metadata: true
+    receivers: {}
     processors:
         resourcedetection/env:
             detectors: [env]
@@ -1330,7 +1327,7 @@ alternateConfig:
             - health_check
         pipelines:
             metrics:
-                receivers: [opencensus]
+                receivers: []
                 processors: [resourcedetection/env, transform]
                 exporters: [debug, otlp]
     extensions:
@@ -1374,24 +1371,8 @@ false
                </td>
           </tr>
           <tr>
-               <td id="otelCollector--image--repository">
-<a href="./values.yaml#L453">otelCollector.image.repository</a><br/>
-
-(Type: string)</td>
-               <td>
-               Container image - OTel collector distribution
-               </td>
-               <td>
-                    <div style="max-width: 200px;">
-<pre lang="json">
-"otel/opentelemetry-collector-k8s"
-</pre>
-</div>
-               </td>
-          </tr>
-          <tr>
                <td id="otelCollector--alternateConfig">
-<a href="./values.yaml#L464">otelCollector.alternateConfig</a><br/>
+<a href="./values.yaml#L465">otelCollector.alternateConfig</a><br/>
 
 (Type: yaml)</td>
                <td>
@@ -1400,11 +1381,7 @@ false
                <td>
                     <div style="max-width: 200px;">
 <pre lang="yaml">
-receivers:
-    # https://grafana.com/docs/alloy/latest/reference/components/otelcol/otelcol.receiver.opencensus/
-    opencensus:
-        endpoint: 0.0.0.0:55678
-        include_metadata: true
+receivers: {}
 processors:
     resourcedetection/env:
         detectors: [env]
@@ -1431,7 +1408,7 @@ service:
         - health_check
     pipelines:
         metrics:
-            receivers: [opencensus]
+            receivers: []
             processors: [resourcedetection/env, transform]
             exporters: [debug, otlp]
 extensions:
