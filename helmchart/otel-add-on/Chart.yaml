@@ -10,12 +10,12 @@ icon: https://raw.githubusercontent.com/kedacore/keda/main/images/keda-logo-500x
 dependencies:
   - name: opentelemetry-collector
     repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-    version: 0.110.0
+    version: 0.131.0
     condition: opentelemetry-collector.enabled,otelCollector.enabled
     alias: otelCollector
   - name: opentelemetry-operator
     repository: https://open-telemetry.github.io/opentelemetry-helm-charts
-    version: 0.92.3
+    version: 0.93.0
     condition: opentelemetry-operator.enabled,otelOperator2.enabled
     alias: otelOperator
 home: https://github.com/kedify/otel-add-on

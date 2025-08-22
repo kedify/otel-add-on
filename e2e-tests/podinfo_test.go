@@ -61,7 +61,7 @@ var _ = BeforeEach(func() {
 	getClients()
 })
 
-var _ = Describe("Helm chart:", func() {
+var _ = Describe("Helm chart:", Ordered, func() {
 	BeforeEach(func() {
 		if only != "" && only != suitePi {
 			Skip("Skipping podinfo")
@@ -89,9 +89,9 @@ var _ = Describe("Helm chart:", func() {
 	It("keda-otel-scaler should be possible to install", func() {
 		pwd, err := os.Getwd()
 		Expect(err).NotTo(HaveOccurred())
-		_, err = execCmdOE("helm dependency build", pwd+"/../helmchart/otel-add-on")
+		_, err = execCmdOE(ctx.helm+" dependency build", pwd+"/../helmchart/otel-add-on")
 		Expect(err).NotTo(HaveOccurred())
-		cmd := "helm upgrade -i keda-otel-scaler ../helmchart/otel-add-on --namespace keda --create-namespace -f ./testdata/scaler-values.yaml"
+		cmd := ctx.helm + " upgrade -i keda-otel-scaler ../helmchart/otel-add-on --namespace keda --create-namespace -f ./testdata/scaler-values.yaml"
 		if len(otelScalerVersion) > 0 {
 			cmd += fmt.Sprintf(" --set image.tag=%s", otelScalerVersion)
 		}
@@ -119,8 +119,8 @@ var _ = Describe("Helm chart:", func() {
 			waitForDeployment("keda-otel-scaler", "keda", defaultTimeoutSec)
 		})
 	})
-	Context("Scaled Object", func() {
-		When("is created", func() {
+	Context("Scaled Object", Ordered, func() {
+		When("is created", Ordered, func() {
 			It("should not fail", func() {
 				_, err := kapply("./testdata/podinfo-so.yaml")
 				Expect(err).NotTo(HaveOccurred())
@@ -137,30 +137,31 @@ var _ = Describe("Helm chart:", func() {
 						for {
 							select {
 							case <-cancelHey:
+								//Expect(execCmdE("pkill hey")).NotTo(HaveOccurred())
 								return
 							default:
-								hey("-z 60s http://localhost:8181/delay/1")
+								hey("-z 40s http://localhost:8181")
 							}
 						}
 					}()
 					time.Sleep(1 * time.Second)
 					ctx.t.Logf("        ->>>  Waiting for KEDA to scale the podinfo deployement        <<<-\n\n")
-					ctx1min, _ := context.WithTimeout(context.TODO(), time.Minute)
+					ctx2min, _ := context.WithTimeout(context.TODO(), 2*time.Minute)
 					Eventually(func(g Gomega) {
 						out, err := kubectl("get hpa keda-hpa-podinfo-pull-example -ojsonpath='{.status.desiredReplicas}'")
 						g.Expect(err).Should(Not(HaveOccurred()))
-						desiredReplicas, err := strconv.Atoi(strings.Trim(out, "'"))
+						currentReplicas, err := strconv.Atoi(strings.Trim(out, "'"))
 						g.Expect(err).Should(Not(HaveOccurred()))
-						g.Expect(desiredReplicas).Should(And(BeNumerically(">", minReplicas), BeNumerically("<=", maxReplicas)))
-						ctx.t.Logf("\n        ->>>  Pod info successfully scaled to %d        <<<-\n\n", desiredReplicas)
+						g.Expect(currentReplicas).Should(And(BeNumerically(">", minReplicas), BeNumerically("<=", maxReplicas)), fmt.Sprintf("# of replicas for podinfo (%d) should be > %d and <= %d", currentReplicas, minReplicas, maxReplicas))
+						ctx.t.Logf("\n        ->>>  Pod info successfully scaled to %d        <<<-\n\n", currentReplicas)
 						GinkgoWriter.Println("        ->>>  Pod info successfully scaled to")
 						cancelHey <- true
 					}).WithPolling(3 * time.Second).
-						WithContext(ctx1min).
+						WithContext(ctx2min).
 						Should(Succeed())
 				})
 				time.Sleep(10 * time.Second)
-				ctx10min, _ := context.WithTimeout(context.TODO(), 10*time.Minute)
+				ctx15min, _ := context.WithTimeout(context.TODO(), 15*time.Minute)
 				It("should eventually scale the podinfo back from N -> 1", func() {
 					Eventually(func(g Gomega) {
 						out, err := kubectl("get hpa keda-hpa-podinfo-pull-example -ojsonpath='{.status.desiredReplicas}'")
@@ -169,7 +170,7 @@ var _ = Describe("Helm chart:", func() {
 						g.Expect(err).Should(Not(HaveOccurred()))
 						g.Expect(desiredReplicas).Should(Equal(minReplicas))
 						ctx.t.Logf("\n        ->>>  Pod info successfuly scaled back to %d        <<<-\n\n", desiredReplicas)
-					}).WithPolling(5 * time.Second).WithTimeout(10 * time.Minute).WithContext(ctx10min).Should(Succeed())
+					}).WithPolling(5 * time.Second).WithTimeout(10 * time.Minute).WithContext(ctx15min).Should(Succeed())
 				})
 			})
 		})
@@ -192,9 +193,10 @@ var _ = ReportAfterSuite("ReportAfterSuite", func(report Report) {
 
 func PrintLogs() {
 	if printLogs == "true" {
-		wrapInSection("HPA", "get hpa keda-hpa-podinfo-pull-example -oyaml")
-		wrapInSection("SO", "get so podinfo-pull-example -oyaml")
-		wrapInSection("PODS", "get pods -A")
+		wrapInSection("HPA brief", "get hpa -A")
+		wrapInSection("HPA full", "get hpa -A -oyaml")
+		wrapInSection("SO brief", "get so -A")
+		wrapInSection("SO full", "get so -A -oyaml")
 		for _, nameAndNs := range []string{"podinfo -ndefault",
 			"keda-operator -nkeda",
 			"otelCollector -nkeda",

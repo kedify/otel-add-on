@@ -53,6 +53,7 @@
     {
       "fileMatch": [
         "(^|/)helmchart/otel-add-on/README.md$",
+        "(^|/)helmchart/otel-add-on/values.yaml$",
         "(^|/)helmchart/otel-add-on/values.schema.json$",
       ],
       "datasourceTemplate": "github-tags",
@@ -70,7 +71,7 @@
       "depNameTemplate": "open-telemetry/opentelemetry-helm-charts",
       "extractVersionTemplate": "^opentelemetry-collector-(?<version>.*)$",
       "matchStrings": [
-        ".*/opentelemetry-helm-charts\n\\s+version:\\s+(?<currentValue>[^\\S]+).*\n",
+        ".*opentelemetry-collector\n.*/opentelemetry-helm-charts\n\\s+version:\\s+(?<currentValue>[^\\S]+).*\n",
       ],
     },
 
@@ -78,6 +79,7 @@
     {
       "fileMatch": [
         "(^|/)helmchart/otel-add-on/README.md$",
+        "(^|/)helmchart/otel-add-on/values.yaml$"
       ],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "open-telemetry/opentelemetry-helm-charts",
@@ -94,7 +96,7 @@
       "depNameTemplate": "open-telemetry/opentelemetry-helm-charts",
       "extractVersionTemplate": "^opentelemetry-operator-(?<version>.*)$",
       "matchStrings": [
-        ".*/opentelemetry-helm-charts\n\\s+version:\\s+(?<currentValue>[^\\S]+).*\n",
+        ".*opentelemetry-operator\n.*/opentelemetry-helm-charts\n\\s+version:\\s+(?<currentValue>[^\\S]+).*\n",
       ],
     }
   ],

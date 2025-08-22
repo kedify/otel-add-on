@@ -450,24 +450,20 @@ otelCollector:
   mode: deployment
   image:
     # -- Container image - OTel collector distribution
-    repository: otel/opentelemetry-collector-k8s
+#    repository: otel/opentelemetry-collector-k8s
+    repository: otel/opentelemetry-collector-contrib
   fullnameOverride: otelcol
-  ports:
-    opencensus:
-      enabled: true
-      containerPort: 55678
-      servicePort: 55678
-      hostPort: 55678
-      protocol: TCP
+#  ports:
+#    opencensus:
+#      enabled: true
+#      containerPort: 55678
+#      servicePort: 55678
+#      hostPort: 55678
+#      protocol: TCP
   # -- Configuration for OTel collector that will be installed
   # @notationType -- yaml
   alternateConfig:
-    receivers:
-      # https://grafana.com/docs/alloy/latest/reference/components/otelcol/otelcol.receiver.opencensus/
-      opencensus:
-        endpoint: 0.0.0.0:55678
-        include_metadata: true
-
+    receivers: {}
     processors:
       resourcedetection/env:
         detectors: [ env ]
@@ -495,7 +491,7 @@ otelCollector:
         - health_check
       pipelines:
         metrics:
-          receivers: [opencensus]
+          receivers: []
           processors: [resourcedetection/env, transform]
           exporters: [debug, otlp]
 
