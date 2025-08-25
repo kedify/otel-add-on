@@ -40,7 +40,7 @@ crane ls ghcr.io/kedify/charts/otel-add-on | grep -E '^v?[0-9]'
 
 Install specific version:
 ```bash
-helm upgrade -i oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.13
+helm upgrade -i oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.1
 ```
 
 Advanced stuff:
@@ -117,7 +117,7 @@ Configuration of `OpenTelemetryCollector` CR is driven by:
 > Also if the `alternateExporters` field in the merged config is empty, we will create an implicit exporter that will feed the metrics into KEDA OTel scaler with preconfigured service name.
 > If from any reason you would like to disable all the exporters for the OTel collector, add only a dummy `debug` exporter:
 >    ```bash
->    noglob helm template oci://ghcr.io/kedify/charts/otel-add-on --version=v0.0.13 \
+>    noglob helm template oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.1 \
 >       --set otelOperatorCrs[0].alternateExporters.debug.verbosity=basic \
 >       --set otelOperatorCrs[0].enabled=true
 >    ```
