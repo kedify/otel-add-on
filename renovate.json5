@@ -38,7 +38,7 @@
         "(^|/)examples/pipelines-tls/setup.sh$",
         "(^|/)examples/vllm/(dcgm|scraping-router|sidecar)/setup.sh$",
         "(^|/)helmchart/otel-add-on/README.md$",
-        "(^|/)helmchart/otel-add-on/_helm-docs-template.gotmpl$",
+        "(^|/)helmchart/otel-add-on/_helm-docs-README.md.gotmpl$",
       ],
       "datasourceTemplate": "docker",
       "depTypeTemplate": "helm_release",
