@@ -72,7 +72,7 @@ spec:
     - "router-collector.observability.svc"
     - "router-collector"
   issuerRef:
-    name:  keda-otel-root-ca-issuer-selfsigned
+    name: keda-otel-ca-issuer
     kind: ClusterIssuer
     group: cert-manager.io
 ---
@@ -95,7 +95,7 @@ spec:
     - "nginx.app.svc"
     - "nginx"
   issuerRef:
-    name:  keda-otel-root-ca-issuer-selfsigned
+    name: keda-otel-ca-issuer
     kind: ClusterIssuer
     group: cert-manager.io
 ---
@@ -118,7 +118,7 @@ spec:
     - "keda-otel-scaler.keda.svc"
     - "keda-otel-scaler"
   issuerRef:
-    name:  keda-otel-root-ca-issuer-selfsigned
+    name: keda-otel-ca-issuer
     kind: ClusterIssuer
     group: cert-manager.io
 ---
@@ -141,7 +141,7 @@ spec:
     - "prometheus.observability.svc"
     - "prometheus"
   issuerRef:
-    name:  keda-otel-root-ca-issuer-selfsigned
+    name: keda-otel-ca-issuer
     kind: ClusterIssuer
     group: cert-manager.io
 ---
@@ -164,6 +164,6 @@ spec:
     - "grafana.observability.svc"
     - "grafana"
   issuerRef:
-    name:  keda-otel-root-ca-issuer-selfsigned
+    name: keda-otel-ca-issuer
     kind: ClusterIssuer
     group: cert-manager.io
