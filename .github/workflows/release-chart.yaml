@@ -36,7 +36,6 @@ jobs:
     permissions:
       contents: write
       packages: write
-      pull-requests: write # for peter-evans/create-pull-request to create a PR
       id-token: write
     needs: [test]
     steps:
@@ -76,7 +75,8 @@ jobs:
   artifacthub:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write  # for peter-evans/create-pull-request to create branch
+      pull-requests: write  # for peter-evans/create-pull-request to create a PR
     needs: [test]
     steps:
       - uses: actions/checkout@v4
@@ -104,6 +104,7 @@ jobs:
           delete-branch: true
           base: main
           signoff: true
+          token: ${{ secrets.GITHUB_TOKEN }}
           body: |
             :package: artifacthub update :package:
             ### automated change
