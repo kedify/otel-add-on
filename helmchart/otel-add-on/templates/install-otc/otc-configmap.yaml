@@ -1,9 +1,9 @@
-{{- range include "operatorCrs" . | fromJsonArray }}
-{{- if .enabled }}
+{{- range $i, $c := include "operatorCrs" . | fromJsonArray }}
+{{- if $c.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .name | default $.Release.Name }}
+  name: {{ $c.name | default $.Values.fullnameOverride | default (printf "%s-%d" $.Release.Name $i) }}
   namespace: {{ $.Release.Namespace }}
   annotations:
     helm.sh/hook: "post-install,post-upgrade"
@@ -14,75 +14,74 @@ data:
     apiVersion: opentelemetry.io/v1beta1
     kind: OpenTelemetryCollector
     metadata:
-      name: {{ .name | default $.Release.Name }}
-      {{- if .targetAllocatorEnabled }}
+      name: {{ $c.name | default $.Values.fullnameOverride | default (printf "%s-%d" $.Release.Name $i) }}
+      {{- if $c.targetAllocatorEnabled }}
       namespace: {{ default $.Release.Namespace }}
       {{- else }}
-      namespace: {{ .namespace | default $.Release.Namespace }}
+      namespace: {{ $c.namespace | default $.Release.Namespace }}
       {{- end }}
       labels:
         meta.helm.sh/release-name: {{ $.Release.Name }}
         helm.sh/chart: {{ $.Chart.Version }}
     spec:
       resources:
-        {{- toYaml .resources | nindent 8 }}
-      {{- if and .targetAllocatorEnabled (eq .mode "sidecar") }}
+        {{- toYaml $c.resources | nindent 8 }}
+      {{- if and $c.targetAllocatorEnabled (eq $c.mode "sidecar") }}
       mode: statefulset
       {{- else }}
-      mode: {{ .mode }}
+      mode: {{ $c.mode }}
       {{- end}}
-      {{- with (.serviceAccount).name }}
+      {{- with ($c.serviceAccount).name }}
       serviceAccount: {{ . }}
       {{- end }}
       upgradeStrategy: none
-      {{- with .env }}
+      {{- with $c.env }}
       env:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .envFrom }}
+      {{- with $c.envFrom }}
       envFrom:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .imagePullPolicy }}
+      {{- with $c.imagePullPolicy }}
       imagePullPolicy: {{ . }}
       {{- end }}
 
-      {{- if .targetAllocatorEnabled }}
+      {{- if $c.targetAllocatorEnabled }}
       targetAllocator:
-        {{- toYaml .targetAllocator | nindent 8 }}
+        {{- toYaml $c.targetAllocator | nindent 8 }}
       {{- end }}
       volumes:
-      {{- range (.tls).secrets }}
+      {{- range ($c.tls).secrets }}
         - name: {{ .name }}
           secret:
             defaultMode: 420
             secretName: {{ .name }}
       {{- end }}
-      {{- with .volumes }}
+      {{- with $c.volumes }}
         {{- toYaml . | nindent 8 -}}
       {{- end }}
       volumeMounts:
-      {{- range (.tls).secrets }}
+      {{- range ($c.tls).secrets }}
         - mountPath: {{ .mountPath }}
           name: {{ .name }}
           readOnly: true
       {{- end }}
-      {{- with .volumeMounts }}
+      {{- with $c.volumeMounts }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- $oc := . }}
       {{- range list "volumeClaimTemplates" "lifecycle" "nodeSelector" "podAnnotations" "podSecurityContext" "securityContext" "topologySpreadConstraints" "tolerations" }}
       {{ . }}:
-        {{- toYaml (get $oc .) | nindent 8 -}}
+        {{- toYaml (get $c .) | nindent 8 -}}
       {{- end }}
 
       config:
-        {{- if .alternateOtelConfig }}
-        {{- toYaml .alternateOtelConfig | nindent 8 }}
+        {{- if $c.alternateOtelConfig }}
+        {{- toYaml $c.alternateOtelConfig | nindent 8 }}
         {{- else}}
 
         {{- $extensions := list }}
-        {{- with .alternateExtensions }}
+        {{- with $c.alternateExtensions }}
         extensions:
         {{- range $extension, $extensionCfg := . }}
           {{- $extensions = append $extensions $extension }}
@@ -93,19 +92,19 @@ data:
 
         {{- $receivers := list }}
         receivers:
-        {{- if .alternateReceivers }}
-        {{- range $receiver, $receiverCfg := .alternateReceivers }}
+        {{- if $c.alternateReceivers }}
+        {{- range $receiver, $receiverCfg := $c.alternateReceivers }}
           {{- $receivers = append $receivers $receiver }}
           {{ $receiver }}:
             {{- toYaml $receiverCfg | nindent 12 }}
         {{- end }}
         {{- else}}
-        {{- if or .targetAllocatorEnabled .prometheusScrapeConfigs }}
+        {{- if or $c.targetAllocatorEnabled $c.prometheusScrapeConfigs }}
           prometheus:
             config:
               scrape_configs:
         {{- $receivers = append $receivers "prometheus" }}
-        {{- if .targetAllocatorEnabled }}
+        {{- if $c.targetAllocatorEnabled }}
               - job_name: 'otel-collector'
                 scrape_interval: 10s
                 static_configs:
@@ -117,7 +116,7 @@ data:
                   regex: label_(.+)
                   replacement: $$1
         {{- else }}
-        {{- with .prometheusScrapeConfigs }}
+        {{- with $c.prometheusScrapeConfigs }}
               {{- toYaml . | nindent 14 }}
         {{- end }}
         {{- end }}
@@ -140,7 +139,7 @@ data:
                   - set(attributes["pod"], resource.attributes["k8s.pod.name"])
                   - set(attributes["deployment"], resource.attributes["k8s.deployment.name"])
 
-          {{- with .includeMetrics}}
+          {{- with $c.includeMetrics}}
           {{- $processors = append $processors "filter/metrics" }}
           filter/metrics:
             metrics:
@@ -152,7 +151,7 @@ data:
                   {{- end }}
           {{- end }}
 
-          {{- with (.metricsgeneration).rules }}
+          {{- with ($c.metricsgeneration).rules }}
           {{- $processors = append $processors "metricsgeneration" }}
           metricsgeneration:
             rules:
@@ -160,7 +159,7 @@ data:
           {{- end }}
         {{- $exporters := list }}
         exporters:
-        {{- if .alternateExporters }}
+        {{- if $c.alternateExporters }}
         {{- range $exporter, $exporterCfg := .alternateExporters }}
           {{- $exporters = append $exporters $exporter }}
           {{ $exporter }}:
@@ -169,25 +168,25 @@ data:
         {{- else}}
           {{- $exporters = append $exporters "otlp/keda" }}
           otlp/keda:
-            endpoint: {{ $.Release.Name }}.{{ $.Values.namespace | default $.Release.Namespace }}.svc:4317
+            endpoint: {{ $.Values.service.name | default $.Values.fullnameOverride | default $.Release.Name }}.{{ $.Values.namespace | default $.Release.Namespace }}.svc:4317
             compression: "none"
             tls:
-              {{- if or (.tls).caFile (and (.tls).certFile (.tls).keyFile) }}
+              {{- if or ($c.tls).caFile (and ($c.tls).certFile ($c.tls).keyFile) }}
               insecure: false
-                {{- if not .tls.caFile }}
+                {{- if not $c.tls.caFile }}
               insecure_skip_verify: true
                 {{- else }}
-              ca_file: {{ .tls.caFile }}
+              ca_file: {{ $c.tls.caFile }}
                 {{- end }}
-              cert_file: {{ .tls.certFile }}
-              key_file: {{ .tls.keyFile }}
-              {{- with .tls.extraSettings }}
+              cert_file: {{ $c.tls.certFile }}
+              key_file: {{ $c.tls.keyFile }}
+              {{- with $c.tls.extraSettings }}
               {{- toYaml . | nindent 14 }}
               {{- end }}
               {{- else }}
               insecure: true
               {{- end }}
-          {{- if .debug }}
+          {{- if $c.debug }}
           {{- $exporters = append $exporters "debug" }}
           debug:
             verbosity: detailed
@@ -195,7 +194,7 @@ data:
         {{- end }}
 
         {{- $connectors := list }}
-        {{- with .alternateConnectors }}
+        {{- with $c.alternateConnectors }}
         connectors:
         {{- range $connector, $connectorCfg := . }}
           {{- $connectors = append $connectors $connector }}
@@ -209,8 +208,8 @@ data:
           extensions: [{{- join "," . -}}]
           {{- end }}
           pipelines:
-            {{- if .alternatePipelines }}
-            {{- toYaml .alternatePipelines | nindent 12 }}
+            {{- if $c.alternatePipelines }}
+            {{- toYaml $c.alternatePipelines | nindent 12 }}
             {{- else}}
             metrics:
               receivers: [{{- join "," $receivers -}}]
