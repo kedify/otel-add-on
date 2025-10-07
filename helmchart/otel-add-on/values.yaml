@@ -133,6 +133,9 @@ service:
   otlpReceiverPort: 4317
   # -- KEDA external scaler will be opened on this port. ScaledObject's `.spec.triggers[].metadata.scalerAddress` needs to be set to this svc and this port.
   kedaExternalScalerPort: 4318
+  # -- name under which the scaler should be exposed, if left empty, it will try .Values.fullnameOverride and if this is empty, name of the release is used
+  # this should handle the case when one needs to install multiple instances of this chart into one cluster and at the same time provide a way to specify a stable address
+  name: ""
 
 # -- (k8s/configuration/manage-resources-containers) resources for the OTel Scaler pod
 # @notationType -- yaml

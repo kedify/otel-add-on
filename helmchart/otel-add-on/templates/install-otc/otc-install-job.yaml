@@ -33,14 +33,14 @@ spec:
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
       volumes:
-{{- range include "operatorCrs" . | fromJsonArray }}
+{{- range $i, $c := include "operatorCrs" . | fromJsonArray }}
 {{- if .enabled }}
-      - name: {{ .name | default $.Release.Name }}
+      - name: {{ $c.name | default $.Values.fullnameOverride | default (printf "%s-%d" $.Release.Name $i) }}
         configMap:
-          name: {{ .name | default $.Release.Name }}
+          name: {{ $c.name | default $.Values.fullnameOverride | default (printf "%s-%d" $.Release.Name $i) }}
           items:
           - key: content
-            path: {{ .name | default $.Release.Name }}.yaml
+            path: {{ $c.name | default $.Values.fullnameOverride | default (printf "%s-%d" $.Release.Name $i) }}.yaml
 {{- end }}
 {{- end }}
       initContainers:
@@ -67,11 +67,11 @@ spec:
         securityContext:
           readOnlyRootFilesystem: true
         volumeMounts:
-{{- range include "operatorCrs" . | fromJsonArray }}
-{{- if .enabled }}
-        - name: {{ .name | default $.Release.Name }}
-          mountPath: /data/{{ .name | default $.Release.Name }}.yaml
-          subPath: {{ .name | default $.Release.Name }}.yaml
+{{- range $i, $c := include "operatorCrs" . | fromJsonArray }}
+{{- if $c.enabled }}
+        - name: {{ $c.name | default $.Values.fullnameOverride | default (printf "%s-%d" $.Release.Name $i) }}
+          mountPath: /data/{{ $c.name | default $.Values.fullnameOverride | default (printf "%s-%d" $.Release.Name $i) }}.yaml
+          subPath: {{ $c.name | default $.Values.fullnameOverride | default (printf "%s-%d" $.Release.Name $i) }}.yaml
 {{- end }}
 {{- end }}
         command:

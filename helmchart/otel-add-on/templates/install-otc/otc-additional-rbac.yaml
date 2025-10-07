@@ -1,70 +1,68 @@
-{{- range include "operatorCrs" . | fromJsonArray }}
-
-{{- if .serviceAccount.create }}
+{{- range $i, $c := include "operatorCrs" . | fromJsonArray }}
+{{- if $c.serviceAccount.create }}
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ .serviceAccount.name | default (printf "%s-op" $.Release.Name) }}
-  namespace: {{ .namespace | default $.Release.Namespace }}
+  name: {{ $c.serviceAccount.name | default $.Values.fullnameOverride | default (printf "%s-op-%d" $.Release.Name $i) }}
+  namespace: {{ $c.namespace | default $.Release.Namespace }}
   labels:
     {{- include "otel-add-on.labels" $ | nindent 4 }}
-  {{- with .serviceAccount.annotations }}
+  {{- with $c.serviceAccount.annotations }}
   annotations:
     {{- toYaml . | nindent 4}}
   {{- end }}
 {{- end }}
 
-{{- if and .clusterRole.create .clusterRole.rules }}
+{{- if and $c.clusterRole.create $c.clusterRole.rules }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ .serviceAccount.name | default (printf "%s-op" $.Release.Name) }}
+  name: {{ $c.serviceAccount.name | default $.Values.fullnameOverride | default (printf "%s-op-%d" $.Release.Name $i) }}
   labels:
     {{- include "otel-add-on.labels" $ | nindent 4 }}
-  {{- with .clusterRole.annotations }}
+  {{- with $c.clusterRole.annotations }}
   annotations:
     {{- toYaml . | nindent 4}}
   {{- end }}
 rules:
-{{- toYaml .clusterRole.rules | nindent 0 }}
+{{- toYaml $c.clusterRole.rules | nindent 0 }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ .serviceAccount.name | default (printf "%s-op" $.Release.Name) }}
+  name: {{ $c.serviceAccount.name | default $.Values.fullnameOverride | default (printf "%s-op-%d" $.Release.Name $i) }}
   labels:
     {{- include "otel-add-on.labels" $ | nindent 4 }}
-  {{- with .clusterRole.annotations }}
+  {{- with $c.clusterRole.annotations }}
   annotations:
     {{- toYaml . | nindent 4}}
   {{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ .serviceAccount.name | default $.Release.Name }}
+  name: {{ $c.serviceAccount.name | default $.Values.fullnameOverride | default (printf "%s-op-%d" $.Release.Name $i) }}
 subjects:
 - kind: ServiceAccount
-  name:  {{ .serviceAccount.name | default $.Release.Name }}
-  namespace:  {{ .namespace | default $.Release.Namespace }}
+  name:  {{ $c.serviceAccount.name | default $.Values.fullnameOverride | default (printf "%s-op-%d" $.Release.Name $i) }}
+  namespace:  {{ $c.namespace | default $.Release.Namespace }}
 {{- end }}
 
-{{- if and .targetAllocatorEnabled (.targetAllocator).serviceAccount }}
+{{- if and $c.targetAllocatorEnabled ($c.targetAllocator).serviceAccount }}
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ .targetAllocator.serviceAccount }}
-  namespace: {{ .namespace | default $.Release.Namespace }}
+  name: {{ $c.targetAllocator.serviceAccount }}
+  namespace: {{ $c.namespace | default $.Release.Namespace }}
   labels:
     {{- include "otel-add-on.labels" $ | nindent 4 }}
-  {{- with .serviceAccount.annotations }}
+  {{- with $c.serviceAccount.annotations }}
   annotations:
     {{- toYaml . | nindent 4}}
   {{- end }}
-{{- $crScope := . -}}
-{{- range .targetAllocatorClusterRoles }}
+{{- range $c.targetAllocatorClusterRoles }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -78,8 +76,8 @@ roleRef:
   name: {{ . }}
 subjects:
   - kind: ServiceAccount
-    name: {{ $crScope.targetAllocator.serviceAccount }}
-    namespace: {{ $crScope.namespace | default $.Release.Namespace }}
+    name: {{ $c.targetAllocator.serviceAccount }}
+    namespace: {{ $c.namespace | default $.Release.Namespace }}
 {{- end }}
 {{- end }}
 

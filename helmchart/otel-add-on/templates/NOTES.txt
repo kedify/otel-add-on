@@ -26,9 +26,9 @@ Following components were installed:
 {{- if .Values.otelOperator.enabled }}
  ✓ OTel Operator - 🦑
 {{- end }}
-{{- range $collectors }}
- ✓ OTel Collector with name '{{ .name | default $.Release.Name }}' (using the operator) -
-{{- if .targetAllocatorEnabled -}}
+{{- range $i, $c := $collectors }}
+ ✓ OTel Collector with name '{{ $c.name | default (printf "%s-%d" $.Release.Name $i) }}' (using the operator) -
+{{- if $c.targetAllocatorEnabled -}}
 {{- printf " target allocator mode watching Prom's CRs 🎯" -}}
 {{- else -}}
 {{- printf " 🚀" -}}
@@ -66,8 +66,12 @@ Architecture:
 {{- printf "   │      %s      │    " $char -}}
 {{- end }}
 {{- printf "\n" -}}
-{{- range $collectors }}
-{{- printf "   │ %-13s│    " ((.name | default $.Release.Name) | trunc 11) -}}
+{{- range $i, $c := $collectors }}
+{{- if .helm -}}
+{{- printf "   │ %-13s│    " (($c.name | default $.Release.Name) | trunc 11) -}}
+{{- else }}
+{{- printf "   │ %-13s│    " (($c.name | default (printf "%s-%d-%s" $.Release.Name $i "collector")) | trunc 11) -}}
+{{- end -}}
 {{- end }}
 {{- printf "  (Collectors)" -}}
 {{- printf "\n" -}}
