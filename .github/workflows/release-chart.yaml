@@ -104,7 +104,6 @@ jobs:
           delete-branch: true
           base: main
           signoff: true
-          token: ${{ secrets.GITHUB_TOKEN }}
           body: |
             :package: artifacthub update :package:
             ### automated change
