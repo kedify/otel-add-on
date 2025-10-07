@@ -1,169 +1,1447 @@
-## `OTel <--> KEDA` add-on
+
+
+# otel-add-on
+
+![Version: v0.1.2](https://img.shields.io/badge/Version-v0.1.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.2](https://img.shields.io/badge/AppVersion-v0.1.2-informational?style=flat-square)
 
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/otel-add-on)](https://artifacthub.io/packages/search?repo=otel-add-on)
 
-### Description
+A Helm chart for KEDA otel-add-on
 
-This is an external scaler for KEDA that intergrates with OpenTelemetry (OTel) collector. The helm chart deploys also OTel
-collector (using the [upstream helm chart](https://github.com/open-telemetry/opentelemetry-helm-charts)) where one can set up
-filtering so that scaler receives only those metrics that are needed for scaling decisions 
-([example](https://github.com/kedify/otel-add-on/blob/v0.0.0-1/helmchart/otel-add-on/values.yaml#L133-L147)).
-
-The application consist of three parts:
-- OTLP receiver
-- simple metric storage
-- external scaler for KEDA
-
-#### Receiver
-
-This component is implementation of OTLP Receiver [spec](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/opencensusreceiver),
-so that it spawns a GRPC server ([by default](https://github.com/kedify/otel-add-on/blob/v0.0.0-1/helmchart/otel-add-on/values.yaml#L60) on port `4317`)
-and stores all incoming metrics in the short term storage - simple metric storage.
-
-#### Simple Metric Storage
-
-Very simple metric storage designed to remember last couple of measurements (~ 10-100) for each metric vector. It can be 
-[configured](https://github.com/kedify/otel-add-on/blob/v0.0.0-1/helmchart/otel-add-on/values.yaml#L11-L12)
-with number of seconds to remember. Then during the write operation, it removes the stale measurements, so it effectively works as a
-cyclic buffer. Metrics are stored together with labels (key-value pairs) for later querying.
-
-#### External Scaler
-
-This component also spawns GRPC server ([by default](https://github.com/kedify/otel-add-on/blob/v0.0.0-1/helmchart/otel-add-on/values.yaml#L61) on port `4318`)
-and can talk to KEDA operator by implementing the External Scaler [contract](https://keda.sh/docs/2.15/concepts/external-scalers/).
-
-It queries the internal in-memory metric storage for metric value and sends it to KEDA operator. The metric query is specified as a metadata on KEDA's
-ScaledObject CR, and it provides a limited subset of features as PromQL.
-
-### Architecture
-![diagram](./diagram.png "Diagram")
-- ([diagram link](https://excalidraw.com/#json=P5ptHj7eQHF3qpCyDDehT,gVJvYLtm0qVR2sStjUlapA))
-- [1] [OTLP format](https://pkg.go.dev/go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc)
-- [2] [OTLP metric receiver](https://github.com/open-telemetry/opentelemetry-collector/blob/d17559b6e89a6f97b6800a6538bbf82430d94678/receiver/otlpreceiver/otlp.go#L101)
-- [3] [processors](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor)
-- [4] https://opencensus.io - obsolete, will be replaced by OTel
-- [5] [OpenCensus receiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/opencensusreceiver)
-- [6] [Prometheus receiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/prometheusreceiver)
-- [7] [OTLP exporter](https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/otlpexporter/README.md)
-
-### Example use-cases
-
-#### 1. convert and react on metrics from OpenCensus
-
-By specifying an [opencensus receiver](https://github.com/kedify/otel-add-on/blob/v0.0.0-1/helmchart/otel-add-on/values.yaml#L112) in the helm chart values for OTel collector,
-we will get the ability to get those metrics into our scaler.
-
-#### 2. convert and react on metrics from any other upstream receiver
-OTel collector contains [numerous](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver) integrations on the receiver part.
-All of these various receivers open new ways of how to turn metric from OTel receiver into KEDA scaler. For instance by using 
-[sqlqueryreceiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/sqlqueryreceiver), one can achieve similar goals as with
-[MySQL](https://keda.sh/docs/2.15/scalers/mysql/) or [PostgreSQL](https://keda.sh/docs/2.15/scalers/postgresql/) scalers. 
-By using [githubreceiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/githubreceiver), one can hook to
-metrics from GitBub, etc.
-
-#### 3. process the metrics before reaching the scaler
-OTel collector provides [various processors](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor)
-that are being applied on all incoming metrics/spans/traces and one achieve for instance metric [filtering](https://github.com/kedify/otel-add-on/blob/v0.0.0-1/helmchart/otel-add-on/values.yaml#L138-L143)
-this way. So that not all the metric data are passed to scaler's short term memory. This way we can keep the OTel scaler pretty lightweight.
-
-OTTL lang:
-- [spec](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/pkg/ottl/LANGUAGE.md)
-- [functions](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/pkg/ottl/ottlfuncs)
-
-If the simple metric query is not enough and one requires to combine multiple metric vectors into one or perform simple
-arithmetic operations on the metrics, there is the [Metrics Generation Processor](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/metricsgenerationprocessor)
-available as an option
-
-#### 4. OTel patterns (metric pipelines)
-Basically any scenario described in [OTel patterns](https://github.com/jpkrohling/opentelemetry-collector-deployment-patterns) or [architecture](https://opentelemetry.io/docs/collector/architecture/)
-should be supported. So no matter how the OTel collectors are deployed, whether it's a fleet of sidecar containers deployed alongside each workload or
-some complex pipeline that spans multiple Kubernetes clusters, you will be covered.
-
-## Installation
-
-### First install KEDA
-```bash
-helm repo add kedacore https://kedacore.github.io/charts
-helm repo update
-helm upgrade -i keda kedacore/keda --namespace keda --create-namespace
+```
+:::^.     .::::^:     :::::::::::::::    .:::::::::.                   .^.
+7???~   .^7????~.     7??????????????.   :?????????77!^.              .7?7.
+7???~  ^7???7~.       ~!!!!!!!!!!!!!!.   :????!!!!7????7~.           .7???7.
+7???~^7????~.                            :????:    :~7???7.         :7?????7.
+7???7????!.           ::::::::::::.      :????:      .7???!        :7??77???7.
+7????????7:           7???????????~      :????:       :????:      :???7?5????7.
+7????!~????^          !77777777777^      :????:       :????:     ^???7?#P7????7.
+7???~  ^????~                            :????:      :7???!     ^???7J#@J7?????7.
+7???~   :7???!.                          :????:   .:~7???!.    ~???7Y&@#7777????7.
+7???~    .7???7:      !!!!!!!!!!!!!!!    :????7!!77????7^     ~??775@@@GJJYJ?????7.
+7???~     .!????^     7?????????????7.   :?????????7!~:      !????G@@@@@@@@5??????7:
+::::.       :::::     :::::::::::::::    .::::::::..        .::::JGGGB@@@&7:::::::::
+        _       _               _     _                               ?@@#~
+   ___ | |_ ___| |     __ _  __| | __| |     ___  _ __                P@B^
+  / _ \| __/ _ \ |    / _` |/ _` |/ _` |___ / _ \| '_ \             :&G:
+ | (_) | ||  __/ |   | (_| | (_| | (_| |___| (_) | | | |            !5.
+  \___/ \__\___|_|    \__,_|\__,_|\__,_|    \___/|_| |_|            ,
+                                                                    .
 ```
 
-### Then install this add-on
+**Homepage:** <https://github.com/kedify/otel-add-on>
+
+## Usage
+
+Check available version in OCI repo:
 ```bash
-helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.1
+crane ls ghcr.io/kedify/charts/otel-add-on | grep -E '^v?[0-9]'
 ```
 
-### Create an example scaled object
+Install specific version:
 ```bash
-k apply -f examples/so.yaml
+helm upgrade -i oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.1
 ```
 
-### Advanced setups
-
-Check some prepared examples in the [`./examples`](./examples) directory and also check the `dev.Makefile` if you want to
-set up mTLS between a collector and this scaler. 
-
+Advanced stuff:
 ```bash
-λ make -f dev.Makefile
-Usage:
-  make <target>
-Demos
-  demo-podinfo              setup ./examples/metric-pull
-  demo-podinfo-tls          setup ./examples/metric-pull with TLS
-  demo-otel-upstream        setup ./examples/metric-push
-  demo-operator             setup ./examples/otel-operator
-  demo-operator-tls         setup ./examples/otel-operator with TLS
-  
-λ make -f dev.Makefile demo-podinfo-tls
-...
+# check /examples dir in project root
+find ./../../examples -name '*-values.yaml'
 ```
 
-## Troubleshooting
+## Source Code
 
-To figure out the actual value of a metric query, there is a simple REST api that can be used:
+* <https://github.com/kedify/otel-add-on>
+* <https://github.com/open-telemetry/opentelemetry-helm-charts>
 
+## Requirements
+
+Kubernetes: `>= 1.19.0-0`
+
+| Repository | Name | Version |
+|------------|------|---------|
+| https://open-telemetry.github.io/opentelemetry-helm-charts | otelCollector(opentelemetry-collector) | 0.131.0 |
+| https://open-telemetry.github.io/opentelemetry-helm-charts | otelOperator(opentelemetry-operator) | 0.93.0 |
+
+## OTel Collector Sub-Chart
+
+This helm chart, when enabled by `--set otelCollector.enabled=true`, installs the OTel collector using
+its upstream [helm chart](https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-collector).
+
+To check all the possible values for this dependent helm chart, consult [values.yaml](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/charts/opentelemetry-collector/values.yaml)
+or [docs](https://github.com/open-telemetry/opentelemetry-helm-charts/blob/main/charts/opentelemetry-collector/README.md).
+
+All these values goes under `otelCollector` section.
+
+Example:
+
+```yaml
+settings:
+  metricStore:
+    retentionSeconds: 60
+otelCollector:
+  enabled: true
+  # <HERE>
+  alternateConfig:
+    receivers:
+    ...
+```
+
+## OTel Operator Sub-Chart
+Using the `otelCollector` sub-chart (described in the previous section) we can install one instance of OTel collector. However, all
+the helm chart values needs to be passed in advance including the OTel collector configuration section. One limitation of Helm is the absence
+of templating the helm chart values itself. This would be very useful, because some things in the OTel configuration are dynamic (addresses etc.)
+
+We can achieve that by using the upstream OTel [Operator](https://opentelemetry.io/docs/platforms/kubernetes/operator/) and render[^fn1] its CRDs using this helm chart.
+
+Configuration of `OpenTelemetryCollector` CR is driven by:
+- `.otelOperatorCrDefaultTemplate` (defaults)
+- `.otelOperatorCrs` (overrides)
+
+> [!TIP]
+> If there is a default set on `.otelOperatorCrDefaultTemplate` level, say:
+>    ```yaml
+>    otelOperatorCrDefaultTemplate:
+>      alternateExporters:
+>        otlp/central:
+>          protocols:
+>            grpc:
+>              endpoint: external-backup:4317
+>    ```
+> and we want to make the field `alternateExporters` empty, we can do that by:
+>    ```yaml
+>    otelOperatorCrDefaultTemplate:
+>      alternateExporters:
+>        otlp/central:
+>          protocols:
+>            grpc:
+>              endpoint: external-backup:4317
+>    otelOperatorCrs:
+>      - enabled: true
+>        name: "nonDefault"
+>        alternateExporters: null
+>    ```
+> Otherwise, the behavior of the config merge is as expected ([code](https://github.com/kedify/otel-add-on/blob/v0.0.13/helmchart/otel-add-on/templates/_helpers.tpl#L64-L79)).
+> Also if the `alternateExporters` field in the merged config is empty, we will create an implicit exporter that will feed the metrics into KEDA OTel scaler with preconfigured service name.
+> If from any reason you would like to disable all the exporters for the OTel collector, add only a dummy `debug` exporter:
+>    ```bash
+>    noglob helm template oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.1 \
+>       --set otelOperatorCrs[0].alternateExporters.debug.verbosity=basic \
+>       --set otelOperatorCrs[0].enabled=true
+>    ```
+
+So one can deploy whole metric pipeline including multiple OTel collectors with different settings as one helm release using this chart.
+You can check the description for `otelOperatorCrDefaultTemplate` in Values [section](#values) for such example.
+
+For:
+ - receivers
+ - exporters
+ - processors
+ - extensions
+ - pipelines
+You can use the `alternate{Receivers,Exporters,Processors,Extensions,Pipelines}` config options on both CR level and default-template level to
+tweak the OTel collector config. This has the benefit that it will also enable it under the `.service.pipelines` option so there is no need to
+repeat yourself. However, if you want to provide the full OTel collector configuration, you can do that by putting it under `alternateOtelConfig` (again CR level or default template).
+When `alternateOtelConfig` is set, all the `alternate{Receivers,Exporters,Processors,Extensions,Pipelines}` are ignored.
+
+## Values
+
+<table>
+     <thead>
+          <th>Key</th>
+          <th width="100px;">Description</th>
+          <th>Default</th>
+     </thead>
+     <tbody>
+          <tr>
+               <td id="image--repository">
+<a href="./values.yaml#L10">image.repository</a><br/>
+
+(Type: string)</td>
+               <td>
+               Image to use for the Deployment
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+"ghcr.io/kedify/otel-add-on"
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="image--pullPolicy">
+<a href="./values.yaml#L12">image.pullPolicy</a><br/>
+<br/>
+(Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/containers/images/#image-pull-policy">image-pull-policy</a>)</td>
+               <td>
+               image pull policy for KEDA OTel Scaler pod
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+"Always"
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="image--tag">
+<a href="./values.yaml#L14">image.tag</a><br/>
+
+(Type: string)</td>
+               <td>
+               Image version to use for the Deployment, if not specified, it defaults to <code>.Chart.AppVersion</code>
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+""
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--metricStore--retentionSeconds">
+<a href="./values.yaml#L19">settings<br/>.metricStore<br/>.retentionSeconds</a><br/>
+
+(Type: int)</td>
+               <td>
+               how long the metrics should be kept in the short term (in memory) storage
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+120
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--metricStore--lazySeries">
+<a href="./values.yaml#L23">settings<br/>.metricStore<br/>.lazySeries</a><br/>
+
+(Type: bool)</td>
+               <td>
+               if enabled, no metrics will be stored until there is a request for such metric from KEDA operator.
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+false
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--metricStore--lazyAggregates">
+<a href="./values.yaml#L27">settings<br/>.metricStore<br/>.lazyAggregates</a><br/>
+
+(Type: bool)</td>
+               <td>
+               if enabled, the only aggregate that will be calculated on the fly is the one referenced in the metric query  (by default, we calculate and store all of them - sum, rate, min, max, etc.)
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+false
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--metricStore--errIfNotFound">
+<a href="./values.yaml#L30">settings<br/>.metricStore<br/>.errIfNotFound</a><br/>
+
+(Type: bool)</td>
+               <td>
+               when enabled, the scaler will be returning error to KEDA's <code>GetMetrics()</code> call
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+false
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--metricStore--valueIfNotFound">
+<a href="./values.yaml#L33">settings<br/>.metricStore<br/>.valueIfNotFound</a><br/>
+
+(Type: float)</td>
+               <td>
+               default value, that is reported in case of error or if the value is not in the mem store
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+0
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--isActivePollingIntervalMilliseconds">
+<a href="./values.yaml#L36">settings<br/>.isActivePollingIntervalMilliseconds</a><br/>
+
+(Type: int)</td>
+               <td>
+               how often (in milliseconds) should the IsActive method be tried
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+500
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--internalMetricsPort">
+<a href="./values.yaml#L39">settings.internalMetricsPort</a><br/>
+
+(Type: int)</td>
+               <td>
+               internal (mostly golang) metrics will be exposed on <code>:8080/metrics</code>
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+8080
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--restApiPort">
+<a href="./values.yaml#L42">settings.restApiPort</a><br/>
+
+(Type: int)</td>
+               <td>
+               port where rest api should be listening
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+9090
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--logs--logLvl">
+<a href="./values.yaml#L47">settings.logs.logLvl</a><br/>
+
+(Type: string)</td>
+               <td>
+               Can be one of 'debug', 'info', 'error', or any integer value > 0 which corresponds to custom debug levels of increasing verbosity
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+"info"
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--logs--stackTracesLvl">
+<a href="./values.yaml#L50">settings.logs.stackTracesLvl</a><br/>
+
+(Type: string)</td>
+               <td>
+               one of: info, error, panic
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+"error"
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--logs--noColor">
+<a href="./values.yaml#L53">settings.logs.noColor</a><br/>
+
+(Type: bool)</td>
+               <td>
+               if anything else than 'false', the log will not contain colors
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+false
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--logs--noBanner">
+<a href="./values.yaml#L56">settings.logs.noBanner</a><br/>
+
+(Type: bool)</td>
+               <td>
+               if anything else than 'false', the log will not print the ascii logo
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+false
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--tls--caFile">
+<a href="./values.yaml#L60">settings.tls.caFile</a><br/>
+
+(Type: optional)</td>
+               <td>
+               path to CA certificate. When provided, the client certificate will be verified using this CA where "client" ~ another OTLP exporter.
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+""
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--tls--certFile">
+<a href="./values.yaml#L62">settings.tls.certFile</a><br/>
+
+(Type: optional)</td>
+               <td>
+               path to TLS certificate that will be used for OTLP receiver
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+""
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--tls--keyFile">
+<a href="./values.yaml#L64">settings.tls.keyFile</a><br/>
+
+(Type: optional)</td>
+               <td>
+               path to TLS key that will be used for OTLP receiver
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+""
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--tls--reloadInterval">
+<a href="./values.yaml#L67">settings.tls.reloadInterval</a><br/>
+
+(Type: optional)</td>
+               <td>
+               specifies the duration after which the certificates will be reloaded. This is useful when using the CertManager for rotating the certs mounted as Secrets.
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+"5m"
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--tls--keda--certFile">
+<a href="./values.yaml#L71">settings.tls.keda.certFile</a><br/>
+
+(Type: optional)</td>
+               <td>
+               path to TLS certificate that will be used for KEDA gRPC server. If empty, defaults to <code>settings.tls.certFile</code>
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+""
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--tls--keda--keyFile">
+<a href="./values.yaml#L73">settings.tls.keda.keyFile</a><br/>
+
+(Type: optional)</td>
+               <td>
+               path to TLS key that will be used for KEDA gRPC server. If empty, defaults to <code>settings.tls.keyFile</code>
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+""
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--tls--secrets">
+<a href="./values.yaml#L76">settings.tls.secrets</a><br/>
+
+(Type: optional)</td>
+               <td>
+               list of secrets that will be mounted to deployment's pod. One entry in this list, will create one volume and one volumeMount for pod. This is a convenient way for mounting the certs for TLS, but using <code>.volumes & .volumeMounts</code> for anything advanced will also work.
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+[]
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="deploymentStrategy">
+<a href="./values.yaml#L83">deploymentStrategy</a><br/>
+<br/>
+(Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy">strategy</a>)</td>
+               <td>
+               one of: RollingUpdate, Recreate
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+"RollingUpdate"
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="deployScaler">
+<a href="./values.yaml#L86">deployScaler</a><br/>
+
+(Type: bool)</td>
+               <td>
+               when disabled, the deployment with KEDA Scaler will not be rendered
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+true
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="validatingAdmissionPolicy--enabled">
+<a href="./values.yaml#L90">validatingAdmissionPolicy<br/>.enabled</a><br/>
+
+(Type: bool)</td>
+               <td>
+               whether the ValidatingAdmissionPolicy and ValidatingAdmissionPolicyBinding resources should be also rendered
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+false
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="asciiArt">
+<a href="./values.yaml#L94">asciiArt</a><br/>
+
+(Type: bool)</td>
+               <td>
+               should the ascii logo be printed when this helm chart is installed
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+true
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="imagePullSecrets">
+<a href="./values.yaml#L97">imagePullSecrets</a><br/>
+<br/>
+(Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod">specifying-imagepullsecrets-on-a-pod</a>)</td>
+               <td>
+               imagePullSecrets for KEDA OTel Scaler pod
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+[]
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="serviceAccount--create">
+<a href="./values.yaml#L103">serviceAccount.create</a><br/>
+
+(Type: bool)</td>
+               <td>
+               should the service account be also created and linked in the deployment
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+true
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="serviceAccount--annotations">
+<a href="./values.yaml#L106">serviceAccount.annotations</a><br/>
+
+(Type: object)</td>
+               <td>
+               further custom annotation that will be added on the service account
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+{}
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="serviceAccount--name">
+<a href="./values.yaml#L108">serviceAccount.name</a><br/>
+
+(Type: string)</td>
+               <td>
+               name of the service account, defaults to <code>otel-add-on.fullname</code> ~ release name if not overriden
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+""
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="podAnnotations">
+<a href="./values.yaml#L111">podAnnotations</a><br/>
+
+(Type: object)</td>
+               <td>
+               additional custom pod annotations that will be used for pod
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+{}
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="podLabels">
+<a href="./values.yaml#L114">podLabels</a><br/>
+
+(Type: object)</td>
+               <td>
+               additional custom pod labels that will be used for pod
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+{}
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="podSecurityContext">
+<a href="./values.yaml#L117">podSecurityContext</a><br/>
+<br/>
+(Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/security/pod-security-standards">pod-security-standards</a>)</td>
+               <td>
+               securityContext for KEDA OTel Scaler pod
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+{}
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="securityContext">
+<a href="./values.yaml#L121">securityContext</a><br/>
+<br/>
+(Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/security/pod-security-standards">pod-security-standards</a>)</td>
+               <td>
+               securityContext for KEDA OTel Scaler container
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="yaml">
+capabilities:
+    drop:
+        - ALL
+readOnlyRootFilesystem: true
+runAsNonRoot: true
+runAsUser: 1000
+
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="service--type">
+<a href="./values.yaml#L131">service.type</a><br/>
+<br/>
+(Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types">publishing-services-service-types</a>)</td>
+               <td>
+               Under this service, the otel add on needs to be reachable by KEDA operator and OTel collector
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+"ClusterIP"
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="service--otlpReceiverPort">
+<a href="./values.yaml#L133">service.otlpReceiverPort</a><br/>
+
+(Type: int)</td>
+               <td>
+               OTLP receiver will be opened on this port. OTel exporter configured in the OTel collector needs to have this value set.
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+4317
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="service--kedaExternalScalerPort">
+<a href="./values.yaml#L135">service.kedaExternalScalerPort</a><br/>
+
+(Type: int)</td>
+               <td>
+               KEDA external scaler will be opened on this port. ScaledObject's <code>.spec.triggers[].metadata.scalerAddress</code> needs to be set to this svc and this port.
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+4318
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="service--name">
+<a href="./values.yaml#L138">service.name</a><br/>
+
+(Type: string)</td>
+               <td>
+               name under which the scaler should be exposed, if left empty, it will try .Values.fullnameOverride and if this is empty, name of the release is used this should handle the case when one needs to install multiple instances of this chart into one cluster and at the same time provide a way to specify a stable address
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+""
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="resources">
+<a href="./values.yaml#L142">resources</a><br/>
+<br/>
+(Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/configuration/manage-resources-containers">manage-resources-containers</a>)</td>
+               <td>
+               resources for the OTel Scaler pod
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="yaml">
+limits:
+    cpu: 500m
+    memory: 256Mi
+requests:
+    cpu: 500m
+    memory: 128Mi
+
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="nodeSelector">
+<a href="./values.yaml#L162">nodeSelector</a><br/>
+<br/>
+(Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector">nodeselector</a>)</td>
+               <td>
+               node selector for KEDA OTel Scaler pod
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+{}
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="tolerations">
+<a href="./values.yaml#L165">tolerations</a><br/>
+<br/>
+(Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration">taint-and-toleration</a>)</td>
+               <td>
+               tolerations for KEDA OTel Scaler pod
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+[]
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="affinity">
+<a href="./values.yaml#L168">affinity</a><br/>
+<br/>
+(Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity">affinity-and-anti-affinity</a>)</td>
+               <td>
+               affinity for KEDA OTel Scaler pod
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+{}
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="kubectlImage">
+<a href="./values.yaml#L172">kubectlImage</a><br/>
+
+(Type: yaml)</td>
+               <td>
+               helper container image that creates the OpenTelemetryCollector CR as post-install helm hook
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="yaml">
+tag: "v1.33.1"
+repository: ghcr.io/kedify/kubectl
+pullPolicy: Always
+pullSecrets: []
+
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCrDefaultTemplate">
+<a href="./values.yaml#L276">otelOperatorCrDefaultTemplate</a><br/>
+
+(Type: raw)</td>
+               <td>
+              
+**This field defines the default template for `OpenTelemetryCollector` CR**
+
+Vast majority of the fields has its counterpart described in OpenTelemetryCollector CRD.
+In order to check their description, install the CRD and run:
 ```bash
-(kubectl port-forward svc/keda-otel-scaler 9090&)
-# swagger doc: http://localhost:9090/swagger/index.html
-# test the existing metric query
-curl -X 'POST' \
-  'http://localhost:9090/memstore/query' \
-  -H 'accept: application/json' \
-  -H 'Content-Type: application/json' \
-  -d '{
-  "operationOverTime": "last_one",
-  "query": "kube_deployment_status_replicas_available{deployment=foo,namespace=observability}"
-}'
+ kubectl explain otelcol.spec
+```
+These defaults are then used as a base layer of configuration for all the items in the `.otelOperatorCrs` list.
+So given we have this values:
+
+```yaml
+otelOperatorCrDefaultTemplate:
+  mode: deployment
+otelOperatorCrs:
+  - enabled: true
+    name: "foo"
+    mode: "daemonset"
+  - enabled: true
+    name: "bar"
+```
+It will render[^fn1] two OpenTelemetryCollector CRs called `foo` and `bar` where `foo` will have the `.spec.mode` set to
+`daemonset` and `foo` will inherit the default mode from `.otelOperatorCrDefaultTemplate.mode` => `deployment`
+[^fn1]: Well in fact it doesn't render the OpenTelemetryCollector CRs directly, but nested as part of a ConfigMap. Then this
+CM is read durin post-install hook and CR is created. This is because we can't render CRD and its instances in one helm command.
+
+ > [!NOTE]
+ > When specifying custom receivers, processors, exporters or extensions. Use `alternate{Receivers,Processors,Exporters,Extensions}`.
+ > And there is no need to enable these under pipeline section. This is done automagically [here](https://github.com/kedify/otel-add-on/blob/main/helmchart/otel-add-on/templates/install-otc/otc-configmap.yaml).
+
+ > [!TIP]
+ > For overriding the whole OTel config, use the `.alternateOtelConfig` field.
+
+Advanced example:
+<details>
+<summary>Expand</summary>
+
+`values.yaml:`
+```yaml
+otelOperator:
+  enabled: true
+otelOperatorCrDefaultTemplate:
+  mode: deployment
+  alternateReceivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+  alternateExporters:
+    otlp:
+      endpoint: col-fanout-collector:4317
+      tls:
+        insecure: true
+otelOperatorCrs:
+  - enabled: true
+    name: "col-in-1"
+  - enabled: true
+    name: "col-in-2"
+  - enabled: true
+    name: "col-fanout"
+    alternateExporters:
+      otlp/external:
+        endpoint: external-collector:4317
+      otlp/keda:
+        endpoint: keda-otel-scaler.keda.svc:4317
+        tls:
+          insecure: true
+    alternateConnectors:
+      routing:
+        default_pipelines: [metrics/all]
+        table:
+          - context: metric
+            condition: metric.name == "http_requests_total"
+            pipelines: [metrics/keda]
+    alternatePipelines:
+      metrics/in:
+        receivers: [otlp]
+        exporters: [routing]
+      metrics/keda:
+        receivers: [routing]
+        exporters: [otlp/keda]
+      metrics/all:
+        receivers: [routing]
+        exporters: [otlp/external]
+```
+ resulting architecture:
+```mermaid
+graph TD;
+    A[col-in-1] -- metrics --> C{col-fanout}
+    B[col-in-2] -- metrics, traces --> C{col-fanout}
+    C -- one metric --> D(KEDA Scaler)
+    C -- all --> E((external-col))
+```
+
+</details>
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="tpl/yaml">
+
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCrDefaultTemplate--debug">
+<a href="./values.yaml#L278">otelOperatorCrDefaultTemplate<br/>.debug</a><br/>
+
+(Type: bool)</td>
+               <td>
+               container image for post-install helm hook that help with OpenTelemetryCollector CR installation
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+false
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCrDefaultTemplate--mode">
+<a href="./values.yaml#L282">otelOperatorCrDefaultTemplate<br/>.mode</a><br/>
+
+(Type: string)</td>
+               <td>
+               how the otel collector should be deployed: sidecar, statefulset, deployment, daemonset note: make sure the CertManager is installed and admission webhooks are enabled for the OTel operator when using mode=sidecar
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+"deployment"
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCrDefaultTemplate--targetAllocatorEnabled">
+<a href="./values.yaml#L285">otelOperatorCrDefaultTemplate<br/>.targetAllocatorEnabled</a><br/>
+
+(Type: bool)</td>
+               <td>
+               whether TargetAllocator feature (Prometheus Custom Resources for service discovery) should be enabled (<a href="https://github.com/open-telemetry/opentelemetry-operator?tab=readme-ov-file#target-allocator">details</a>) make sure the mode is not set to <code>sidecar</code> when this is enabled
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+false
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCrDefaultTemplate--targetAllocatorClusterRoles">
+<a href="./values.yaml#L287">otelOperatorCrDefaultTemplate<br/>.targetAllocatorClusterRoles</a><br/>
+
+(Type: list)</td>
+               <td>
+               list of existing cluster roles that will be bound to the service account (in order to be able to work with <code>{Pod,Service}Monitor</code> CRD)
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+[
+  "kube-prometheus-stack-operator",
+  "kube-prometheus-stack-prometheus"
+]
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCrDefaultTemplate--targetAllocator--prometheusCR--serviceMonitorSelector">
+<a href="./values.yaml#L296">otelOperatorCrDefaultTemplate<br/>.targetAllocator<br/>.prometheusCR<br/>.serviceMonitorSelector</a><br/>
+
+(Type: object)</td>
+               <td>
+               further narrow the ServiceMonitor CRs (labels)
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+{}
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCrDefaultTemplate--targetAllocator--prometheusCR--podMonitorSelector">
+<a href="./values.yaml#L300">otelOperatorCrDefaultTemplate<br/>.targetAllocator<br/>.prometheusCR<br/>.podMonitorSelector</a><br/>
+
+(Type: object)</td>
+               <td>
+               further narrow the PodMonitor CRs
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+{}
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCrDefaultTemplate--tls">
+<a href="./values.yaml#L312">otelOperatorCrDefaultTemplate<br/>.tls</a><br/>
+
+(Type: object)</td>
+               <td>
+               TLS settings for OTel collector's exporter that feeds the metrics to KEDA OTel scaler it is not in scope of this helm chart to create the secrets with certificate, however this is a convenient way of configuring volumes and volumeMounts for each secret with cert. It has the same structure as tls settings for the scaler (check .Values.tls). One significant difference is that here we specify a client cert for OTLP exporter, while .Values.tls specify the server cert for OTLP receiver
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+{}
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCrDefaultTemplate--resources">
+<a href="./values.yaml#L340">otelOperatorCrDefaultTemplate<br/>.resources</a><br/>
+<br/>
+(Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/configuration/manage-resources-containers">manage-resources-containers</a>)</td>
+               <td>
+               resources for the OTel collector container
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="yaml">
+limits:
+    cpu: 400m
+    memory: 128Mi
+requests:
+    cpu: 200m
+    memory: 64Mi
+
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCrDefaultTemplate--alternateOtelConfig">
+<a href="./values.yaml#L349">otelOperatorCrDefaultTemplate<br/>.alternateOtelConfig</a><br/>
+
+(Type: object)</td>
+               <td>
+               free form OTel configuration that will be used for the OpenTelemetryCollector CR (no checks) this is mutually exclusive w/ all the following options
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+{}
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCrDefaultTemplate--prometheusScrapeConfigs">
+<a href="./values.yaml#L353">otelOperatorCrDefaultTemplate<br/>.prometheusScrapeConfigs</a><br/>
+
+(Type: list)</td>
+               <td>
+               static targets for prometheus receiver, this needs to take into account the deployment mode of the collector (127.0.0.1 in case of a sidecar mode will mean something else than for statefulset mode)
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+[
+  {
+    "job_name": "otel-collector",
+    "scrape_interval": "3s",
+    "static_configs": [
+      {
+        "targets": [
+          "0.0.0.0:8080"
+        ]
+      }
+    ]
+  }
+]
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCrDefaultTemplate--alternateReceivers">
+<a href="./values.yaml#L359">otelOperatorCrDefaultTemplate<br/>.alternateReceivers</a><br/>
+
+(Type: object)</td>
+               <td>
+               mutually exclusive with prometheusScrapeConfigs option
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+{}
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCrDefaultTemplate--includeMetrics">
+<a href="./values.yaml#L363">otelOperatorCrDefaultTemplate<br/>.includeMetrics</a><br/>
+
+(Type: list)</td>
+               <td>
+               if not empty, only following metrics will be sent. This translates to filter/metrics processor. Empty array means include all.
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+[]
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCrs">
+<a href="./values.yaml#L414">otelOperatorCrs</a><br/>
+
+(Type: yaml)</td>
+               <td>
+               create also OpenTelemetryCollector CRs that will be reconciled by OTel Operator it takes all the default settings defined in <code>otelOperatorCrDefaultTemplate</code> and allows overriding them here
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="yaml">
+# -- if enabled, the OpenTelemetryCollector CR will be created using post-install hook job_name
+- enabled: false
+  # -- name of the OpenTelemetryCollector CR. If left empty, the release name will be used.
+  name: ""
+  # -- in what k8s namespace the OpenTelemetryCollector CR should be created. If left empty, the release namespace will be used.
+  namespace: ""
+- name: target-allocator
+  enabled: false
+  targetAllocatorEnabled: true
+  mode: deployment
+
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCrs[0]">
+<a href="./values.yaml#L416">otelOperatorCrs[0]</a><br/>
+
+(Type: object)</td>
+               <td>
+               if enabled, the OpenTelemetryCollector CR will be created using post-install hook job_name
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
 {
-    "ok": true,
-    "operation": "query",
-    "error": "",
-    "value": 1
+  "enabled": false,
+  "name": "",
+  "namespace": ""
 }
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCrs[0]--name">
+<a href="./values.yaml#L418">otelOperatorCrs[0].name</a><br/>
 
-# check the data if the labels are stored there correctly:
-curl -X 'GET' \
-  'http://localhost:9090/memstore/data' \
-  -H 'accept: application/json' | jq '.kube_deployment_status_replicas_available[].labels'
-{
-  "deployment": "keda-operator",
-  "namespace": "keda"
-}
-```
+(Type: string)</td>
+               <td>
+               name of the OpenTelemetryCollector CR. If left empty, the release name will be used.
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+""
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperatorCrs[0]--namespace">
+<a href="./values.yaml#L420">otelOperatorCrs[0].namespace</a><br/>
 
-### Configuration for OTel collector
+(Type: string)</td>
+               <td>
+               in what k8s namespace the OpenTelemetryCollector CR should be created. If left empty, the release namespace will be used.
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+""
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelOperator">
+<a href="./values.yaml#L431">otelOperator</a><br/>
 
-This repo has the OTel collector helm chart as a dependency and some issues in the configuration are guarded
-by their upstream JSON Schema, but some are not, and it's a good idea to run the validator (especially if it's part
-of a CI/CD pipeline):
+(Type: yaml)</td>
+               <td>
+               values for OTel operator helm chart - these values overrides the defaults defined <a href="https://github.com/open-telemetry/opentelemetry-helm-charts/blob/opentelemetry-operator-0.92.3/charts/opentelemetry-operator/values.yaml">here</a> by default the operator is <code>disabled</code>
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="yaml">
+enabled: false
+fullnameOverride: otel-operator
+manager:
+    collectorImage:
+        #      repository: otel/opentelemetry-collector-k8s
+        repository: otel/opentelemetry-collector-contrib
+    env:
+        ENABLE_WEBHOOKS: "false"
+    serviceAccount:
+        name: otel-operator
+admissionWebhooks:
+    create: false
 
-```
-# 1) download the binary
-VERSION=0.117.0
-curl -sL https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${VERSION}/otelcol-contrib_${VERSION}_$(go env GOOS)_$(go env GOARCH).tar.gz | tar xvz - -C .
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelCollector">
+<a href="./values.yaml#L449">otelCollector</a><br/>
 
-# 2) run the validator against your helm chart values
-./otel-contrib validate --config=<(cat values.yaml | yq '.opentelemetry-collector.alternateConfig')
-```
+(Type: yaml)</td>
+               <td>
+               values for OTel collector helm chart - these values overrides the defaults defined <a href="https://github.com/open-telemetry/opentelemetry-helm-charts/tree/opentelemetry-collector-0.136.1/charts/opentelemetry-collector/values.yaml">here</a> by default the collector is <code>disabled</code>
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="yaml">
+# -- If enabled, the OTel collector sub-chart will be rendered
+enabled: false
+# -- Valid values are "daemonset", "deployment", "sidecar" and "statefulset"
+mode: deployment
+image:
+    #    repository: otel/opentelemetry-collector-k8s
+    repository: otel/opentelemetry-collector-contrib
+    # -- Container image - OTel collector distribution
+fullnameOverride: otelcol
+#  ports:
+#    opencensus:
+#      enabled: true
+#      containerPort: 55678
+#      servicePort: 55678
+#      hostPort: 55678
+#      protocol: TCP
+# -- Configuration for OTel collector that will be installed
+# @notationType -- yaml
+alternateConfig:
+    receivers: {}
+    processors:
+        resourcedetection/env:
+            detectors: [env]
+            timeout: 2s
+            override: false
+        transform:
+            metric_statements:
+                - context: datapoint
+                  statements:
+                    - set(attributes["namespace"], resource.attributes["k8s.namespace.name"])
+                    - set(attributes["pod"], resource.attributes["k8s.pod.name"])
+                    - set(attributes["deployment"], resource.attributes["k8s.deployment.name"])
+    exporters:
+        otlp:
+            # make sure this is the same hostname and port as .service (when using different namespace)
+            endpoint: keda-otel-scaler.keda.svc:4317
+            compression: "none"
+            tls:
+                insecure: true
+        debug:
+            verbosity: detailed
+    service:
+        extensions:
+            - health_check
+        pipelines:
+            metrics:
+                receivers: []
+                processors: [resourcedetection/env, transform]
+                exporters: [debug, otlp]
+    extensions:
+        health_check:
+            endpoint: ${env:MY_POD_IP}:13133
 
-Alternatively, you may want to use online tools such as [otelbin.io](https://www.otelbin.io/).
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelCollector--enabled">
+<a href="./values.yaml#L451">otelCollector.enabled</a><br/>
+
+(Type: bool)</td>
+               <td>
+               If enabled, the OTel collector sub-chart will be rendered
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+false
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelCollector--mode">
+<a href="./values.yaml#L453">otelCollector.mode</a><br/>
+
+(Type: string)</td>
+               <td>
+               Valid values are "daemonset", "deployment", "sidecar" and "statefulset"
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+"deployment"
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="otelCollector--alternateConfig">
+<a href="./values.yaml#L468">otelCollector.alternateConfig</a><br/>
+
+(Type: yaml)</td>
+               <td>
+               Configuration for OTel collector that will be installed
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="yaml">
+receivers: {}
+processors:
+    resourcedetection/env:
+        detectors: [env]
+        timeout: 2s
+        override: false
+    transform:
+        metric_statements:
+            - context: datapoint
+              statements:
+                - set(attributes["namespace"], resource.attributes["k8s.namespace.name"])
+                - set(attributes["pod"], resource.attributes["k8s.pod.name"])
+                - set(attributes["deployment"], resource.attributes["k8s.deployment.name"])
+exporters:
+    otlp:
+        # make sure this is the same hostname and port as .service (when using different namespace)
+        endpoint: keda-otel-scaler.keda.svc:4317
+        compression: "none"
+        tls:
+            insecure: true
+    debug:
+        verbosity: detailed
+service:
+    extensions:
+        - health_check
+    pipelines:
+        metrics:
+            receivers: []
+            processors: [resourcedetection/env, transform]
+            exporters: [debug, otlp]
+extensions:
+    health_check:
+        endpoint: ${env:MY_POD_IP}:13133
+
+</pre>
+</div>
+               </td>
+          </tr>
+     </tbody>
+</table>
+
+<!-- uncomment this for markdown style (use either valuesTableHtml or valuesSection)
+docs: https://github.com/norwoodj/helm-docs?tab=readme-ov-file#markdown-rendering
+(( template "chart.valuesSection" . )) -->
+
+<p align="center">
+  <img height="200" src="../../otel_keda-scaler.png">
+</p>
