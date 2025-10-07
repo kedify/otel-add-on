@@ -38,6 +38,8 @@ kubectl apply -f ${DIR}/podinfo-so.yaml
 (hey -n 7000 -z 180s http://localhost:8181/delay/2 &> /dev/null)&
 
 # watch deployments being scaled
-echo "hey is running in background, now deployments should be autoscaled.."
+echo -e "\nhey is running in background, now deployments should be autoscaled.."
 sleep 5
 watch -c "kubectl get deploy/podinfo"
+
+echo -e "\nDon't forget to delete the cluster:\n - k3d cluster delete metric-pull\n\n🚀"
