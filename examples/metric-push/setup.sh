@@ -66,3 +66,5 @@ kubectl apply -f ${DIR}/sos.yaml
 echo "now deployments should be autoscaled.."
 sleep 5
 watch -c "kubectl get deploy/recommendation deploy/product-catalog hpa/keda-hpa-recommendationservice hpa/keda-hpa-productcatalogservice"
+
+echo -e "\nDon't forget to delete the cluster:\n - k3d cluster delete metric-push\n\n🚀"
