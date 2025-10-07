@@ -49,7 +49,7 @@ helm upgrade -i --create-namespace -n observability prometheus prometheus-commun
 # grafana
 helm upgrade -i --create-namespace -n observability grafana grafana/grafana -f ${DIR}/grafana-values.yaml
 
-#helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.1 -f ${DIR}/scaler-pipelines-tls-values.yaml
+#helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.2 -f ${DIR}/scaler-pipelines-tls-values.yaml
 # KEDA Scaler & OTel collectors
 helm upgrade -i keda-otel-scaler -nkeda ${DIR}/../../helmchart/otel-add-on -f ${DIR}/scaler-pipelines-tls-values.yaml
 
