@@ -91,7 +91,7 @@ jobs:
           createdAt=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
           version=${current_tag#v} \
           yq -i \
-            -e '.version=env(current_tag) | .createdAt=env(createdAt)' \
+            -e '.version=env(version) | .createdAt=env(createdAt)' \
             artifacthub/otel-add-on-scaler/${current_tag#v}/artifacthub-pkg.yml
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f # v7.0.5
