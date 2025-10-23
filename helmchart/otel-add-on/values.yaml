@@ -443,7 +443,7 @@ otelOperator:
   admissionWebhooks:
     create: false
 
-# -- values for OTel collector helm chart - these values overrides the defaults defined [here](https://github.com/open-telemetry/opentelemetry-helm-charts/tree/opentelemetry-collector-0.136.1/charts/opentelemetry-collector/values.yaml)
+# -- values for OTel collector helm chart - these values overrides the defaults defined [here](https://github.com/open-telemetry/opentelemetry-helm-charts/tree/opentelemetry-collector-0.138.0/charts/opentelemetry-collector/values.yaml)
 # by default the collector is `disabled`
 # @notationType -- yaml
 otelCollector:
