@@ -16,7 +16,7 @@ dependencies:
   - name: opentelemetry-operator
     repository: https://open-telemetry.github.io/opentelemetry-helm-charts
     version: 0.93.0
-    condition: opentelemetry-operator.enabled,otelOperator2.enabled
+    condition: opentelemetry-operator.enabled,otelOperator.enabled
     alias: otelOperator
 home: https://github.com/kedify/otel-add-on
 sources:

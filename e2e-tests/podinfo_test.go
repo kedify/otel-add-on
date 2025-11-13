@@ -89,6 +89,8 @@ var _ = Describe("Helm chart:", Ordered, func() {
 	It("keda-otel-scaler should be possible to install", func() {
 		pwd, err := os.Getwd()
 		Expect(err).NotTo(HaveOccurred())
+		_, err = execCmdOE(ctx.helm+" dependency update", pwd+"/../helmchart/otel-add-on")
+		Expect(err).NotTo(HaveOccurred())
 		_, err = execCmdOE(ctx.helm+" dependency build", pwd+"/../helmchart/otel-add-on")
 		Expect(err).NotTo(HaveOccurred())
 		cmd := ctx.helm + " upgrade -i keda-otel-scaler ../helmchart/otel-add-on --namespace keda --create-namespace -f ./testdata/scaler-values.yaml"
