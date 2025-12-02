@@ -2,7 +2,7 @@
 
 # otel-add-on
 
-![Version: v0.1.2](https://img.shields.io/badge/Version-v0.1.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.2](https://img.shields.io/badge/AppVersion-v0.1.2-informational?style=flat-square)
+![Version: v0.1.3](https://img.shields.io/badge/Version-v0.1.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.3](https://img.shields.io/badge/AppVersion-v0.1.3-informational?style=flat-square)
 
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/otel-add-on)](https://artifacthub.io/packages/search?repo=otel-add-on)
 
@@ -40,7 +40,7 @@ crane ls ghcr.io/kedify/charts/otel-add-on | grep -E '^v?[0-9]'
 
 Install specific version:
 ```bash
-helm upgrade -i oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.2
+helm upgrade -i keda-otel-scaler oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.2
 ```
 
 Advanced stuff:
