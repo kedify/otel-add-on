@@ -20,7 +20,7 @@ helm upgrade -i podinfo podinfo/podinfo -f ${DIR}/podinfo-values.yaml
 KEDA_VERSION=$(curl -s https://api.github.com/repos/kedify/charts/releases | jq -r '[.[].tag_name | select(. | startswith("keda/")) | sub("^keda/"; "")] | first')
 KEDA_VERSION=${KEDA_VERSION:-v2.17.1-0}
 helm upgrade -i keda kedify/keda --namespace keda --create-namespace --version ${KEDA_VERSION}
-#helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.2 -f ${DIR}/scaler-with-collector-pull-values.yaml
+#helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.3 -f ${DIR}/scaler-with-collector-pull-values.yaml
 helm upgrade -i keda-otel-scaler -nkeda ${DIR}/../../helmchart/otel-add-on -f ${DIR}/scaler-with-collector-pull-values.yaml
 
 [ "x${SETUP_ONLY}" = "xtrue" ] && exit 0
