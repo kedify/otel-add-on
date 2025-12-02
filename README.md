@@ -1292,7 +1292,7 @@ admissionWebhooks:
 
 (Type: yaml)</td>
                <td>
-               values for OTel collector helm chart - these values overrides the defaults defined <a href="https://github.com/open-telemetry/opentelemetry-helm-charts/tree/opentelemetry-collector-0.136.1/charts/opentelemetry-collector/values.yaml">here</a> by default the collector is <code>disabled</code>
+               values for OTel collector helm chart - these values overrides the defaults defined <a href="https://github.com/open-telemetry/opentelemetry-helm-charts/tree/opentelemetry-collector-0.140.0/charts/opentelemetry-collector/values.yaml">here</a> by default the collector is <code>disabled</code>
                </td>
                <td>
                     <div style="max-width: 200px;">
