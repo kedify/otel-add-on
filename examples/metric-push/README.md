@@ -28,7 +28,7 @@ open http://localhost:8080
 
 Install this addon:
 ```bash
-helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.3 -f scaler-only-push-values.yaml
+helm upgrade -i keda-otel-scaler oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.3 --create-namespace -f scaler-only-push-values.yaml
 ```
 
 In this scenario, we don't install OTel collector using the `kedify-otel/otel-add-on` helm chart, because
@@ -53,8 +53,14 @@ instead we go w/ simple (w/o filtering):
 
 Install KEDA by Kedify.io:
 ```bash
-helm upgrade -i keda kedify/keda --namespace keda --create-namespace
+helm upgrade -i keda kedify/keda --namespace keda --version vX.Y.Z-n
 ```
+
+ > [!TIP]
+ > Find out the latest version of Kedify KEDA (the "`X.Y.Z-n`") at [releases](https://github.com/kedify/charts/releases) page or by running:
+ > ```bash
+ > curl -s https://api.github.com/repos/kedify/charts/releases | jq -r '[.[].tag_name | select(. | startswith("keda/")) | sub("^keda/"; "")] | first'
+ > ```
 
 We will be scaling two microservices for this application, first let's check what metrics are there in shipped 
 [grafana](http://localhost:8080/grafana/explore?schemaVersion=1&panes=%7B%222n3%22:%7B%22datasource%22:%22webstore-metrics%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22expr%22:%22app_frontend_requests_total%22,%22range%22:true,%22instant%22:true,%22datasource%22:%7B%22type%22:%22prometheus%22,%22uid%22:%22webstore-metrics%22%7D,%22editorMode%22:%22code%22,%22legendFormat%22:%22__auto%22,%22useBackend%22:false,%22disableTextWrap%22:false,%22fullMetaSearch%22:false,%22includeNullMetadata%22:true%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D%7D%7D&orgId=1).

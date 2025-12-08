@@ -27,7 +27,7 @@ open http://localhost:8181/metrics
 
 Install this addon:
 ```bash
-helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.3 -f scaler-with-collector-pull-values.yaml
+helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.3 --create-namespace -f scaler-with-collector-pull-values.yaml
 ```
 
 Note the following section in the helm chart values that configures the OTel collector to scrape targets:
@@ -73,8 +73,14 @@ We set these two annotation in our service for podinfo [here](./podinfo-values.y
 
 Install KEDA by Kedify.io:
 ```bash
-helm upgrade -i keda kedify/keda --namespace keda --create-namespace
+helm upgrade -i keda kedify/keda --namespace keda --version vX.Y.Z-n
 ```
+
+ > [!TIP]
+ > Find out the latest version of Kedify KEDA (the "`X.Y.Z-n`") at [releases](https://github.com/kedify/charts/releases) page or by running:
+ > ```bash
+ > curl -s https://api.github.com/repos/kedify/charts/releases | jq -r '[.[].tag_name | select(. | startswith("keda/")) | sub("^keda/"; "")] | first'
+ > ```
 
 Create `ScaledObject`:
 ```bash
