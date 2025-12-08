@@ -34,7 +34,7 @@ kubectl rollout status -n dapr-system deploy/dapr-sidecar-injector
 
 Deploy this scaler and OTel collector that forwards one whitelisted metric:
 ```bash
-cat <<VALUES | helm upgrade -i kedify-otel oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.3 -f -
+cat <<VALUES | helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.3 --create-namespace -f -
 opentelemetry-collector:
   alternateConfig:
     processors:
@@ -70,8 +70,14 @@ Deploy Kedify KEDA:
 ```bash
 helm repo add kedify https://kedify.github.io/charts
 helm repo update kedify
-helm upgrade -i keda kedify/keda --namespace keda --create-namespace  --version v2.16.0-1
+helm upgrade -i keda kedify/keda --namespace keda --version vX.Y.Z-n
 ```
+
+ > [!TIP]
+ > Find out the latest version of Kedify KEDA (the "`X.Y.Z-n`") at [releases](https://github.com/kedify/charts/releases) page or by running:
+ > ```bash
+ > curl -s https://api.github.com/repos/kedify/charts/releases | jq -r '[.[].tag_name | select(. | startswith("keda/")) | sub("^keda/"; "")] | first'
+ > ```
 
 Wait for all the deployment to become ready
 ```bash
