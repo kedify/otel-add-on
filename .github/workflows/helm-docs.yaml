@@ -34,6 +34,7 @@ jobs:
           base: main
           signoff: true
           token: ${{ secrets.GITHUB_TOKEN }}
+          add-paths: artifacthub/otel-add-on-scaler/**
           body: |
             :package: helmchart/otel-add-on/README.md update :package:
             ### automated change
