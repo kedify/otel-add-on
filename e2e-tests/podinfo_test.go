@@ -147,7 +147,7 @@ var _ = Describe("Helm chart:", Ordered, func() {
 						}
 					}()
 					time.Sleep(1 * time.Second)
-					ctx.t.Logf("        ->>>  Waiting for KEDA to scale the podinfo deployement        <<<-\n\n")
+					ctx.t.Logf("        ->>>  Waiting for KEDA to scale the podinfo deployment        <<<-\n\n")
 					ctx2min, _ := context.WithTimeout(context.TODO(), 2*time.Minute)
 					Eventually(func(g Gomega) {
 						out, err := kubectl("get hpa keda-hpa-podinfo-pull-example -ojsonpath='{.status.desiredReplicas}'")
@@ -171,7 +171,7 @@ var _ = Describe("Helm chart:", Ordered, func() {
 						desiredReplicas, err := strconv.Atoi(strings.Trim(out, "'"))
 						g.Expect(err).Should(Not(HaveOccurred()))
 						g.Expect(desiredReplicas).Should(Equal(minReplicas))
-						ctx.t.Logf("\n        ->>>  Pod info successfuly scaled back to %d        <<<-\n\n", desiredReplicas)
+						ctx.t.Logf("\n        ->>>  Pod info successfully scaled back to %d        <<<-\n\n", desiredReplicas)
 					}).WithPolling(5 * time.Second).WithTimeout(10 * time.Minute).WithContext(ctx15min).Should(Succeed())
 				})
 			})

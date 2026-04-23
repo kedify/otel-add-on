@@ -4,12 +4,12 @@
 
 ### Description
 
-This is an external scaler for KEDA that intergrates with OpenTelemetry (OTel) collector. The helm chart deploys also OTel
+This is an external scaler for KEDA that integrates with OpenTelemetry (OTel) collector. The helm chart deploys also OTel
 collector (using the [upstream helm chart](https://github.com/open-telemetry/opentelemetry-helm-charts)) where one can set up
 filtering so that scaler receives only those metrics that are needed for scaling decisions 
 ([example](https://github.com/kedify/otel-add-on/blob/v0.0.0-1/helmchart/otel-add-on/values.yaml#L133-L147)).
 
-The application consist of three parts:
+The application consists of three parts:
 - OTLP receiver
 - simple metric storage
 - external scaler for KEDA
@@ -59,7 +59,7 @@ All of these various receivers open new ways of how to turn metric from OTel rec
 [sqlqueryreceiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/sqlqueryreceiver), one can achieve similar goals as with
 [MySQL](https://keda.sh/docs/2.15/scalers/mysql/) or [PostgreSQL](https://keda.sh/docs/2.15/scalers/postgresql/) scalers. 
 By using [githubreceiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/githubreceiver), one can hook to
-metrics from GitBub, etc.
+metrics from GitHub, etc.
 
 #### 3. process the metrics before reaching the scaler
 OTel collector provides [various processors](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor)
@@ -120,7 +120,7 @@ Demos
 
 ## Troubleshooting
 
-To figure out the actual value of a metric query, there is a simple REST api that can be used:
+To figure out the actual value of a metric query, there is a simple REST API that can be used:
 
 ```bash
 (kubectl port-forward svc/keda-otel-scaler 9090&)

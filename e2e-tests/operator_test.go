@@ -109,7 +109,7 @@ var _ = Describe("Helm chart (op):", Ordered, func() {
 			When("PR is opened for more than 2 minutes", func() {
 				It("should eventually scale the otel-operator from 1 -> 3", func() {
 					time.Sleep(1 * time.Second)
-					ctx.t.Logf("        ->>>  Waiting for KEDA to scale the podinfo deployement        <<<-\n\n")
+					ctx.t.Logf("        ->>>  Waiting for KEDA to scale the podinfo deployment        <<<-\n\n")
 					ctx15min, _ := context.WithTimeout(context.TODO(), 15*time.Minute)
 					Eventually(func(g Gomega) {
 						out, err := kubectl("get hpa -nkeda keda-hpa-github-metrics -ojsonpath='{.status.desiredReplicas}'")
@@ -117,8 +117,8 @@ var _ = Describe("Helm chart (op):", Ordered, func() {
 						desiredReplicas, err := strconv.Atoi(strings.Trim(out, "'"))
 						g.Expect(err).Should(Not(HaveOccurred()))
 						g.Expect(desiredReplicas).Should(And(BeNumerically(">", minReplicas), BeNumerically("<=", opMaxReplicas)))
-						ctx.t.Logf("\n        ->>>  otel operator successfuly scaled to %d        <<<-\n\n", desiredReplicas)
-						GinkgoWriter.Println("        ->>>  otel operator successfuly scaled to")
+						ctx.t.Logf("\n        ->>>  otel operator successfully scaled to %d        <<<-\n\n", desiredReplicas)
+						GinkgoWriter.Println("        ->>>  otel operator successfully scaled to")
 					}).WithPolling(3 * time.Second).
 						WithContext(ctx15min).
 						Should(Succeed())
