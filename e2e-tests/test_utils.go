@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -24,6 +24,7 @@ import (
 
 const (
 	k3dVersion                 = "v5.8.3"
+	heyVersion                 = "v0.1.5"
 	podinfoVesrsion            = "v6.9.0"
 	kedifyKedaHelmChartVersion = "v2.17.1-0"
 	defaultTimeoutSec          = 600
@@ -180,7 +181,7 @@ func installHelmCli() error {
 	ctx.helm = "helm"
 	_, err := exec.LookPath("helm")
 	if err != nil || isCI == "true" {
-		ctx.hey = "./bin/helm"
+		ctx.helm = "./bin/helm"
 		err = execCmdE("curl -fsSL -o ./bin/get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3")
 		require.NoErrorf(ctx.t, err, "cannot download helm installation shell script - %s", err)
 
@@ -217,19 +218,21 @@ func installHey() error {
 		ctx.hey = "./bin/hey"
 		_, err := exec.LookPath(ctx.hey)
 		if err != nil {
-			url := fmt.Sprintf("https://hey-release.s3.us-east-2.amazonaws.com/hey_%s_amd64", runtime.GOOS)
-			err = execCmdE("curl -fsSL -o ./bin/hey " + url)
-			require.NoErrorf(ctx.t, err, "cannot download hey binary: %s", err)
+			workDir, err := os.Getwd()
+			require.NoErrorf(ctx.t, err, "cannot resolve working directory for hey install: %s", err)
 
-			err = execCmdE("chmod 700 ./bin/hey")
-			require.NoErrorf(ctx.t, err, "cannot change permissions for hey binary: %s", err)
+			err = execCmdE(
+				fmt.Sprintf("go install github.com/rakyll/hey@%s", heyVersion),
+				EnvVar{name: "GOBIN", value: filepath.Join(workDir, "bin")},
+			)
+			require.NoErrorf(ctx.t, err, "cannot install hey with go install: %s", err)
 		}
 	}
 	cmd := parseCommand(ctx.hey+" -n 1 -c 1 http://google.com", "")
 	cmd.Logger = logger.Discard
 	err = shell.RunCommandE(ctx.t, cmd)
 
-	require.NoErrorf(ctx.t, err, "cannot change permissions for hey binary: %s", err)
+	require.NoErrorf(ctx.t, err, "cannot validate hey binary: %s", err)
 	return err
 }
 
