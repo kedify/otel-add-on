@@ -79,7 +79,7 @@ helm upgrade -i keda kedify/keda --namespace keda --version vX.Y.Z-n
  > curl -s https://api.github.com/repos/kedify/charts/releases | jq -r '[.[].tag_name | select(. | startswith("keda/")) | sub("^keda/"; "")] | first'
  > ```
 
-Wait for all the deployment to become ready
+Wait for all the deployments to become ready
 ```bash
 for d in nodeapp pythonapp otelcol otel-add-on-scaler ; do
 kubectl rollout status --timeout=300s deploy/${d}
@@ -140,7 +140,7 @@ kubectl scale deployment pythonapp --replicas=3
 
 This should lead to `nodeapp` being scaled also to `3` replicas.
 
-Create `100` request from `pythonapp`
+Create `100` requests from `pythonapp`
 ```bash
 _podName=$(kubectl get po -ldapr.io/app-id=pythonapp -ojsonpath="{.items[0].metadata.name}")
 kubectl debug -it ${_podName} --image=nicolaka/netshoot -- sh -c 'for x in $(seq 100); do curl http://localhost:3500/v1.0/invoke/nodeapp/method/order/ ;done'

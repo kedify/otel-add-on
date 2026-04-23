@@ -119,7 +119,7 @@ func (e *impl) GetMetricSpec(
 	isLazy := e.cfg.MetricStoreLazySeries || e.cfg.MetricStoreLazyAggregates
 	metricName, labels, agg, err := util.GetMetricQuery(lggr, sor.GetScalerMetadata(), e.metricParser)
 	if err == nil {
-		opOverTime := util.GetOperationOvertTime(lggr, sor.GetScalerMetadata())
+		opOverTime := util.GetOperationOverTime(lggr, sor.GetScalerMetadata())
 		if isLazy && e.metricStore.IsSubscribed(e.cfg.MetricStoreLazyAggregates, metricName, opOverTime) {
 			if _, _, er := e.metricStore.Get(metricName, labels, opOverTime, agg); err != nil {
 				lggr.Error(er, "unable to initialize the metric in lazy mode", "metricName", metricName, "labels", labels)
@@ -185,7 +185,7 @@ func (e *impl) getMetric(sor *externalscaler.ScaledObjectRef) (float64, error) {
 	if err != nil {
 		return e.cfg.MetricStoreValueIfNotFound, err
 	}
-	opOverTime := util.GetOperationOvertTime(lggr, sor.GetScalerMetadata())
+	opOverTime := util.GetOperationOverTime(lggr, sor.GetScalerMetadata())
 	value, found, err := e.metricStore.Get(metricName, labels, opOverTime, agg)
 	lggr.Info("got metric value: ", "name", metricName, "labels", labels, "value", value, "found", found, "error", err)
 	if !found {

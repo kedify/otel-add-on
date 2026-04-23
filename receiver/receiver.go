@@ -161,7 +161,7 @@ type HasCountSum interface {
 	Attributes() pcommon.Map
 }
 
-// Export implements the service Export metrics func.
+// Export implements the service Export metrics function.
 func (r *Receiver) Export(ctx context.Context, req pmetricotlp.ExportRequest) (pmetricotlp.ExportResponse, error) {
 	md := req.Metrics()
 	dataPointCount := md.DataPointCount()

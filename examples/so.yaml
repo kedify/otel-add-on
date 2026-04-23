@@ -17,7 +17,7 @@ spec:
         # PromQL-like query identifying exactly one metric name
         # if metric has more dimensions, these can be further specified by labels {a=b,c=2..}
         # when multiple time series (/dimensions) fulfil the label selector, then we first apply the operationOverTime
-        # on each time serie and combine the result with the optional operation that's part of this query (if omitted, it's sum)
+        # on each time series and combine the result with the optional operation that's part of this query (if omitted, it's sum)
         #
         # grammar:
         # op(metricName{label1=val1, label2=val2})  , where 'op' is one of {sum, min, max, avg, count}

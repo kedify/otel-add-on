@@ -42,7 +42,7 @@ func ClampValue(lggr logr.Logger, value float64, metadata map[string]string) flo
 	return value
 }
 
-func GetOperationOvertTime(lggr logr.Logger, metadata map[string]string) types.OperationOverTime {
+func GetOperationOverTime(lggr logr.Logger, metadata map[string]string) types.OperationOverTime {
 	operationOverTime, found := metadata[MetadataOperationOverTime]
 	if !found {
 		return MetadataOperationOverTimeDefaultValue

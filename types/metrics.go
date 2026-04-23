@@ -5,7 +5,7 @@ import "go.opentelemetry.io/collector/pdata/pcommon"
 type NewMetricEntry struct {
 	// metric name
 	Name MetricName `json:"name"`
-	// labels further identifies the collected data points (introducing new dimensions and storing also metadata) ~ tags
+	// labels further identify the collected data points (introducing new dimensions and storing also metadata) ~ tags
 	Labels Labels `json:"labels"`
 	// observed value
 	MeasurementValue  float64           `json:"measurementValue"`
@@ -37,21 +37,21 @@ type ObservedValue struct {
 const (
 	// following aggregations can be applied across multiple metric series. This automatically happens if provided
 	// set of labels wasn't specific enough to identify just one vector. In which case we first apply the OperationOverTime
-	// and on the resulting set of numbers where each represents last_one, rate, min, max, avg of the time serie, we apply
+	// and on the resulting set of numbers where each represents last_one, rate, min, max, avg of the time series, we apply
 	// this function
 
 	// VecSum sums the numbers (if adding a new one, update also checkVectorAggregation)
 	VecSum AggregationOverVectors = "sum"
-	// VecAvg calculate the mean value
+	// VecAvg calculates the mean value
 	VecAvg AggregationOverVectors = "avg"
-	// VecMin calculate the minimum value
+	// VecMin calculates the minimum value
 	VecMin AggregationOverVectors = "min"
-	// VecMax calculate the max value
+	// VecMax calculates the max value
 	VecMax AggregationOverVectors = "max"
-	// VecCount calculate the number of occurrences
+	// VecCount calculates the number of occurrences
 	VecCount AggregationOverVectors = "count"
 
-	// following operations can be applied on one time serie vector that was captured over time
+	// following operations can be applied on one time series vector that was captured over time
 	// returning just one number
 
 	// OpLastOne returns the last measured value

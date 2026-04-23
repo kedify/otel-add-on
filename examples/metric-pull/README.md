@@ -69,7 +69,7 @@ We are adding one static target - the metrics from the OTel collector itself, ju
 won't be used for scaling decision. And also any pod annotated with `prometheus.io/scrape=true`. One can
 also modify the path where the metrics are exported using `prometheus.io/path=/metrics`.
 
-We set these two annotation in our service for podinfo [here](./podinfo-values.yaml).
+We set these two annotations in our service for podinfo [here](./podinfo-values.yaml).
 
 Install KEDA by Kedify.io:
 ```bash
@@ -97,7 +97,7 @@ Finally, create some traffic. Podinfo has an endpoint that responds after a dela
 hey -n 5000 -z 120s http://localhost:8181/delay/2
 ```
 
-Observer how number of replicas of Podinfo deployment is reacting on the load.
+Observe how the number of replicas of the Podinfo deployment is reacting to the load.
 
 ```bash
 watch kubectl get pods -A
