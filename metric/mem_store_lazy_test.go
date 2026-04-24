@@ -150,8 +150,8 @@ func TestLazyMemStoreAndLazyAggregatesComplex(t *testing.T) {
 	assertNotThere(t, ms, name, labels, ty.OpRate, ty.VecSum)
 	now += 100
 	setupMetricsWithNow(ms, now, name, 10, labels, 20., 30., 40., 50., 600.)
-	// (600 - 6) / (600 - 360) - 6. is the first value, 600 the last one and 240 is the delta in time of measurements
-	assertMetricFoundAndEqualTo(t, ms, name, labels, ty.OpRate, ty.VecSum, 2.475)
+	// Rate uses counter semantics, so the 10 -> 1 drop is treated as a reset.
+	assertMetricFoundAndEqualTo(t, ms, name, labels, ty.OpRate, ty.VecSum, 2.516)
 
 	// count
 	assertNotThere(t, ms, name, labels, ty.OpCount, ty.VecSum)

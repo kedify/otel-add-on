@@ -523,6 +523,20 @@ func TestMemStoreRateOverTimeForgetOld(t *testing.T) {
 	assertMetricFound(t, val, found, err, 1.)
 }
 
+func TestMemStoreRateOverTimeCounterReset(t *testing.T) {
+	// setup
+	ms := newMetricStore(200, false, false)
+	labels := map[string]any{
+		"a": "1",
+	}
+	name := "m3t/r1c"
+	setupMetrics(ms, name, 10, labels, 1., 3., 4., 6., 7., 9., 10., 0., 1.)
+
+	// check
+	val, found, err := ms.Get(ty.MetricName(name), labels, ty.OpRate, ty.VecSum)
+	assertMetricFound(t, val, found, err, .125)
+}
+
 func TestMemStoreSumOverAverages(t *testing.T) {
 	// setup
 	ms := newMetricStore(60, false, false)

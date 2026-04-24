@@ -57,8 +57,8 @@ const (
 	// OpLastOne returns the last measured value
 	OpLastOne OperationOverTime = "last_one"
 
-	// OpRate calculates the per-second growth. Suitable for monotonic time series and is calculated as
-	// delta between last and first measured element divided by overTimePeriodSeconds
+	// OpRate calculates the per-second growth. Suitable for monotonic time series and handles
+	// counter resets by summing positive deltas over the stored time window.
 	OpRate  OperationOverTime = "rate"
 	OpCount OperationOverTime = "count"
 	OpAvg   OperationOverTime = "avg"

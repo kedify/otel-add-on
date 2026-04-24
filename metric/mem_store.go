@@ -286,9 +286,7 @@ func (m ms) updateAggregatesOverTime(md *t.MetricData, metricName t.MetricName) 
 func (m ms) updateAggregationOverTime(overTime t.OperationOverTime, md *t.MetricData) {
 	switch overTime {
 	case t.OpRate:
-		valuesDelta := md.Data[len(md.Data)-1].Value - md.Data[0].Value
-		timeDelta := float64(md.Data[len(md.Data)-1].Time - md.Data[0].Time)
-		md.AggregatesOverTime.Store(t.OpRate, valuesDelta/timeDelta)
+		md.AggregatesOverTime.Store(t.OpRate, calculateRate(md.Data))
 	case t.OpMin, t.OpMax, t.OpAvg:
 		acc, _ := md.AggregatesOverTime.Load(overTime)
 		for i := 0; i < len(md.Data); i++ {
@@ -302,6 +300,35 @@ func (m ms) updateAggregationOverTime(overTime t.OperationOverTime, md *t.Metric
 	default:
 		panic("unknown aggregation over time function: " + overTime)
 	}
+}
+
+func calculateRate(data []t.ObservedValue) float64 {
+	if len(data) < 2 {
+		return 0
+	}
+
+	firstTime := data[0].Time
+	lastTime := data[len(data)-1].Time
+	if lastTime <= firstTime {
+		return 0
+	}
+
+	timeDelta := float64(lastTime - firstTime)
+	var valuesDelta float64
+	prev := data[0].Value
+	for i := 1; i < len(data); i++ {
+		current := data[i].Value
+		if current >= prev {
+			valuesDelta += current - prev
+		} else {
+			// Counter reset detected. Treat the current sample as the increase
+			// accumulated since the reset back to zero.
+			valuesDelta += current
+		}
+		prev = current
+	}
+
+	return valuesDelta / timeDelta
 }
 
 func (m ms) GetStore() *t.Map[string, *t.Map[t.LabelsHash, *t.MetricData]] {
