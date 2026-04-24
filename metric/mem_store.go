@@ -307,11 +307,13 @@ func calculateRate(data []t.ObservedValue) float64 {
 		return 0
 	}
 
-	timeDelta := float64(data[len(data)-1].Time - data[0].Time)
-	if timeDelta <= 0 {
+	firstTime := data[0].Time
+	lastTime := data[len(data)-1].Time
+	if lastTime <= firstTime {
 		return 0
 	}
 
+	timeDelta := float64(lastTime - firstTime)
 	var valuesDelta float64
 	prev := data[0].Value
 	for i := 1; i < len(data); i++ {
