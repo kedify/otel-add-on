@@ -188,8 +188,11 @@ func installHelmCli() error {
 		err = execCmdE("chmod 700 ./bin/get_helm.sh")
 		require.NoErrorf(ctx.t, err, "cannot change permissions for helm installation script - %s", err)
 
-		err = execCmdE("./bin/get_helm.sh")
-		require.NoErrorf(ctx.t, err, "cannot download helm - %s", err)
+		output, er := execCmdOE("./bin/get_helm.sh", "")
+		if strings.Contains(output, "is already latest") {
+			ctx.helm = "helm"
+		}
+		require.NoErrorf(ctx.t, er, "cannot download helm - %s", err)
 	}
 	err = execCmdE(ctx.helm + " version")
 	return err
