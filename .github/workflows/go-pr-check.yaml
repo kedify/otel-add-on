@@ -2,6 +2,7 @@ name: 'PR checks'
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, unlabeled]
     paths-ignore:
       - '**.md'
 
@@ -14,7 +15,7 @@ jobs:
 
     name: Inspect packages
     runs-on: ubuntu-latest
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ci') && (github.event.action != 'unlabeled' || github.event.label.name == 'skip-ci') }}
     steps:
       - uses: actions/setup-go@v5
         with:
@@ -70,7 +71,7 @@ jobs:
 
   build-and-publish-images:
     needs: [ go-build-test ]
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ci') && (github.event.action != 'unlabeled' || github.event.label.name == 'skip-ci') }}
     secrets: inherit
     uses: ./.github/workflows/release-image.yaml
     with:
@@ -83,7 +84,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ci') && (github.event.action != 'unlabeled' || github.event.label.name == 'skip-ci') }}
     steps:
       - uses: actions/checkout@v4
         with:
