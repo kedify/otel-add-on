@@ -1,8 +1,10 @@
 #!/bin/bash
+DIR="${DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )}"
+
 # In order for the sidecar approach to work properly, the CertManager needs to also be installed in the k8s cluster. Otherwise, OTel operator will not create the admission webhook correctly.
 
 # install KEDA OTel Scaler & OTel Operator
-helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.3 -f ./otel-scaler-values.yaml -f https://raw.githubusercontent.com/kedify/otel-add-on/refs/heads/main/helmchart/otel-add-on/enable-operator-hooks-values.yaml
+helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.3 -f ${DIR}/otel-scaler-values.yaml -f https://raw.githubusercontent.com/kedify/otel-add-on/refs/heads/main/helmchart/otel-add-on/enable-operator-hooks-values.yaml
 #helm upgrade -i keda-otel-scaler -nkeda ${DIR}/../../helmchart/otel-add-on -f ${DIR}/otel-scaler-values.yaml -f https://raw.githubusercontent.com/kedify/otel-add-on/refs/heads/main/helmchart/otel-add-on/enable-operator-hooks-values.yaml
 
 # roll the deployments so that mutating webhooks injects the sidecars
@@ -10,7 +12,7 @@ kubectl rollout restart deploy/vllm-llama3-deployment-vllm
 
 # create ScaledObject
 kubectl delete so model-router-approach 2> /dev/null || true
-kubectl apply -f ./model-so.yaml
+kubectl apply -f ${DIR}/model-so.yaml
 
 # test
 (kubectl port-forward svc/vllm-router-service 30080:80 &> /dev/null)& pf_pid=$!
