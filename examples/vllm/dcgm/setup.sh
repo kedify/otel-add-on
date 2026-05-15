@@ -1,9 +1,11 @@
 #!/bin/bash
+DIR="${DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )}"
+
 # scaling the model using the DCGM metrics. DCGM exporter needs to be enabled and it is assumed in the namespace gpu-operator
 # namely service nvidia-dcgm-exporter.gpu-operator.svc
 
 # install KEDA OTel Scaler & OTel Operator
-helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.3 -f ./dcgm-values.yaml
+helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.3 -f ${DIR}/dcgm-values.yaml
 #helm upgrade -i keda-otel-scaler -nkeda ${DIR}/../../helmchart/otel-add-on -f ${DIR}/dcgm-values.yaml
 
 # roll the deployments so that mutating webhooks (un)injects the sidecars (if the sidecar setup was run before)
@@ -11,7 +13,7 @@ kubectl rollout restart deploy/vllm-llama3-deployment-vllm
 
 # create ScaledObject
 kubectl delete so model-sidecar-approach model-router-approach 2> /dev/null || true
-kubectl apply -f ./model-so.yaml
+kubectl apply -f ${DIR}/model-so.yaml
 
 # test
 (kubectl port-forward svc/vllm-router-service 30080:80 &> /dev/null)& pf_pid=$!
