@@ -46,10 +46,7 @@ helm upgrade -i vllm vllm/vllm-stack --version 0.1.5 -f ${DIR}/vllm-stack-values
 # wait for components
 for d in \
   keda-operator \
-  keda-operator-metrics-apiserver \
-  otel-operator \
-  keda-otel-scaler \
-  otel-add-on-collector ; do
+  keda-operator-metrics-apiserver ; do
     kubectl rollout status -n keda --timeout=600s deploy/${d}
   done
 
