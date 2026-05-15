@@ -2,6 +2,7 @@
 DIR="${DIR:-$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )}"
 
 # In order for the sidecar approach to work properly, the CertManager needs to also be installed in the k8s cluster. Otherwise, OTel operator will not create the admission webhook correctly.
+helm upgrade -i --create-namespace -n cert-manager cert-manager oci://quay.io/jetstack/charts/cert-manager --version v1.18.2 --set crds.enabled=true
 
 # install KEDA OTel Scaler & OTel Operator
 helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.3 -f ${DIR}/otel-scaler-values.yaml -f https://raw.githubusercontent.com/kedify/otel-add-on/refs/heads/main/helmchart/otel-add-on/enable-operator-hooks-values.yaml
