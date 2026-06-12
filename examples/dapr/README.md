@@ -34,7 +34,7 @@ kubectl rollout status -n dapr-system deploy/dapr-sidecar-injector
 
 Deploy this scaler and OTel collector that forwards one whitelisted metric:
 ```bash
-cat <<VALUES | helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.3 --create-namespace -f -
+cat <<VALUES | helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=0.1.4 --create-namespace -f -
 opentelemetry-collector:
   alternateConfig:
     processors:
