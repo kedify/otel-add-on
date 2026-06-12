@@ -48,12 +48,23 @@ jobs:
           helm repo update open-telemetry
           pushd ./helmchart/otel-add-on && helm dependency build && popd
           echo "current_tag=$(yq '.version' ./helmchart/otel-add-on/Chart.yaml)" >> $GITHUB_ENV
+          echo "tag_no_prefix=$(yq '.version' ./helmchart/otel-add-on/Chart.yaml | sed 's/^v//')" >> $GITHUB_ENV
       - name: Publish Helm chart
         uses: appany/helm-oci-chart-releaser@v0.3.0
         with:
           name: otel-add-on
           repository: kedify/charts
           tag: ${{ env.current_tag }}
+          path: helmchart/otel-add-on
+          registry: ghcr.io
+          registry_username: kedify
+          registry_password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish Helm chart (tag w/o v prefix)
+        uses: appany/helm-oci-chart-releaser@v0.3.0
+        with:
+          name: otel-add-on
+          repository: kedify/charts
+          tag: ${{ env.tag_no_prefix }}
           path: helmchart/otel-add-on
           registry: ghcr.io
           registry_username: kedify
@@ -68,6 +79,7 @@ jobs:
             sleep ${_sec}
             set -x
             helm template test oci://ghcr.io/kedify/charts/otel-add-on --version ${{ env.current_tag }} && break
+            helm template test oci://ghcr.io/kedify/charts/otel-add-on --version ${{ env.tag_no_prefix }} && break
             set +x
             [ "$i" = "16" ] && exit 1
           done
