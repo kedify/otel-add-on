@@ -78,8 +78,9 @@ jobs:
             echo "Waiting ${_sec} seconds.."
             sleep ${_sec}
             set -x
-            helm template test oci://ghcr.io/kedify/charts/otel-add-on --version ${{ env.current_tag }} && break
-            helm template test oci://ghcr.io/kedify/charts/otel-add-on --version ${{ env.tag_no_prefix }} && break
+            helm template test oci://ghcr.io/kedify/charts/otel-add-on --version ${{ env.current_tag }} \
+              && helm template test oci://ghcr.io/kedify/charts/otel-add-on --version ${{ env.tag_no_prefix }} \
+              && { set +x; break; }
             set +x
             [ "$i" = "16" ] && exit 1
           done
