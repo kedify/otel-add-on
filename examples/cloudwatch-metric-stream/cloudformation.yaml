@@ -1,0 +1,266 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Sends the AWS/NetworkELB NewFlowCount metric to an OpenTelemetry Collector
+  through a CloudWatch metric stream and an Amazon Data Firehose HTTP endpoint.
+
+Parameters:
+  CollectorHostname:
+    Type: String
+    Description: Fully qualified DNS name to create for the OpenTelemetry Collector.
+    AllowedPattern: "^(?=.{1,253}$)(?!-)[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)+\\.?$"
+    ConstraintDescription: Enter a valid fully qualified DNS name.
+
+  CollectorLoadBalancerHostname:
+    Type: String
+    Description: DNS name of the load balancer that exposes the OpenTelemetry Collector.
+
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: Route 53 hosted zone in which to create the collector CNAME record.
+
+  FirehoseAccessKey:
+    Type: String
+    NoEcho: true
+    MinLength: 1
+    Description: Access key that Data Firehose sends to the collector HTTP endpoint.
+
+  KubernetesClusterUID:
+    Type: String
+    MinLength: 1
+    Description: UID of the Kubernetes cluster that owns this example deployment.
+
+Resources:
+  CollectorDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref CollectorHostname
+      ResourceRecords:
+        - !Ref CollectorLoadBalancerHostname
+      TTL: "60"
+      Type: CNAME
+
+  FailedDeliveryBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            ExpirationInDays: 30
+            Id: ExpireFailedDeliveries
+            Status: Enabled
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-firehose-failed-deliveries"
+        - Key: Project
+          Value: otel-add-on
+        - Key: Example
+          Value: cloudwatch-metric-stream
+        - Key: KubernetesClusterUID
+          Value: !Ref KubernetesClusterUID
+
+  FailedDeliveryBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FailedDeliveryBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: s3:*
+            Resource:
+              - !GetAtt FailedDeliveryBucket.Arn
+              - !Sub "${FailedDeliveryBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  FirehoseLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 14
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-firehose"
+        - Key: Example
+          Value: cloudwatch-metric-stream
+
+  FirehoseLogStream:
+    Type: AWS::Logs::LogStream
+    Properties:
+      LogGroupName: !Ref FirehoseLogGroup
+
+  FirehoseDeliveryRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: firehose.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: WriteFailedDeliveries
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ReadBucketMetadata
+                Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                  - s3:ListBucketMultipartUploads
+                Resource: !GetAtt FailedDeliveryBucket.Arn
+              - Sid: WriteFailedDeliveryObjects
+                Effect: Allow
+                Action:
+                  - s3:AbortMultipartUpload
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub "${FailedDeliveryBucket.Arn}/failed-deliveries/*"
+        - PolicyName: WriteDeliveryLogs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: PutLogEvents
+                Effect: Allow
+                Action: logs:PutLogEvents
+                Resource: !Sub >-
+                  arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${FirehoseLogGroup}:log-stream:${FirehoseLogStream}
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-firehose-delivery"
+        - Key: Example
+          Value: cloudwatch-metric-stream
+
+  MetricFirehose:
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Properties:
+      DeliveryStreamType: DirectPut
+      HttpEndpointDestinationConfiguration:
+        BufferingHints:
+          IntervalInSeconds: 0
+          SizeInMBs: 1
+        CloudWatchLoggingOptions:
+          Enabled: true
+          LogGroupName: !Ref FirehoseLogGroup
+          LogStreamName: !Ref FirehoseLogStream
+        EndpointConfiguration:
+          AccessKey: !Ref FirehoseAccessKey
+          Name: OpenTelemetryCollector
+          Url: !Sub "https://${CollectorHostname}"
+        RetryOptions:
+          DurationInSeconds: 60
+        RoleARN: !GetAtt FirehoseDeliveryRole.Arn
+        S3BackupMode: FailedDataOnly
+        S3Configuration:
+          BucketARN: !GetAtt FailedDeliveryBucket.Arn
+          BufferingHints:
+            IntervalInSeconds: 300
+            SizeInMBs: 5
+          CloudWatchLoggingOptions:
+            Enabled: true
+            LogGroupName: !Ref FirehoseLogGroup
+            LogStreamName: !Ref FirehoseLogStream
+          CompressionFormat: GZIP
+          ErrorOutputPrefix: >-
+            failed-deliveries/!{firehose:error-output-type}/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/
+          RoleARN: !GetAtt FirehoseDeliveryRole.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-metrics"
+        - Key: Example
+          Value: cloudwatch-metric-stream
+
+  MetricStreamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: streams.metrics.cloudwatch.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: PutMetricsIntoFirehose
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: PutMetricRecords
+                Effect: Allow
+                Action:
+                  - firehose:PutRecord
+                  - firehose:PutRecordBatch
+                Resource: !GetAtt MetricFirehose.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-cloudwatch-metric-stream"
+        - Key: Example
+          Value: cloudwatch-metric-stream
+
+  NetworkLoadBalancerMetricStream:
+    Type: AWS::CloudWatch::MetricStream
+    Properties:
+      FirehoseArn: !GetAtt MetricFirehose.Arn
+      IncludeFilters:
+        - Namespace: AWS/NetworkELB
+          MetricNames:
+            - NewFlowCount
+      OutputFormat: opentelemetry1.0
+      RoleArn: !GetAtt MetricStreamRole.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-network-load-balancer"
+        - Key: Example
+          Value: cloudwatch-metric-stream
+
+Outputs:
+  CollectorEndpoint:
+    Description: HTTPS endpoint used by Data Firehose.
+    Value: !Sub "https://${CollectorHostname}"
+
+  CollectorDnsName:
+    Description: Route 53 DNS name created for the collector.
+    Value: !Ref CollectorDnsRecord
+
+  FailedDeliveryBucketName:
+    Description: S3 bucket that retains failed Data Firehose deliveries for 30 days.
+    Value: !Ref FailedDeliveryBucket
+
+  FirehoseDeliveryStreamArn:
+    Description: ARN of the Data Firehose delivery stream.
+    Value: !GetAtt MetricFirehose.Arn
+
+  FirehoseDeliveryStreamName:
+    Description: Name of the Data Firehose delivery stream.
+    Value: !Ref MetricFirehose
+
+  FirehoseLogGroupName:
+    Description: CloudWatch Logs group for Data Firehose delivery errors.
+    Value: !Ref FirehoseLogGroup
+
+  MetricStreamName:
+    Description: Name of the CloudWatch metric stream.
+    Value: !Ref NetworkLoadBalancerMetricStream
