@@ -12,7 +12,7 @@ REST_PORT="${REST_PORT:-19090}"
 SCALED_OBJECT_NAME="cloudwatch-metric-demo"
 HPA_NAME="keda-hpa-cloudwatch-metric-demo"
 
-for command_name in kubectl curl jq base64 awk xargs seq date; do
+for command_name in kubectl curl jq base64 xargs seq date; do
   if ! command -v "${command_name}" >/dev/null 2>&1; then
     echo "Missing required command: ${command_name}" >&2
     exit 1
@@ -184,6 +184,10 @@ if [[ ! "${min_replica_count}" =~ ^[0-9]+$ || \
   echo "Verification requires numeric replica bounds with maxReplicaCount greater than minReplicaCount." >&2
   exit 1
 fi
+if ! jq -en --arg value "${scale_target_value}" '$value | tonumber' >/dev/null; then
+  echo "Verification requires a numeric trigger targetValue." >&2
+  exit 1
+fi
 
 # Keep delayed data from an earlier run from scaling the Deployment while this
 # run waits for and identifies its own source-timestamped datapoint. The EXIT
@@ -236,6 +240,9 @@ echo "Waiting for a fresh CloudWatch interval beginning at ${traffic_window_star
 while (( $(date +%s) < traffic_window_start )); do
   sleep 1
 done
+# Stay clear of the exact boundary in case the local clock is a fraction ahead
+# of CloudWatch's interval clock.
+sleep 2
 
 # Clear anything that arrived while KEDA was returning to baseline. Scaling
 # remains capped until a datapoint from the new interval is current in the
@@ -252,6 +259,7 @@ echo "Waiting up to ${VERIFY_TIMEOUT_SECONDS}s for ${metric_query} to exceed ${s
 deadline=$((SECONDS + VERIFY_TIMEOUT_SECONDS))
 metric_value=""
 metric_timestamp=""
+fresh_datapoint=""
 while ((SECONDS < deadline)); do
   curl -fsS -X POST "http://127.0.0.1:${REST_PORT}/memstore/query" \
     -H 'accept: application/json' \
@@ -264,16 +272,33 @@ while ((SECONDS < deadline)); do
   fresh_datapoint="$(get_current_fresh_datapoint)"
   metric_value="$(jq -r '.value // empty' <<<"${fresh_datapoint}" 2>/dev/null || true)"
   metric_timestamp="$(jq -r '.time // empty' <<<"${fresh_datapoint}" 2>/dev/null || true)"
-  if [[ -n "${metric_value}" ]] && awk "BEGIN { exit !(${metric_value} > ${scale_target_value}) }"; then
+  if [[ -n "${fresh_datapoint}" ]]; then
     echo "Scaler received fresh NewFlowCount_sum=${metric_value} at source timestamp ${metric_timestamp}."
     break
   fi
   sleep 10
 done
 
-if [[ -z "${metric_value}" ]] || ! awk "BEGIN { exit !(${metric_value} > ${scale_target_value}) }"; then
+if [[ -z "${fresh_datapoint}" ]]; then
   echo "No CloudWatch metric from this run's source interval exceeded the scaling target before the timeout." >&2
   kubectl logs -n "${NAMESPACE}" deployment/cloudwatch-firehose-receiver --tail=100 >&2 || true
+  exit 1
+fi
+
+# Confirm the cap still held until the fresh datapoint was observed. This also
+# prevents an external reconciler from making the later transition ambiguous.
+capped_replicas="$(
+  kubectl get deployment cloudwatch-metric-demo -n "${NAMESPACE}" \
+    -o jsonpath='{.spec.replicas}'
+)"
+hpa_max_replicas="$(
+  kubectl get hpa "${HPA_NAME}" -n "${NAMESPACE}" \
+    -o jsonpath='{.spec.maxReplicas}'
+)"
+if [[ "${capped_replicas}" != "${min_replica_count}" || \
+  "${hpa_max_replicas}" != "${min_replica_count}" ]]; then
+  echo "The workload left its capped baseline before the fresh datapoint was released to KEDA." >&2
+  kubectl get scaledobject,hpa,deployment -n "${NAMESPACE}" >&2 || true
   exit 1
 fi
 

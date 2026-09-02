@@ -31,13 +31,13 @@ unwraps that request before exporting normal OTLP/gRPC to the scaler.
   [AWS Load Balancer Controller](https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html)
   and available pod capacity. Its public subnets must be discoverable by the
   controller (normally tagged `kubernetes.io/role/elb=1`).
-- AWS credentials allowed to create CloudFormation, IAM, Firehose, CloudWatch,
-  S3, Route 53, and ELB resources, and to query the Resource Groups Tagging API
-  during retry-safe cleanup.
-- A public Route 53 hosted zone and an issued ACM certificate in the cluster's
-  Region. The certificate must cover a new dedicated collector hostname.
+- AWS credentials allowed to create CloudFormation, IAM, ACM, Firehose,
+  CloudWatch, S3, Route 53, and ELB resources, and to query the Resource Groups
+  Tagging API during retry-safe cleanup.
+- A public Route 53 hosted zone in the same AWS account. Its domain must be
+  publicly delegated so ACM can complete DNS validation.
 - `aws`, `kubectl`, `helm`, `curl`, `jq`, `envsubst`, `openssl`, `base64`,
-  `awk`, `grep`, `seq`, `xargs`, and `date` CLIs.
+  `grep`, `seq`, `xargs`, and `date` CLIs.
 
 Firehose custom HTTP destinations must be publicly reachable over HTTPS on
 port 443. The collector NLB terminates TLS with the ACM certificate and exposes
@@ -48,18 +48,35 @@ public-facing Collector runs non-root with a read-only root filesystem.
 
 ## Run
 
-Choose a hostname that does not already have a DNS record and is covered by the
-certificate:
+When the account has exactly one public Route 53 hosted zone, only the cluster
+context and Region are needed:
 
 ```bash
 export KUBE_CONTEXT=my-eks-context
 export AWS_REGION=us-east-2
-export ACM_CERTIFICATE_ARN=arn:aws:acm:us-east-2:123456789012:certificate/...
-export FIREHOSE_HOSTNAME=cloudwatch-otel.example.com
-export ROUTE53_HOSTED_ZONE_ID=Z0123456789EXAMPLE
 
 ./setup.sh
 ```
+
+Setup selects that zone, generates a dedicated name such as
+`cw-otel-12345678.example.com`, and deploys
+[`certificate.yaml`](./certificate.yaml). CloudFormation requests the regional
+ACM certificate, creates its Route 53 DNS validation CNAME, and waits for the
+certificate to be issued.
+
+If the account has multiple public zones, set a hostname and setup will select
+the most-specific matching zone, or select the zone explicitly:
+
+```bash
+export FIREHOSE_HOSTNAME=cloudwatch-otel.example.com
+# Optional when FIREHOSE_HOSTNAME uniquely identifies its hosted zone:
+export ROUTE53_HOSTED_ZONE_ID=Z0123456789EXAMPLE
+```
+
+Set `ACM_CERTIFICATE_ARN` only to reuse an already issued certificate instead
+of creating one. It must be in `AWS_REGION` and cover `FIREHOSE_HOSTNAME`; a
+caller-supplied certificate is never deleted by cleanup. `TLS_STACK_NAME`
+overrides the default automatic certificate stack name `${STACK_NAME}-tls`.
 
 `setup.sh` creates all Kubernetes resources in the
 `cloudwatch-metric-stream` namespace. If KEDA is missing, it installs KEDA in
@@ -178,3 +195,6 @@ after stack deletion, a rerun recovers the bucket name from the owned namespace
 annotation, with its example and Kubernetes cluster ownership tags as a
 fallback. Setup refuses to replace a deleted stack while that annotation still
 records a retained bucket, so an interrupted cleanup cannot silently orphan it.
+After both NLBs are gone, cleanup also deletes the automatically managed ACM
+certificate stack and its exact DNS validation record. It leaves a certificate
+supplied through `ACM_CERTIFICATE_ARN` untouched.

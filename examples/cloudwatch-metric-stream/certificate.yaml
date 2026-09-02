@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Creates the DNS-validated ACM certificate used by the CloudWatch Metric
+  Streams example's public collector endpoint.
+
+Parameters:
+  CertificateDomainName:
+    Type: String
+    Description: Fully qualified DNS name covered by this certificate.
+    AllowedPattern: "^(?=.{1,253}$)(?!-)[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)+\\.?$"
+
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: Public Route 53 hosted zone used for automatic DNS validation.
+
+  KubernetesClusterUID:
+    Type: String
+    MinLength: 1
+    Description: UID of the Kubernetes cluster that owns this example deployment.
+
+Resources:
+  CollectorCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref CertificateDomainName
+      DomainValidationOptions:
+        - DomainName: !Ref CertificateDomainName
+          HostedZoneId: !Ref HostedZoneId
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-collector"
+        - Key: Project
+          Value: otel-add-on
+        - Key: Example
+          Value: cloudwatch-metric-stream
+        - Key: KubernetesClusterUID
+          Value: !Ref KubernetesClusterUID
+      ValidationMethod: DNS
+
+Outputs:
+  CertificateArn:
+    Description: ARN of the issued public ACM certificate.
+    Value: !Ref CollectorCertificate
+
+  CertificateDomainName:
+    Description: DNS name covered by the certificate.
+    Value: !Ref CertificateDomainName
+
+  HostedZoneId:
+    Description: Route 53 hosted zone containing the validation record.
+    Value: !Ref HostedZoneId

@@ -11,6 +11,7 @@ STACK_PROJECT_VALUE="otel-add-on"
 STACK_EXAMPLE_VALUE="cloudwatch-metric-stream"
 STACK_CLUSTER_UID_TAG="KubernetesClusterUID"
 STACK_NAME="${STACK_NAME:-kedify-cloudwatch-metric-stream}"
+TLS_STACK_NAME="${TLS_STACK_NAME:-${STACK_NAME}-tls}"
 
 EXAMPLE_AWS_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-}}"
 if [[ -z "${EXAMPLE_AWS_REGION}" ]]; then
@@ -65,6 +66,89 @@ if kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1; then
     exit 1
   fi
   namespace_exists=true
+fi
+
+# Capture the automatically managed certificate's validation record before the
+# certificate is deleted. CloudFormation creates this Route 53 CNAME for ACM,
+# but ACM intentionally leaves validation records behind when certificates are
+# removed.
+tls_stack_exists=false
+validation_record_name=""
+validation_record_type=""
+validation_record_value=""
+tls_hosted_zone_id=""
+set +e
+tls_stack_description="$(
+  aws cloudformation describe-stacks \
+    --region "${EXAMPLE_AWS_REGION}" \
+    --stack-name "${TLS_STACK_NAME}" \
+    --output json 2>&1
+)"
+describe_tls_stack_status=$?
+set -e
+if ((describe_tls_stack_status == 0)); then
+  tls_stack_project="$(
+    jq -r '[.Stacks[0].Tags[]? | select(.Key == "Project") | .Value][0] // ""' \
+      <<<"${tls_stack_description}"
+  )"
+  tls_stack_example="$(
+    jq -r '[.Stacks[0].Tags[]? | select(.Key == "Example") | .Value][0] // ""' \
+      <<<"${tls_stack_description}"
+  )"
+  tls_stack_cluster_uid="$(
+    jq -r --arg key "${STACK_CLUSTER_UID_TAG}" \
+      '[.Stacks[0].Tags[]? | select(.Key == $key) | .Value][0] // ""' \
+      <<<"${tls_stack_description}"
+  )"
+  if [[ "${tls_stack_project}" != "${STACK_PROJECT_VALUE}" || \
+    "${tls_stack_example}" != "${STACK_EXAMPLE_VALUE}" || \
+    "${tls_stack_cluster_uid}" != "${cluster_uid}" ]]; then
+    echo "Refusing to delete TLS stack ${TLS_STACK_NAME}: ownership or cluster identity does not match." >&2
+    exit 1
+  fi
+  tls_stack_exists=true
+  tls_certificate_arn="$(
+    jq -r '[.Stacks[0].Outputs[]? | select(.OutputKey == "CertificateArn") | .OutputValue][0] // ""' \
+      <<<"${tls_stack_description}"
+  )"
+  tls_hosted_zone_id="$(
+    jq -r '([.Stacks[0].Outputs[]? | select(.OutputKey == "HostedZoneId") | .OutputValue][0]
+      // [.Stacks[0].Parameters[]? | select(.ParameterKey == "HostedZoneId") | .ParameterValue][0]
+      // "")' <<<"${tls_stack_description}"
+  )"
+  if [[ -n "${tls_certificate_arn}" ]]; then
+    set +e
+    certificate_description="$(
+      aws acm describe-certificate \
+        --region "${EXAMPLE_AWS_REGION}" \
+        --certificate-arn "${tls_certificate_arn}" \
+        --output json 2>&1
+    )"
+    describe_certificate_status=$?
+    set -e
+    if ((describe_certificate_status == 0)); then
+      validation_record_name="$(
+        jq -r '.Certificate.DomainValidationOptions[0].ResourceRecord.Name // ""' \
+          <<<"${certificate_description}"
+      )"
+      validation_record_type="$(
+        jq -r '.Certificate.DomainValidationOptions[0].ResourceRecord.Type // ""' \
+          <<<"${certificate_description}"
+      )"
+      validation_record_value="$(
+        jq -r '.Certificate.DomainValidationOptions[0].ResourceRecord.Value // ""' \
+          <<<"${certificate_description}"
+      )"
+    elif [[ "${certificate_description}" != *"ResourceNotFound"* ]]; then
+      echo "Unable to inspect certificate ${tls_certificate_arn}:" >&2
+      echo "${certificate_description}" >&2
+      exit 1
+    fi
+  fi
+elif [[ "${tls_stack_description}" != *"does not exist"* ]]; then
+  echo "Unable to determine whether TLS stack ${TLS_STACK_NAME} exists:" >&2
+  echo "${tls_stack_description}" >&2
+  exit 1
 fi
 
 backup_bucket="${namespace_backup_bucket}"
@@ -194,6 +278,52 @@ fi
 if [[ "${namespace_exists}" == "true" ]]; then
   echo "Deleting namespace ${NAMESPACE}; the AWS Load Balancer Controller will remove both NLBs."
   kubectl delete namespace "${NAMESPACE}" --wait=true --timeout=10m
+fi
+
+if [[ "${tls_stack_exists}" == "true" ]]; then
+  if [[ -n "${validation_record_name}" && \
+    -n "${validation_record_type}" && \
+    -n "${validation_record_value}" && \
+    -n "${tls_hosted_zone_id}" ]]; then
+    validation_record_set="$(
+      aws route53 list-resource-record-sets \
+        --hosted-zone-id "${tls_hosted_zone_id}" \
+        --start-record-name "${validation_record_name}" \
+        --start-record-type "${validation_record_type}" \
+        --max-items 1 \
+        --output json | \
+        jq -c \
+          --arg name "${validation_record_name}" \
+          --arg type "${validation_record_type}" \
+          --arg value "${validation_record_value}" \
+          '[.ResourceRecordSets[]?
+            | select(.Name == $name and .Type == $type)
+            | select(.ResourceRecords == [{"Value": $value}])][0] // empty'
+    )"
+    if [[ -n "${validation_record_set}" ]]; then
+      delete_change_batch="$(
+        jq -cn --argjson record_set "${validation_record_set}" \
+          '{Changes: [{Action: "DELETE", ResourceRecordSet: $record_set}]}'
+      )"
+      change_id="$(
+        aws route53 change-resource-record-sets \
+          --hosted-zone-id "${tls_hosted_zone_id}" \
+          --change-batch "${delete_change_batch}" \
+          --query 'ChangeInfo.Id' \
+          --output text
+      )"
+      aws route53 wait resource-record-sets-changed --id "${change_id}"
+      echo "Deleted ACM validation record ${validation_record_name}."
+    fi
+  fi
+
+  echo "Deleting automatically managed certificate stack ${TLS_STACK_NAME}."
+  aws cloudformation delete-stack \
+    --region "${EXAMPLE_AWS_REGION}" \
+    --stack-name "${TLS_STACK_NAME}"
+  aws cloudformation wait stack-delete-complete \
+    --region "${EXAMPLE_AWS_REGION}" \
+    --stack-name "${TLS_STACK_NAME}"
 fi
 
 echo "Cleanup complete. The KEDA installation was left untouched."
