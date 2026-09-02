@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudwatch-metric-demo
+  labels:
+    app.kubernetes.io/name: cloudwatch-metric-demo
+    app.kubernetes.io/part-of: cloudwatch-metric-stream
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudwatch-metric-demo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cloudwatch-metric-demo
+        app.kubernetes.io/part-of: cloudwatch-metric-stream
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.29-alpine
+          ports:
+            - name: http
+              containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudwatch-metric-demo
+  labels:
+    app.kubernetes.io/name: cloudwatch-metric-demo
+    app.kubernetes.io/part-of: cloudwatch-metric-stream
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: external
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    service.beta.kubernetes.io/aws-load-balancer-additional-resource-tags: Project=otel-add-on,Example=cloudwatch-metric-stream
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: cloudwatch-metric-demo
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

@@ -1,0 +1,27 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: cloudwatch-metric-demo
+spec:
+  scaleTargetRef:
+    name: cloudwatch-metric-demo
+  pollingInterval: 15
+  cooldownPeriod: 120
+  minReplicaCount: 1
+  maxReplicaCount: 5
+  triggers:
+    - type: external
+      metadata:
+        scalerAddress: cloudwatch-otel-scaler.cloudwatch-metric-stream.svc:4318
+        metricQuery: 'amazonaws_com_AWS_NetworkELB_NewFlowCount_sum{LoadBalancer="${WORKLOAD_LOAD_BALANCER_DIMENSION}"}'
+        operationOverTime: last_one
+        # New TCP flows observed during CloudWatch's one-minute interval per replica.
+        targetValue: "20"
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:
+          stabilizationWindowSeconds: 0
+        scaleDown:
+          # Keep the scaled state visible despite the metric's one-minute cadence.
+          stabilizationWindowSeconds: 120

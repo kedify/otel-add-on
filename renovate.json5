@@ -36,6 +36,7 @@
         "(^|/)examples/dapr/(README.md|setup.sh)$",
         "(^|/)examples/otel-operator/setup.sh$",
         "(^|/)examples/pipelines-tls/setup.sh$",
+        "(^|/)examples/cloudwatch-metric-stream/(README.md|setup.sh)$",
         "(^|/)examples/vllm/(dcgm|scraping-router|sidecar)/setup.sh$",
         "(^|/)helmchart/otel-add-on/README.md$",
         "(^|/)helmchart/otel-add-on/_helm-docs-README.md.gotmpl$",

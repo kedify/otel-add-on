@@ -1,0 +1,161 @@
+fullnameOverride: cloudwatch-otel-scaler
+
+service:
+  name: cloudwatch-otel-scaler
+
+serviceAccount:
+  automount: false
+
+settings:
+  metricStore:
+    # NetworkELB metrics are emitted once per minute. Keep enough history for
+    # CloudWatch and Firehose delivery latency.
+    retentionSeconds: 600
+  logs:
+    logLvl: info
+
+otelCollector:
+  enabled: true
+  mode: deployment
+  fullnameOverride: cloudwatch-firehose-receiver
+
+  # The contrib distribution contains the awsfirehose receiver and the
+  # awscloudwatchmetricstreams_encoding extension.
+  image:
+    repository: otel/opentelemetry-collector-contrib
+
+  serviceAccount:
+    automountServiceAccountToken: false
+
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+
+  # The Service is internet-facing because Firehose cannot deliver to a private
+  # HTTP endpoint. Expose only the receiver's port; all subchart defaults must
+  # be disabled explicitly.
+  ports:
+    otlp:
+      enabled: false
+    otlp-http:
+      enabled: false
+    jaeger-compact:
+      enabled: false
+    jaeger-thrift:
+      enabled: false
+    jaeger-grpc:
+      enabled: false
+    zipkin:
+      enabled: false
+    metrics:
+      enabled: false
+    firehose:
+      enabled: true
+      containerPort: 4433
+      servicePort: 443
+      protocol: TCP
+
+  service:
+    type: LoadBalancer
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: external
+      service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+      service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+      service.beta.kubernetes.io/aws-load-balancer-ssl-ports: firehose
+      service.beta.kubernetes.io/aws-load-balancer-ssl-negotiation-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+      service.beta.kubernetes.io/aws-load-balancer-additional-resource-tags: Project=otel-add-on,Example=cloudwatch-metric-stream
+
+  extraEnvs:
+    - name: FIREHOSE_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: cloudwatch-metric-stream
+          key: firehose-access-key
+    - name: WORKLOAD_LOAD_BALANCER_DIMENSION
+      valueFrom:
+        secretKeyRef:
+          name: cloudwatch-metric-stream
+          key: workload-load-balancer-dimension
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+  alternateConfig:
+    receivers:
+      awsfirehose:
+        endpoint: 0.0.0.0:4433
+        encoding: awscloudwatchmetricstreams_encoding
+        access_key: ${env:FIREHOSE_ACCESS_KEY}
+
+    processors:
+      memory_limiter:
+        check_interval: 5s
+        limit_percentage: 80
+        spike_limit_percentage: 25
+      filter/cloudwatch:
+        error_mode: ignore
+        metrics:
+          metric:
+            - name != "amazonaws.com/AWS/NetworkELB/NewFlowCount"
+          datapoint:
+            # Metric Streams include several dimension combinations. Retain
+            # only the one-dimensional vector for this example's workload NLB.
+            - attributes["Dimensions"]["LoadBalancer"] != "${env:WORKLOAD_LOAD_BALANCER_DIMENSION}"
+            - Len(attributes["Dimensions"]) != 1
+      transform/cloudwatch:
+        error_mode: propagate
+        metric_statements:
+          - context: datapoint
+            statements:
+              - set(attributes["LoadBalancer"], attributes["Dimensions"]["LoadBalancer"])
+              - keep_keys(attributes, ["LoadBalancer"])
+      batch: {}
+
+    exporters:
+      otlp:
+        endpoint: cloudwatch-otel-scaler.cloudwatch-metric-stream.svc:4317
+        compression: none
+        tls:
+          insecure: true
+      debug:
+        verbosity: basic
+
+    extensions:
+      awscloudwatchmetricstreams_encoding:
+        format: opentelemetry1.0
+      health_check:
+        endpoint: ${env:MY_POD_IP}:13133
+
+    service:
+      extensions:
+        - awscloudwatchmetricstreams_encoding
+        - health_check
+      pipelines:
+        metrics:
+          receivers:
+            - awsfirehose
+          processors:
+            - memory_limiter
+            - filter/cloudwatch
+            - transform/cloudwatch
+            - batch
+          exporters:
+            - debug
+            - otlp
+      telemetry:
+        logs:
+          level: info

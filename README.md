@@ -103,6 +103,10 @@ k apply -f examples/so.yaml
 Check some prepared examples in the [`./examples`](./examples) directory and also check the `dev.Makefile` if you want to
 set up mTLS between a collector and this scaler. 
 
+For an AWS integration, see the runnable
+[CloudWatch Metric Streams example](./examples/cloudwatch-metric-stream/README.md), which scales an EKS workload from an
+NLB metric delivered as OpenTelemetry 1.0 through Amazon Data Firehose.
+
 ```bash
 λ make -f dev.Makefile
 Usage:
