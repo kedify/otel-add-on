@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package istio_grpc;
+
+service Producer {
+  rpc Stream(StreamRequest) returns (stream Message);
+}
+
+message StreamRequest {}
+
+message Message {
+  string text = 1;
+}

@@ -1,0 +1,28 @@
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: producer
+  namespace: istio-grpc
+spec:
+  host: producer.istio-grpc.svc.cluster.local
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_REQUEST
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: producer
+  namespace: istio-grpc
+spec:
+  hosts:
+    - producer.istio-grpc.svc.cluster.local
+  http:
+    - route:
+        - destination:
+            host: producer.istio-grpc.svc.cluster.local
+            port:
+              number: 50051
+      # Omit timeout: Istio defaults to no request timeout. Recent CRDs reject 0s.
+      retries:
+        attempts: 0
