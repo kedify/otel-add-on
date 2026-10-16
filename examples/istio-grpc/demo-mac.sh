@@ -190,11 +190,17 @@ if [[ "${1:-}" == --pane ]]; then
       ;;
     scale)
       wait_for_setup
-      printf '\033[1;33mRun the following command to scale out the consumers to 5 replicas\033[0m\n\n'
+      # Keep subsequent interactive commands on the demo cluster without
+      # switching the context in the user's shared kubeconfig.
+      (umask 077; k config view --minify --flatten --raw >"${run_dir}/kubeconfig")
+      export KUBECONFIG="${run_dir}/kubeconfig"
+      printf '\033[1;33mRun the following command to scale out the consumers to 4 replicas\033[0m\n\n'
       # Display the command and wait for Return; compatible with macOS Bash 3.2.
-      printf '$ kubectl --context=k3d-istio-grpc scale deployment -n istio-grpc consumer --replicas 5'
+      printf '$ kubectl --context=k3d-istio-grpc scale deployment -n istio-grpc consumer --replicas 4'
       IFS= read -r
       k_display scale deployment -n istio-grpc consumer --replicas 5
+      heading "Kubernetes context: ${CONTEXT}"
+      "${SHELL:-/bin/zsh}" -i
       ;;
     *) echo "Unknown demo pane: ${pane}" >&2; exit 1 ;;
   esac
@@ -234,7 +240,7 @@ osascript - "${DIR}/demo-mac.sh" "${run_dir}" <<'APPLESCRIPT'
 on run arguments
     set demoScript to item 1 of arguments
     set stateDirectory to item 2 of arguments
-    set commandPrefix to "/bin/bash " & quoted form of demoScript & " --pane "
+    set commandPrefix to "clear; /bin/bash " & quoted form of demoScript & " --pane "
     set commandSuffix to " " & quoted form of stateDirectory
     tell application id "com.googlecode.iterm2"
         activate
