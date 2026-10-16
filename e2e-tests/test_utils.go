@@ -181,18 +181,15 @@ func installHelmCli() error {
 	ctx.helm = "helm"
 	_, err := exec.LookPath("helm")
 	if err != nil || isCI == "true" {
-		ctx.helm = "./bin/helm"
 		err = execCmdE("curl -fsSL -o ./bin/get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3")
 		require.NoErrorf(ctx.t, err, "cannot download helm installation shell script - %s", err)
 
 		err = execCmdE("chmod 700 ./bin/get_helm.sh")
 		require.NoErrorf(ctx.t, err, "cannot change permissions for helm installation script - %s", err)
 
-		output, er := execCmdOE("./bin/get_helm.sh", "")
-		if strings.Contains(output, "is already latest") {
-			ctx.helm = "helm"
-		}
-		require.NoErrorf(ctx.t, er, "cannot download helm - %s", err)
+		// The installer puts helm on PATH, including when it upgrades an existing installation.
+		err = execCmdE("./bin/get_helm.sh")
+		require.NoErrorf(ctx.t, err, "cannot download helm - %s", err)
 	}
 	err = execCmdE(ctx.helm + " version")
 	return err
