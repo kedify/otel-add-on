@@ -1,0 +1,84 @@
+settings:
+  metricStore:
+    retentionSeconds: 15
+
+otelCollector:
+  enabled: true
+  mode: deployment
+  replicaCount: 1
+  fullnameOverride: otelcol
+  image:
+    tag: 0.132.4
+  clusterRole:
+    create: true
+    rules:
+      - apiGroups: [""]
+        resources: [pods]
+        verbs: [get, list, watch]
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+  alternateConfig:
+    extensions:
+      health_check:
+        endpoint: ${env:MY_POD_IP}:13133
+    receivers:
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: producer-envoy
+              scrape_interval: 2s
+              scrape_timeout: 1s
+              metrics_path: /stats/prometheus
+              kubernetes_sd_configs:
+                - role: pod
+                  namespaces:
+                    names: [istio-grpc]
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_app]
+                  regex: producer
+                  action: keep
+                - source_labels: [__meta_kubernetes_pod_phase]
+                  regex: Running
+                  action: keep
+                # Select exactly one target per pod, including native sidecars.
+                - source_labels: [__meta_kubernetes_pod_container_name, __meta_kubernetes_pod_container_port_number]
+                  regex: istio-proxy;15090
+                  action: keep
+                - source_labels: [__meta_kubernetes_namespace]
+                  target_label: namespace
+                - source_labels: [__meta_kubernetes_pod_name]
+                  target_label: pod
+              metric_relabel_configs:
+                - source_labels: [__name__, cluster_name]
+                  regex: 'envoy_cluster_upstream_rq_active;inbound\|50051\|\|'
+                  action: keep
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 200
+        spike_limit_mib: 40
+      filter/active_streams:
+        error_mode: propagate
+        metrics:
+          metric:
+            # Also discard the Prometheus receiver's generated scrape metrics.
+            - 'name != "envoy_cluster_upstream_rq_active"'
+      batch:
+        timeout: 1s
+    exporters:
+      otlp:
+        endpoint: keda-otel-scaler.keda.svc:4317
+        compression: none
+        tls:
+          insecure: true
+    service:
+      extensions: [health_check]
+      pipelines:
+        metrics:
+          receivers: [prometheus]
+          processors: [memory_limiter, filter/active_streams, batch]
+          exporters: [otlp]

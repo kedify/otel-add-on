@@ -65,6 +65,10 @@ k8s-certs: test-certs ## Creates k8s secrets from the generated certificates
 	kubectl -nkeda create secret generic root-ca --from-file=rootCA.crt=certs/rootCA.crt
 
 ##@ Demos
+.PHONY: demo-istio-grpc
+demo-istio-grpc: ## setup ./examples/istio-grpc
+	./examples/istio-grpc/setup.sh
+
 .PHONY: demo-podinfo
 demo-podinfo: ## setup ./examples/metric-pull
 	./examples/metric-pull/setup.sh

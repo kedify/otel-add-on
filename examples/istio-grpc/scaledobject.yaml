@@ -1,0 +1,27 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: producer
+  namespace: istio-grpc
+spec:
+  scaleTargetRef:
+    name: producer
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  pollingInterval: 5
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleUp:
+          stabilizationWindowSeconds: 0
+        scaleDown:
+          stabilizationWindowSeconds: 60
+  triggers:
+    - type: external
+      metricType: AverageValue
+      metadata:
+        scalerAddress: keda-otel-scaler.keda.svc:4318
+        metricQuery: 'sum(envoy_cluster_upstream_rq_active{namespace="istio-grpc",cluster_name="inbound|50051||"})'
+        operationOverTime: last_one
+        # Rendered from the same setting as the producer's environment variable.
+        targetValue: "${PRODUCER_CAPACITY}"

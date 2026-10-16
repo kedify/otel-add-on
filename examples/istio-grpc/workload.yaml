@@ -1,0 +1,189 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: producer
+  namespace: istio-grpc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: producer
+  template:
+    metadata:
+      labels:
+        app: producer
+      annotations:
+        # Start Envoy before bootstrap needs network access to PyPI.
+        sidecar.istio.io/nativeSidecar: "true"
+        sidecar.istio.io/proxyCPU: "25m"
+        proxy.istio.io/config: |
+          holdApplicationUntilProxyStarts: true
+          proxyStatsMatcher:
+            inclusionSuffixes:
+              - upstream_rq_active
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      initContainers:
+        - name: bootstrap
+          image: python:3.13-slim-bookworm
+          command: [sh, -ec]
+          args:
+            - |
+              pip install --no-cache-dir --only-binary=:all: --target=/runtime -r /app/requirements.txt
+              PYTHONPATH=/runtime python -m grpc_tools.protoc -I/app --python_out=/runtime --grpc_python_out=/runtime /app/stream.proto
+          env:
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: app
+              mountPath: /app
+              readOnly: true
+            - name: runtime
+              mountPath: /runtime
+      containers:
+        - name: producer
+          image: python:3.13-slim-bookworm
+          command: [python, -u, /app/producer.py]
+          envFrom:
+            - configMapRef:
+                name: workload-config
+          env:
+            - name: PYTHONPATH
+              value: /runtime
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          ports:
+            - name: grpc
+              containerPort: 50051
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            periodSeconds: 2
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
+          volumeMounts:
+            - name: app
+              mountPath: /app
+              readOnly: true
+            - name: runtime
+              mountPath: /runtime
+              readOnly: true
+      volumes:
+        - name: app
+          configMap:
+            name: grpc-app
+        - name: runtime
+          emptyDir:
+            sizeLimit: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: producer
+  namespace: istio-grpc
+spec:
+  selector:
+    app: producer
+  ports:
+    - name: grpc
+      appProtocol: grpc
+      port: 50051
+      targetPort: grpc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consumer
+  namespace: istio-grpc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: consumer
+  template:
+    metadata:
+      labels:
+        app: consumer
+      annotations:
+        sidecar.istio.io/nativeSidecar: "true"
+        sidecar.istio.io/proxyCPU: "25m"
+        proxy.istio.io/config: |
+          holdApplicationUntilProxyStarts: true
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      initContainers:
+        - name: bootstrap
+          image: python:3.13-slim-bookworm
+          command: [sh, -ec]
+          args:
+            - |
+              pip install --no-cache-dir --only-binary=:all: --target=/runtime -r /app/requirements.txt
+              PYTHONPATH=/runtime python -m grpc_tools.protoc -I/app --python_out=/runtime --grpc_python_out=/runtime /app/stream.proto
+          env:
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: app
+              mountPath: /app
+              readOnly: true
+            - name: runtime
+              mountPath: /runtime
+      containers:
+        - name: consumer
+          image: python:3.13-slim-bookworm
+          command: [python, -u, /app/consumer.py]
+          envFrom:
+            - configMapRef:
+                name: workload-config
+          env:
+            - name: PYTHONPATH
+              value: /runtime
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: app
+              mountPath: /app
+              readOnly: true
+            - name: runtime
+              mountPath: /runtime
+              readOnly: true
+      volumes:
+        - name: app
+          configMap:
+            name: grpc-app
+        - name: runtime
+          emptyDir:
+            sizeLimit: 256Mi

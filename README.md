@@ -112,14 +112,15 @@ NLB metric delivered as OpenTelemetry 1.0 through Amazon Data Firehose.
 Usage:
   make <target>
 Demos
+  demo-istio-grpc           setup ./examples/istio-grpc
   demo-podinfo              setup ./examples/metric-pull
+  demo-podinfo-dev          setup ./examples/metric-pull
   demo-podinfo-tls          setup ./examples/metric-pull with TLS
   demo-otel-upstream        setup ./examples/metric-push
   demo-operator             setup ./examples/otel-operator
-  demo-operator-tls         setup ./examples/otel-operator with TLS
-  
-λ make -f dev.Makefile demo-podinfo-tls
+  demo-operator-tls         setup ./examples/otel-operator with TLS  
 ...
+λ make -f dev.Makefile demo-podinfo-tls
 ```
 
 ## Troubleshooting
