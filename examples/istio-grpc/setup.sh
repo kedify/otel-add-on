@@ -97,8 +97,6 @@ kubectl create configmap workload-config --namespace istio-grpc \
   --from-literal=PRODUCER_ADDRESS="${PRODUCER_ADDRESS}" \
   --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -f "${DIR}/istio.yaml" -f "${DIR}/workload.yaml"
-# Pick up updated ConfigMap scripts and settings when reusing the demo cluster.
-kubectl rollout restart --namespace istio-grpc deployment/producer deployment/consumer
 kubectl rollout status --namespace istio-grpc deployment/producer --timeout=5m
 kubectl rollout status --namespace istio-grpc deployment/consumer --timeout=5m
 sed "s/\${PRODUCER_CAPACITY}/${PRODUCER_CAPACITY}/g" "${DIR}/scaledobject.yaml" | kubectl apply -f -
