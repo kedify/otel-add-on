@@ -55,6 +55,7 @@ jobs:
 
       - name: Run vulncheck
         run: |
+          set -euo pipefail
           echo -e "### vulncheck\n\n" >> ${GITHUB_STEP_SUMMARY}
           echo '```' >> ${GITHUB_STEP_SUMMARY}
           go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
