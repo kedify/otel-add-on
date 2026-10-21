@@ -32,6 +32,7 @@ jobs:
         run: |
           go mod verify
           go mod tidy
+          (cd e2e-tests && go mod verify && go mod tidy)
           gofmt -s -w .
           if [[ -n "$(git status --porcelain)" ]]; then
             echo "dirty repository"
@@ -60,6 +61,7 @@ jobs:
           echo '```' >> ${GITHUB_STEP_SUMMARY}
           go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
           govulncheck ./... | tee -a ${GITHUB_STEP_SUMMARY}
+          (cd e2e-tests && govulncheck ./...) | tee -a ${GITHUB_STEP_SUMMARY}
           echo '```' >> ${GITHUB_STEP_SUMMARY}
 
       - name: Build
