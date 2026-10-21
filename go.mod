@@ -1,8 +1,6 @@
 module github.com/kedify/otel-add-on
 
-go 1.24.0
-
-toolchain go1.24.3
+go 1.27.3
 
 require (
 	github.com/fatih/color v1.18.0

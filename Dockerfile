@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} ghcr.io/kedacore/keda-tools:1.22.2 as builder
+FROM --platform=${BUILDPLATFORM} golang:1.27.3 AS builder
 WORKDIR /workspace
 COPY go.* .
 RUN go mod download

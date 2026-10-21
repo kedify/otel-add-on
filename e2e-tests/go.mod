@@ -1,6 +1,6 @@
 module github.com/kedify/otel-add-on-test
 
-go 1.23.8
+go 1.27.3
 
 require (
 	github.com/gruntwork-io/terratest v0.47.2
