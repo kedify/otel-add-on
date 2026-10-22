@@ -459,7 +459,7 @@ if [[ "${USE_LOCAL_CHART}" == "true" ]]; then
     -f "${DIR}/otel-scaler-values.yaml" \
     --set-string "${certificate_value}"
 else
-  helm upgrade --install "${RELEASE_NAME}" oci://ghcr.io/kedify/charts/otel-add-on --version=0.1.4 \
+  helm upgrade --install "${RELEASE_NAME}" oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.5 \
     --kube-context "${KUBE_CONTEXT}" \
     --namespace "${NAMESPACE}" \
     -f "${DIR}/otel-scaler-values.yaml" \
