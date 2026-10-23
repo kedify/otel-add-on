@@ -13,7 +13,7 @@ spec:
     - type: external
       metadata:
         scalerAddress: "keda-otel-scaler.keda.svc:4318"
-        metricQuery: "sum(vllm:vllm:num_requests_waiting)"
+        metricQuery: "sum(vllm:num_requests_waiting)"
         operationOverTime: "avg"
         targetValue: "25"
   minReplicaCount: 1
