@@ -23,5 +23,5 @@ otelOperatorCrs:
       static_configs:
         - targets: [ '0.0.0.0:8000' ]
   includeMetrics:
-    - vllm:gpu_cache_usage_perc
+    - vllm:kv_cache_usage_perc
     - vllm:num_requests_waiting
