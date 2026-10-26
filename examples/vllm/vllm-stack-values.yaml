@@ -4,7 +4,7 @@ servingEngineSpec:
     - name: "llama3"
       repository: "vllm/vllm-openai"
       # tag: "latest"
-            tag: "v0.10.0"
+      tag: "v0.10.0"
       modelURL: "meta-llama/Llama-3.1-8B-Instruct"
       replicaCount: 1
 
