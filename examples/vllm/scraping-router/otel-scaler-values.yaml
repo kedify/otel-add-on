@@ -21,8 +21,7 @@ otelOperatorCrs:
       scrape_interval: 5s
       static_configs:
         - targets: [ 'vllm-router-service.default.svc:80' ]
-  includeMetrics:
-     
+  includeMetrics: 
     - vllm:num_requests_waiting
     - vllm:current_qps
     - vllm:num_requests_swapped
