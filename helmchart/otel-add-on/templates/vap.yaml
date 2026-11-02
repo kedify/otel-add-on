@@ -25,10 +25,8 @@ spec:
       expression: "variables.triggers.size() == 0"
     - name: allowedOpsOverTime
       expression: "['avg', 'count', 'last_one', 'min', 'max', 'rate']"
-    - name: allowedOpsOverVectors
-      expression: "['avg', 'count', 'min', 'max', 'sum']"
     - name: mqRegexp
-      expression: "'^((' + variables.allowedOpsOverVectors.join('|') + ')\\\\()?[a-zA-Z][a-zA-Z0-9-_:]*(\\\\{[^,=]+=[^,=]+(,[^,=]+=[^,=]+)*?\\\\})?\\\\)?$'"
+      expression: {{ include "otel-add-on.metricQueryRegexp" . | printf "r\"\"\"%s\"\"\"" | quote }}
   validations:
     - expression: "variables.noTriggers || variables.triggers.all(t, has(t.metadata.targetValue))"
       messageExpression: "'Missing \\'targetValue\\' on ScaledObject\\' otel trigger: ' + object.metadata.name"

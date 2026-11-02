@@ -80,7 +80,8 @@ func (m ms) get(name t.MetricName, searchLabels t.LabelMatchers, timeOp t.Operat
 			return true
 		}
 		val, found := md.AggregatesOverTime.Load(timeOp)
-		if !found {
+		// Count matching series even when their time aggregate is not initialized.
+		if !found && vecOp != t.VecCount {
 			return true
 		}
 		counter++

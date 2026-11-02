@@ -144,3 +144,44 @@ func TestMemStoreMatchedZeroIsFound(t *testing.T) {
 	value, found, err := store.Get(name, matchers, types.OpLastOne, agg)
 	assertMetricFound(t, value, found, err, 0)
 }
+
+func TestMemStoreCountWithoutTimeAggregate(t *testing.T) {
+	for _, lazySeries := range []bool{false, true} {
+		for _, lazyAggregates := range []bool{false, true} {
+			t.Run(fmt.Sprintf("lazySeries=%t/lazyAggregates=%t", lazySeries, lazyAggregates), func(t *testing.T) {
+				store := NewMetricStore(&util.Config{
+					MetricStoreRetentionSeconds: 60,
+					MetricStoreLazySeries:       lazySeries,
+					MetricStoreLazyAggregates:   lazyAggregates,
+					MetricStoreValueIfNotFound:  -99,
+				})
+				name, matchers, agg, err := NewParser().Parse(`count(queue_depth{queue="orders"})`)
+				if err != nil {
+					t.Fatal(err)
+				}
+				value, found, err := store.Get(name, matchers, types.OpMin, agg)
+				assertMetric(t, value, found, err, -99, false, nil)
+				now := pcommon.Timestamp(time.Now().Unix())
+				store.Put(types.NewMetricEntry{
+					Name: name, Labels: types.Labels{"queue": "orders"}, MeasurementValue: 10, MeasurementTime: now,
+				})
+				// A first sample does not yet have an OpMin aggregate; count still
+				// selects the series, and does not need to read that aggregate.
+				value, found, err = store.Get(name, matchers, types.OpMin, agg)
+				assertMetricFound(t, value, found, err, 1)
+				for _, labels := range []types.Labels{
+					{"queue": "orders", "environment": "prod"},
+					{"queue": "payments"},
+				} {
+					store.Put(types.NewMetricEntry{Name: name, Labels: labels, MeasurementValue: 20, MeasurementTime: now})
+				}
+				store.Put(types.NewMetricEntry{
+					Name: name, Labels: types.Labels{"queue": "orders", "environment": "stale"},
+					MeasurementValue: 100, MeasurementTime: now - 120,
+				})
+				value, found, err = store.Get(name, matchers, types.OpMin, agg)
+				assertMetricFound(t, value, found, err, 2)
+			})
+		}
+	}
+}
