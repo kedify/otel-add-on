@@ -40,7 +40,7 @@ func NewMetricStore(cfg *util.Config) t.MemStore {
 }
 
 // Get returns the float value from the metric store after applying all the search criteria
-func (m ms) Get(unescapedName t.MetricName, searchLabels t.Labels, timeOp t.OperationOverTime, defaultAggregation t.AggregationOverVectors) (float64, t.Found, error) {
+func (m ms) Get(unescapedName t.MetricName, searchLabels t.LabelMatchers, timeOp t.OperationOverTime, defaultAggregation t.AggregationOverVectors) (float64, t.Found, error) {
 	name := escapeName(unescapedName)
 	value, found, err := m.get(name, searchLabels, timeOp, defaultAggregation)
 	if err == nil {
@@ -50,7 +50,7 @@ func (m ms) Get(unescapedName t.MetricName, searchLabels t.Labels, timeOp t.Oper
 	return value, found, err
 }
 
-func (m ms) get(name t.MetricName, searchLabels t.Labels, timeOp t.OperationOverTime, vecOp t.AggregationOverVectors) (float64, t.Found, error) {
+func (m ms) get(name t.MetricName, searchLabels t.LabelMatchers, timeOp t.OperationOverTime, vecOp t.AggregationOverVectors) (float64, t.Found, error) {
 	now := time.Now().Unix()
 	if err := util.CheckTimeOp(timeOp); err != nil {
 		return m.valIfNotFound, false, err
@@ -68,52 +68,28 @@ func (m ms) get(name t.MetricName, searchLabels t.Labels, timeOp t.OperationOver
 		// not found
 		return m.valIfNotFound, false, nil
 	}
-	if md, f := storedMetrics.Load(hashOfMap(searchLabels)); f {
-		// found exact label match
-		if vecOp == t.VecCount {
-			return 1, true, nil
-		}
-		if !m.isStale(md.LastUpdate, now) {
-			ret, f := md.AggregatesOverTime.Load(timeOp)
-			if !f {
-				return m.valIfNotFound, false, fmt.Errorf("unknown OperationOverTime: %s", timeOp)
-			}
-			return ret, true, nil
-		} else {
-			defer func() {
-				storedMetrics.Delete(hashOfMap(searchLabels))
-			}()
-		}
-		v, _ := md.AggregatesOverTime.Load(timeOp)
-		return v, true, nil
-	}
-	// multiple metric vectors match the search criteria
+	// A selector can match both an exact label set and series with extra labels.
 	var accumulator float64
 	counter := 0
-	storedMetrics.Range(func(_ t.LabelsHash, md *t.MetricData) bool {
-		match := true
-		for searchLabelName, searchLabelVal := range searchLabels {
-			if v, found := md.Labels[searchLabelName]; found && v != searchLabelVal {
-				match = false
-				break
-			}
+	storedMetrics.Range(func(key t.LabelsHash, md *t.MetricData) bool {
+		if m.isStale(md.LastUpdate, now) {
+			storedMetrics.Delete(key)
+			return true
 		}
-		if match {
-			if !m.isStale(md.LastUpdate, now) {
-				val, found := md.AggregatesOverTime.Load(timeOp)
-				if !found {
-					return true
-				}
-				counter += 1
-				accumulator = m.calculateAggregate(val, counter, accumulator, vecOp)
-			} else {
-				defer func() {
-					storedMetrics.Delete(hashOfMap(searchLabels))
-				}()
-			}
+		if !searchLabels.Matches(md.Labels) {
+			return true
 		}
+		val, found := md.AggregatesOverTime.Load(timeOp)
+		if !found {
+			return true
+		}
+		counter++
+		accumulator = m.calculateAggregate(val, counter, accumulator, vecOp)
 		return true
 	})
+	if counter == 0 {
+		return m.valIfNotFound, false, nil
+	}
 	return accumulator, true, nil
 }
 

@@ -170,8 +170,8 @@ func TestLazyMemStoreAndLazyAggregatesComplex(t *testing.T) {
 		"a": "1",
 		"b": "3",
 	}
-	// check if initialized to 0 value
-	assertMetricFoundAndEqualTo(t, ms, name, labels2, ty.OpCount, ty.VecSum, 0.)
+	// Subscriptions are per metric; this label set has not been ingested yet.
+	assertNotThere(t, ms, name, labels2, ty.OpCount, ty.VecSum)
 	setupMetricsWithNow(ms, now, name, 10, labels2, 1., 2., 3., 4., 5.)
 	assertMetricFoundAndEqualTo(t, ms, name, labels, ty.OpCount, ty.VecSum, 26.)
 	assertMetricFoundAndEqualTo(t, ms, name, labels2, ty.OpCount, ty.VecSum, 5.)

@@ -70,7 +70,7 @@ const (
 
 type MemStore interface {
 	// Get retrieves the latest value from the in-memory metric store
-	Get(MetricName, Labels, OperationOverTime, AggregationOverVectors) (float64, Found, error)
+	Get(MetricName, LabelMatchers, OperationOverTime, AggregationOverVectors) (float64, Found, error)
 
 	// Put stores the value
 	Put(NewMetricEntry)
@@ -84,5 +84,5 @@ type MemStore interface {
 
 type Parser interface {
 	// Parse parses the metric query provided as a string
-	Parse(string) (MetricName, Labels, AggregationOverVectors, error)
+	Parse(string) (MetricName, LabelMatchers, AggregationOverVectors, error)
 }
