@@ -13,7 +13,7 @@ spec:
     - type: external
       metadata:
         scalerAddress: "keda-otel-scaler.keda.svc:4318"
-        metricQuery: "sum(vllm:gpu_cache_usage_perc{deployment=vllm-llama3-deployment-vllm})"
+        metricQuery: "sum(vllm:kv_cache_usage_perc{deployment=vllm-llama3-deployment-vllm})"
         operationOverTime: "avg"
         targetValue: ".5" # for scaling 1 -> 2
     - type: external
