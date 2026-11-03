@@ -5,6 +5,7 @@
     ":gitSignOff",
   ],
   "labels": ["renovate"],
+  "addLabels": ["version-bump"],
   "prConcurrentLimit": 2,
   "ignorePaths": ["**/vendor/**"],
   // ignore everything except those that are white-listed
