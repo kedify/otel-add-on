@@ -2,6 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:base",
+    "github>kedify/github-meta:kubernetes-versions",
   ],
   "labels": ["renovate"],
   "prConcurrentLimit": 2,
@@ -25,7 +26,15 @@
       ],
       "labels": ["skip-ci", "renovate"],
       "enabled": true,
-    }
+    },
+    {
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["rancher/k3s"],
+      "matchFileNames": ["e2e-tests/kubernetes-versions.json"],
+      "enabled": true,
+      "pinDigests": true,
+      "labels": ["dependencies", "kubernetes"],
+    },
   ],
   "regexManagers": [
     {
