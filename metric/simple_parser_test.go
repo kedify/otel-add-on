@@ -1,114 +1,90 @@
 package metric
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/kedify/otel-add-on/types"
 )
 
-func TestSimpleParserOk(t *testing.T) {
-	// setup
-	p := NewParser()
-
-	// check
-	name, labels, agg, err := p.Parse("avg(metric_foo_bar{a=1, b=2})")
-	if name != "metric_foo_bar" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{"b": "2", "a": "1"}) || agg != types.VecAvg || err != nil {
-		t.Errorf("expected: [metric_foo_bar, map[a:1 b:2], avg, <nil>], got: [%s, %v, %v, %v]", name, labels, agg, err)
+func TestSimpleParser(t *testing.T) {
+	tests := []struct {
+		query    string
+		name     types.MetricName
+		agg      types.AggregationOverVectors
+		matchers types.LabelMatchers
+	}{
+		{"avg(metric_foo_bar{a=1, b=2})", "metric_foo_bar", types.VecAvg, types.LabelMatchers{
+			{Name: "a", Operator: types.MatchEqual, Value: "1"}, {Name: "b", Operator: types.MatchEqual, Value: "2"},
+		}},
+		{`avg(metric_foo_bar{a="1", b="2"})`, "metric_foo_bar", types.VecAvg, types.LabelMatchers{
+			{Name: "a", Operator: types.MatchEqual, Value: "1"}, {Name: "b", Operator: types.MatchEqual, Value: "2"},
+		}},
+		{"metric_foo{a=1, b=2, c=5}", "metric_foo", types.VecSum, types.LabelMatchers{
+			{Name: "a", Operator: types.MatchEqual, Value: "1"}, {Name: "b", Operator: types.MatchEqual, Value: "2"}, {Name: "c", Operator: types.MatchEqual, Value: "5"},
+		}},
+		{"min(metric_foo{ahoj=cau})", "metric_foo", types.VecMin, types.LabelMatchers{{Name: "ahoj", Operator: types.MatchEqual, Value: "cau"}}},
+		{"count(metric_foo{ahoj=cau})", "metric_foo", types.VecCount, types.LabelMatchers{{Name: "ahoj", Operator: types.MatchEqual, Value: "cau"}}},
+		{"max(metric_foo)", "metric_foo", types.VecMax, nil},
+		{"hello", "hello", types.VecSum, nil},
+		{`queue_depth{queue=~"orders-.*",environment!="dev"}`, "queue_depth", types.VecSum, types.LabelMatchers{
+			{Name: "queue", Operator: types.MatchRegexp, Value: "orders-.*"}, {Name: "environment", Operator: types.MatchNotEqual, Value: "dev"},
+		}},
+		{`sum(queue_depth{queue!~"test|dev",queue!="orders-dev",queue!="orders-test"})`, "queue_depth", types.VecSum, types.LabelMatchers{
+			{Name: "queue", Operator: types.MatchNotRegexp, Value: "test|dev"},
+			{Name: "queue", Operator: types.MatchNotEqual, Value: "orders-dev"}, {Name: "queue", Operator: types.MatchNotEqual, Value: "orders-test"},
+		}},
+		{`metric{key="a,b=c{}()!~",empty="",spaces=" x "}`, "metric", types.VecSum, types.LabelMatchers{
+			{Name: "key", Operator: types.MatchEqual, Value: "a,b=c{}()!~"}, {Name: "empty", Operator: types.MatchEqual, Value: ""}, {Name: "spaces", Operator: types.MatchEqual, Value: " x "},
+		}},
+		{`metric{key="quote\" slash\\ newline\n tab\t \x41\u00e9\101"}`, "metric", types.VecSum, types.LabelMatchers{
+			{Name: "key", Operator: types.MatchEqual, Value: "quote\" slash\\ newline\n tab\t AéA"},
+		}},
+		{`metric{key='it\'s a string',"http.method"='GET'}`, "metric", types.VecSum, types.LabelMatchers{
+			{Name: "key", Operator: types.MatchEqual, Value: "it's a string"}, {Name: "http.method", Operator: types.MatchEqual, Value: "GET"},
+		}},
+		{"metric{key=`a\\b\r\nc`}", "metric", types.VecSum, types.LabelMatchers{{Name: "key", Operator: types.MatchEqual, Value: "a\\b\r\nc"}}},
+		{`metric{key=~"orders-[0-9]{1,3}\\.ready"}`, "metric", types.VecSum, types.LabelMatchers{
+			{Name: "key", Operator: types.MatchRegexp, Value: `orders-[0-9]{1,3}\.ready`},
+		}},
+		{` avg( metric/name.test { queue =~ "orders-(a|b)", environment != 'dev', } ) `, "metric/name.test", types.VecAvg, types.LabelMatchers{
+			{Name: "queue", Operator: types.MatchRegexp, Value: "orders-(a|b)"}, {Name: "environment", Operator: types.MatchNotEqual, Value: "dev"},
+		}},
 	}
-
-	// check
-	name2, labels2, agg2, err2 := p.Parse("avg(metric_foo_bar{a=\"1\", b=\"2\"})")
-	if name2 != "metric_foo_bar" || fmt.Sprint(labels2) != fmt.Sprint(map[string]any{"b": "2", "a": "1"}) || agg2 != types.VecAvg || err2 != nil {
-		t.Errorf("expected: [metric_foo_bar, map[a:1 b:2], avg, <nil>], got: [%s, %v, %v, %v]", name2, labels2, agg2, err2)
+	for _, tt := range tests {
+		t.Run(tt.query, func(t *testing.T) {
+			name, matchers, agg, err := NewParser().Parse(tt.query)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if name != tt.name || agg != tt.agg || len(matchers) != len(tt.matchers) {
+				t.Fatalf("got (%s, %v, %s), want (%s, %v, %s)", name, matchers, agg, tt.name, tt.matchers, tt.agg)
+			}
+			for i, want := range tt.matchers {
+				got := matchers[i]
+				if got.Name != want.Name || got.Operator != want.Operator || got.Value != want.Value {
+					t.Errorf("matcher %d: got %v, want %v", i, got, want)
+				}
+			}
+		})
 	}
 }
 
 func TestSimpleParserFail(t *testing.T) {
-	// setup
-	p := NewParser()
-
-	// check 1
-	_, _, _, err := p.Parse("avg(metric_foo_bar{a=1, b=2=2})")
-	if err == nil {
-		t.Errorf("expected: _, _, _, err], got: [_, _, _, %v]", err)
-	}
-
-	// check 2
-	_, _, _, err = p.Parse("avg(metric_foo_bar{a=1, b=2)")
-	if err == nil {
-		t.Errorf("expected: _, _, _, err], got: [_, _, _, %v]", err)
-	}
-
-	// check 3
-	_, _, _, err = p.Parse("metric_foo_bara=1, b=2})")
-	if err == nil {
-		t.Errorf("expected: _, _, _, err], got: [_, _, _, %v]", err)
-	}
-
-	// check 4
-	_, _, _, err = p.Parse("avg(metric_foo_bar{a:1})")
-	if err == nil {
-		t.Errorf("expected: _, _, _, err], got: [_, _, _, %v]", err)
-	}
-
-	// check 5
-	_, _, _, err = p.Parse("metric_foo_bar{}")
-	if err == nil {
-		t.Errorf("expected: _, _, _, err], got: [_, _, _, %v]", err)
-	}
-}
-func TestSimpleParserDefaultAgg(t *testing.T) {
-	// setup
-	p := NewParser()
-
-	// check
-	name, labels, agg, err := p.Parse("metric_foo{a=1, b=2, c=5}")
-	if name != "metric_foo" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{"b": "2", "a": "1", "c": "5"}) || agg != types.VecSum || err != nil {
-		t.Errorf("expected: [metric_foo, map[a:1 b:2 c:5], avg, <nil>], got: [%s, %v, %v, %v]", name, labels, agg, err)
-	}
-}
-
-func TestSimpleParserMin(t *testing.T) {
-	// setup
-	p := NewParser()
-
-	// check
-	name, labels, agg, err := p.Parse("min(metric_foo{ahoj=cau})")
-	if name != "metric_foo" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{"ahoj": "cau"}) || agg != types.VecMin || err != nil {
-		t.Errorf("expected: [metric_foo, map[ahoj:cau], min, <nil>], got: [%s, %v, %v, %v]", name, labels, agg, err)
-	}
-}
-
-func TestSimpleParserCount(t *testing.T) {
-	// setup
-	p := NewParser()
-
-	// check
-	name, labels, agg, err := p.Parse("count(metric_foo{ahoj=cau})")
-	if name != "metric_foo" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{"ahoj": "cau"}) || agg != types.VecCount || err != nil {
-		t.Errorf("expected: [metric_foo, map[ahoj:cau], min, <nil>], got: [%s, %v, %v, %v]", name, labels, agg, err)
-	}
-}
-
-func TestSimpleParserNoLabels(t *testing.T) {
-	// setup
-	p := NewParser()
-
-	// check
-	name, labels, agg, err := p.Parse("max(metric_foo)")
-	if name != "metric_foo" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{}) || agg != types.VecMax || err != nil {
-		t.Errorf("expected: [metric_foo, map[], max, <nil>], got: [%s, %v, %v, %v]", name, labels, agg, err)
-	}
-}
-
-func TestSimpleParserNoLabelsNoAgg(t *testing.T) {
-	// setup
-	p := NewParser()
-
-	// check
-	name, labels, agg, err := p.Parse("hello")
-	if name != "hello" || fmt.Sprint(labels) != fmt.Sprint(map[string]any{}) || agg != types.VecSum || err != nil {
-		t.Errorf("expected: [hello, map[], sum, <nil>], got: [%s, %v, %v, %v]", name, labels, agg, err)
+	for _, query := range []string{
+		"", "  ", "avg(metric_foo_bar{a=1, b=2=2})", "avg(metric_foo_bar{a=1, b=2)",
+		"metric_foo_bara=1, b=2})", "avg(metric_foo_bar{a:1})", "metric_foo_bar{}",
+		"metric{a=}", `metric{a=="1"}`, `metric{a!="1",,b="2"}`, `metric{a!"1"}`,
+		`metric{a~="1"}`, `metric{a=!"1"}`, `metric{a>="1"}`, `metric{a<="1"}`, `metric{a="1" b="2"}`, `metric{a="1"junk}`,
+		`metric{a="unterminated}`, `metric{a='unterminated}`, "metric{a=`unterminated}",
+		`metric{a="\q"}`, "metric{a=\"new\nline\"}", `metric{a=~"["}`, `metric{a!~"("}`,
+		`metric{a=~")|("}`, `metric{a=~"(?=lookahead)"}`, `metric{a=~"(a)\\1"}`,
+		`metric{="value"}`, `metric{""="value"}`, `{a="1"}`, `metric{a="1"}junk`,
+		`metric{a="1"}}`, `metric{a="1"}{b="2"}`, "unknown(metric)", "sum(avg(metric))", "metric[5m]",
+	} {
+		t.Run(query, func(t *testing.T) {
+			if _, _, _, err := NewParser().Parse(query); err == nil {
+				t.Fatalf("expected parse error for %q", query)
+			}
+		})
 	}
 }

@@ -35,6 +35,35 @@ and can talk to KEDA operator by implementing the External Scaler [contract](htt
 It queries the internal in-memory metric storage for metric value and sends it to KEDA operator. The metric query is specified as a metadata on KEDA's
 ScaledObject CR, and it provides a limited subset of features as PromQL.
 
+#### Metric label matching
+
+Metric queries support the PromQL label operators `=` (equal), `!=` (not equal),
+`=~` (regex match), and `!~` (negative regex match). For example:
+
+```promql
+queue_depth{queue=~"orders-.*",environment!="dev"}
+```
+
+This query sums the selected values for queues beginning with `orders-`, excluding
+those with `environment="dev"`. You can wrap the selector in `sum`, `avg`, `min`,
+`max`, or `count` to choose how matching series are aggregated; `operationOverTime`
+still determines the value read from each series.
+
+All matchers must pass, including repeated conditions on the same label, such as
+`queue_depth{queue=~"orders-.*",queue!="orders-test"}`. Regexes use RE2 syntax,
+match the entire label value, and allow `.` to match newlines. Use `.*` explicitly
+when you want a substring match.
+
+Missing labels are treated as empty strings: `environment!="dev"` includes series
+without that label, `environment=""` selects missing or empty values, and
+`environment!=""` requires a nonempty value. Selectors aggregate all matching,
+non-stale series, including series with additional labels. No matching series
+uses the configured metric-not-found behavior.
+
+Double quotes, single quotes, and backticks are supported for label values.
+Single and double quotes use Go-style escapes; backticks preserve their contents.
+Existing shorthand such as `queue_depth{queue=orders}` remains supported.
+
 ### Architecture
 ![diagram](./diagram.png "Diagram")
 - ([diagram link](https://excalidraw.com/#json=P5ptHj7eQHF3qpCyDDehT,gVJvYLtm0qVR2sStjUlapA))

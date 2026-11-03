@@ -2,7 +2,9 @@ package metric
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/kedify/otel-add-on/types"
 )
@@ -17,53 +19,156 @@ func NewParser() types.Parser {
 	return p{}
 }
 
-func (p p) Parse(metricQuery string) (types.MetricName, types.Labels, types.AggregationOverVectors, error) {
-	if metricQuery == "" {
-		return "", nil, "", fmt.Errorf("unable to parse metric query: %s", metricQuery)
-	}
+func (p p) Parse(metricQuery string) (types.MetricName, types.LabelMatchers, types.AggregationOverVectors, error) {
 	mq := strings.TrimSpace(metricQuery)
-	aggregateFunction := types.VecSum // default
+	aggregateFunction := types.VecSum
 	for _, aggFn := range []types.AggregationOverVectors{types.VecSum, types.VecAvg, types.VecMin, types.VecMax, types.VecCount} {
-		if strings.HasPrefix(mq, string(aggFn)+"(") && strings.HasSuffix(mq, ")") {
+		prefix := string(aggFn) + "("
+		if strings.HasPrefix(mq, prefix) {
+			if !strings.HasSuffix(mq, ")") {
+				return "", nil, "", fmt.Errorf("unable to parse metric query: %s", metricQuery)
+			}
 			aggregateFunction = aggFn
-			mq = strings.TrimPrefix(mq, string(aggFn)+"(")
-			mq = strings.TrimSuffix(mq, ")")
+			mq = strings.TrimSpace(mq[len(prefix) : len(mq)-1])
+			break
 		}
 	}
-	first := strings.Index(mq, "{")
-	last := strings.LastIndex(mq, "}")
-	if last < first || (last > 0 && first == -1) {
+
+	name, labelQuery, hasLabels := strings.Cut(mq, "{")
+	name = strings.TrimSpace(name)
+	if name == "" || strings.IndexFunc(name, func(r rune) bool {
+		return unicode.IsSpace(r) || strings.ContainsRune("{}(),=!~\"'`[]", r)
+	}) >= 0 {
 		return "", nil, "", fmt.Errorf("unable to parse metric query: %s", metricQuery)
 	}
-	if first == -1 && last == -1 { // no labels specified
-		return types.MetricName(mq), map[string]any{}, aggregateFunction, nil
+	if !hasLabels {
+		return types.MetricName(name), nil, aggregateFunction, nil
 	}
-	metricName := types.MetricName(mq[:first])
-	labels, err := p.ParseLabels(mq[first+1 : last])
+	if !strings.HasSuffix(labelQuery, "}") {
+		return "", nil, "", fmt.Errorf("unable to parse metric query: %s", metricQuery)
+	}
+	matchers, err := p.ParseLabels(labelQuery[:len(labelQuery)-1])
 	if err != nil {
 		return "", nil, "", err
 	}
-	return metricName, labels, aggregateFunction, nil
+	return types.MetricName(name), matchers, aggregateFunction, nil
 }
 
-func (p p) ParseLabels(labelsQuery string) (types.Labels, error) {
-	lq := strings.TrimSpace(labelsQuery)
-	if lq == "" {
-		return nil, fmt.Errorf("unable to parse labels: %s", lq)
+func (p p) ParseLabels(labelsQuery string) (types.LabelMatchers, error) {
+	remaining := strings.TrimSpace(labelsQuery)
+	if remaining == "" {
+		return nil, fmt.Errorf("unable to parse labels: %s", labelsQuery)
 	}
 
-	chunks := strings.Split(lq, ",")
-	labels := make(map[string]any, len(chunks))
-	for _, chunk := range chunks {
-		if !strings.Contains(chunk, "=") {
-			return nil, fmt.Errorf("unable to parse labels, labels are expected at form {key1=val1, key2=val2}, but got: %s", lq)
+	var matchers types.LabelMatchers
+	for remaining != "" {
+		var name string
+		var err error
+		if isQuote(remaining[0]) {
+			name, remaining, err = readQuotedLabel(remaining)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			end := strings.IndexFunc(remaining, func(r rune) bool {
+				return unicode.IsSpace(r) || strings.ContainsRune("=!~<>,{}()\"'`", r)
+			})
+			if end < 0 {
+				return nil, fmt.Errorf("missing label matching operator in %q", remaining)
+			}
+			name, remaining = remaining[:end], remaining[end:]
 		}
-		labelRaw := strings.Split(chunk, "=")
-		if len(labelRaw) != 2 {
-			return nil, fmt.Errorf("unable to parse labels, labels are expected at form {key1=val1, key2=val2}, but got: %s", lq)
+		if name == "" {
+			return nil, fmt.Errorf("label name must not be empty in %q", labelsQuery)
 		}
 
-		labels[strings.Trim(labelRaw[0], "\" '")] = strings.Trim(labelRaw[1], "\" '")
+		remaining = strings.TrimSpace(remaining)
+		var operator types.MatchOperator
+		for _, op := range []types.MatchOperator{types.MatchNotEqual, types.MatchNotRegexp, types.MatchRegexp, types.MatchEqual} {
+			if strings.HasPrefix(remaining, string(op)) {
+				operator = op
+				remaining = strings.TrimSpace(remaining[len(op):])
+				break
+			}
+		}
+		if operator == "" {
+			return nil, fmt.Errorf("invalid label matching operator after %q", name)
+		}
+		if remaining == "" {
+			return nil, fmt.Errorf("missing value for label %q", name)
+		}
+
+		var value string
+		if isQuote(remaining[0]) {
+			value, remaining, err = readQuotedLabel(remaining)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// Retain the original unquoted shorthand for simple values.
+			var comma bool
+			value, remaining, comma = strings.Cut(remaining, ",")
+			if comma {
+				remaining = "," + remaining
+			}
+			value = strings.TrimSpace(value)
+			if value == "" || strings.IndexFunc(value, func(r rune) bool {
+				return unicode.IsSpace(r) || strings.ContainsRune("=!~{}()\"'`", r)
+			}) >= 0 {
+				return nil, fmt.Errorf("invalid unquoted value for label %q: %q", name, value)
+			}
+		}
+		matcher, err := types.NewLabelMatcher(name, operator, value)
+		if err != nil {
+			return nil, err
+		}
+		matchers = append(matchers, matcher)
+
+		remaining = strings.TrimSpace(remaining)
+		if remaining == "" {
+			break
+		}
+		if remaining[0] != ',' {
+			return nil, fmt.Errorf("expected comma after label %q, got %q", name, remaining)
+		}
+		remaining = strings.TrimSpace(remaining[1:])
 	}
-	return labels, nil
+	return matchers, nil
+}
+
+func isQuote(c byte) bool {
+	return c == '\'' || c == '"' || c == '`'
+}
+
+// readQuotedLabel follows PromQL's Go-style escapes for single/double quotes.
+// Backtick strings retain all characters, including newlines and backslashes.
+func readQuotedLabel(input string) (string, string, error) {
+	quote := input[0]
+	remaining := input[1:]
+	if quote == '`' {
+		if end := strings.IndexByte(remaining, quote); end >= 0 {
+			return remaining[:end], remaining[end+1:], nil
+		}
+	} else {
+		var value strings.Builder
+		for remaining != "" {
+			if remaining[0] == quote {
+				return value.String(), remaining[1:], nil
+			}
+			if remaining[0] == '\n' {
+				return "", "", fmt.Errorf("unescaped newline in label string %q", input)
+			}
+			c, multibyte, tail, err := strconv.UnquoteChar(remaining, quote)
+			if err != nil {
+				return "", "", fmt.Errorf("invalid label string %q: %w", input, err)
+			}
+			if multibyte {
+				value.WriteRune(c)
+			} else {
+				value.WriteByte(byte(c))
+			}
+			remaining = tail
+		}
+	}
+	return "", "", fmt.Errorf("unterminated label string %q", input)
 }

@@ -1,6 +1,7 @@
 package metric
 
 import (
+	"fmt"
 	"math"
 	"runtime/debug"
 	"testing"
@@ -31,7 +32,7 @@ func TestMemStorePutOneAndGetOne(t *testing.T) {
 	})
 
 	// check
-	val, found, err := ms.Get("metric1", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne, ty.VecSum)
+	val, found, err := getWithLabels(ms, "metric1", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne, ty.VecSum)
 	assertMetricFound(t, val, found, err, 42.)
 }
 
@@ -57,11 +58,11 @@ func TestMemStoreEscapeMetrics(t *testing.T) {
 	})
 
 	// checks
-	val1, found1, err1 := ms.Get("metric_one", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne, ty.VecSum)
+	val1, found1, err1 := getWithLabels(ms, "metric_one", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne, ty.VecSum)
 	assertMetricFound(t, val1, found1, err1, 42.)
-	val2, found2, err2 := ms.Get("metric.one", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne, ty.VecSum)
+	val2, found2, err2 := getWithLabels(ms, "metric.one", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne, ty.VecSum)
 	assertMetricFound(t, val2, found2, err2, 42.)
-	val3, found3, err3 := ms.Get("metric_two", map[string]any{"a": "2"}, ty.OpLastOne, ty.VecSum)
+	val3, found3, err3 := getWithLabels(ms, "metric_two", map[string]any{"a": "2"}, ty.OpLastOne, ty.VecSum)
 	assertMetricFound(t, val3, found3, err3, 43.)
 }
 
@@ -79,9 +80,9 @@ func TestMemStoreErr(t *testing.T) {
 	})
 
 	// check
-	_, _, err1 := ms.Get("metric1", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne+"_typo", ty.VecSum)
+	_, _, err1 := getWithLabels(ms, "metric1", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne+"_typo", ty.VecSum)
 	assertMetricErr(t, err1)
-	_, _, err2 := ms.Get("metric1", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne, "typo_"+ty.VecSum)
+	_, _, err2 := getWithLabels(ms, "metric1", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne, "typo_"+ty.VecSum)
 	assertMetricErr(t, err2)
 }
 
@@ -99,19 +100,19 @@ func TestMemStoreGetNotFound(t *testing.T) {
 	})
 
 	// check
-	val1, found1, err1 := ms.Get("metric-404", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne, ty.VecSum)
+	val1, found1, err1 := getWithLabels(ms, "metric-404", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne, ty.VecSum)
 	assertMetricNotFound(t, val1, found1, err1)
 	if found1 {
 		t.Errorf("expected: [false], got: [%v]", bool(found1))
 	}
 
-	val2, found2, err2 := ms.Get("metric-1", map[string]any{"bb": "2", "a": "1"}, ty.OpLastOne, ty.VecSum)
+	val2, found2, err2 := getWithLabels(ms, "metric-1", map[string]any{"bb": "2", "a": "1"}, ty.OpLastOne, ty.VecSum)
 	assertMetricNotFound(t, val2, found2, err2)
 
-	val3, found3, err3 := ms.Get("metric-1", map[string]any{"bb": "2", "a": "1", "c": "3"}, ty.OpLastOne, ty.VecSum)
+	val3, found3, err3 := getWithLabels(ms, "metric-1", map[string]any{"bb": "2", "a": "1", "c": "3"}, ty.OpLastOne, ty.VecSum)
 	assertMetricNotFound(t, val3, found3, err3)
 
-	val4, found4, err4 := ms.Get("metric-1", map[string]any{}, ty.OpLastOne, ty.VecSum)
+	val4, found4, err4 := getWithLabels(ms, "metric-1", map[string]any{}, ty.OpLastOne, ty.VecSum)
 	assertMetricNotFound(t, val4, found4, err4)
 }
 
@@ -129,7 +130,7 @@ func TestMemStoreGetNotFoundCustomVal(t *testing.T) {
 	})
 
 	// check
-	val, found, err := ms.Get("nometric-404", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne, ty.VecSum)
+	val, found, err := getWithLabels(ms, "nometric-404", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne, ty.VecSum)
 	assertMetric(t, val, found, err, 42., false, nil)
 	if found {
 		t.Errorf("expected: [false], got: [%v]", bool(found))
@@ -159,7 +160,7 @@ func TestMemStoreOperationLastOne(t *testing.T) {
 	})
 
 	// check
-	val, found, err := ms.Get("metric1", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne, ty.VecSum)
+	val, found, err := getWithLabels(ms, "metric1", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne, ty.VecSum)
 	assertMetricFound(t, val, found, err, 45.)
 }
 
@@ -186,10 +187,10 @@ func TestMemStorePutTwoAndGetTwo(t *testing.T) {
 	})
 
 	// check
-	val1, found1, err1 := ms.Get("metric1", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne, ty.VecSum)
+	val1, found1, err1 := getWithLabels(ms, "metric1", map[string]any{"b": "2", "a": "1"}, ty.OpLastOne, ty.VecSum)
 	assertMetricFound(t, val1, found1, err1, 42.)
 
-	val2, found2, err2 := ms.Get("metric2", map[string]any{"bb": "20", "aa": "10"}, ty.OpLastOne, ty.VecSum)
+	val2, found2, err2 := getWithLabels(ms, "metric2", map[string]any{"bb": "20", "aa": "10"}, ty.OpLastOne, ty.VecSum)
 	assertMetricFound(t, val2, found2, err2, 45.)
 }
 
@@ -248,13 +249,13 @@ func TestMemStoreSumAcrossDifferentMetrics(t *testing.T) {
 	})
 
 	// check
-	val1, found1, err1 := ms.Get("metric1", map[string]any{"a": "1", "c": "1"}, ty.OpLastOne, ty.VecSum)
+	val1, found1, err1 := getWithLabels(ms, "metric1", map[string]any{"a": "1", "c": "1"}, ty.OpLastOne, ty.VecSum)
 	assertMetricFound(t, val1, found1, err1, 3.)
 
-	val2, found2, err2 := ms.Get("metric1", map[string]any{"a": "1", "c": "2"}, ty.OpLastOne, ty.VecSum)
+	val2, found2, err2 := getWithLabels(ms, "metric1", map[string]any{"a": "1", "c": "2"}, ty.OpLastOne, ty.VecSum)
 	assertMetricFound(t, val2, found2, err2, 7.)
 
-	val3, found3, err3 := ms.Get("metric1", map[string]any{"a": "1"}, ty.OpLastOne, ty.VecSum)
+	val3, found3, err3 := getWithLabels(ms, "metric1", map[string]any{"a": "1"}, ty.OpLastOne, ty.VecSum)
 	assertMetricFound(t, val3, found3, err3, 10.)
 }
 
@@ -313,13 +314,13 @@ func TestMemStoreAvg(t *testing.T) {
 	})
 
 	// check
-	val1, found1, err1 := ms.Get("metric1", map[string]any{"a": "1", "c": "1"}, ty.OpLastOne, ty.VecAvg)
+	val1, found1, err1 := getWithLabels(ms, "metric1", map[string]any{"a": "1", "c": "1"}, ty.OpLastOne, ty.VecAvg)
 	assertMetricFound(t, val1, found1, err1, 1.5)
 
-	val2, found2, err2 := ms.Get("metric1", map[string]any{"a": "1", "c": "2"}, ty.OpLastOne, ty.VecAvg)
+	val2, found2, err2 := getWithLabels(ms, "metric1", map[string]any{"a": "1", "c": "2"}, ty.OpLastOne, ty.VecAvg)
 	assertMetricFound(t, val2, found2, err2, 3.5)
 
-	val3, found3, err3 := ms.Get("metric1", map[string]any{"a": "1"}, ty.OpLastOne, ty.VecAvg)
+	val3, found3, err3 := getWithLabels(ms, "metric1", map[string]any{"a": "1"}, ty.OpLastOne, ty.VecAvg)
 	assertMetricFound(t, val3, found3, err3, 2.5)
 }
 
@@ -378,16 +379,16 @@ func TestMemStoreMinMax(t *testing.T) {
 	})
 
 	// check
-	val1, found1, err1 := ms.Get("metric1", map[string]any{"a": "1", "c": "1"}, ty.OpLastOne, ty.VecMin)
+	val1, found1, err1 := getWithLabels(ms, "metric1", map[string]any{"a": "1", "c": "1"}, ty.OpLastOne, ty.VecMin)
 	assertMetricFound(t, val1, found1, err1, 1.)
 
-	val2, found2, err2 := ms.Get("metric1", map[string]any{"a": "1", "c": "2"}, ty.OpLastOne, ty.VecMin)
+	val2, found2, err2 := getWithLabels(ms, "metric1", map[string]any{"a": "1", "c": "2"}, ty.OpLastOne, ty.VecMin)
 	assertMetricFound(t, val2, found2, err2, 3.)
 
-	val3, found3, err3 := ms.Get("metric1", map[string]any{"a": "1"}, ty.OpLastOne, ty.VecMin)
+	val3, found3, err3 := getWithLabels(ms, "metric1", map[string]any{"a": "1"}, ty.OpLastOne, ty.VecMin)
 	assertMetricFound(t, val3, found3, err3, 1.)
 
-	val4, found4, err4 := ms.Get("metric1", map[string]any{"a": "1"}, ty.OpLastOne, ty.VecMax)
+	val4, found4, err4 := getWithLabels(ms, "metric1", map[string]any{"a": "1"}, ty.OpLastOne, ty.VecMax)
 	assertMetricFound(t, val4, found4, err4, 4.)
 }
 
@@ -399,7 +400,7 @@ func TestMemStoreAvgOverTime(t *testing.T) {
 	}
 	name := "m3t/r1c"
 	setupMetrics(ms, name, 10, labels, 1., 2., 3., 4., 5.)
-	val, found, err := ms.Get(ty.MetricName(name), labels, ty.OpAvg, ty.VecSum)
+	val, found, err := getWithLabels(ms, ty.MetricName(name), labels, ty.OpAvg, ty.VecSum)
 	assertMetricFound(t, val, found, err, 3.)
 }
 
@@ -411,7 +412,7 @@ func TestMemStoreAvgOverTimeStale(t *testing.T) {
 	}
 	name := "m3t/r1c"
 	setupMetrics(ms, name, 10, labels, 1., 2., 3., 4., 5.)
-	val, found, err := ms.Get(ty.MetricName(name), labels, ty.OpAvg, ty.VecSum)
+	val, found, err := getWithLabels(ms, ty.MetricName(name), labels, ty.OpAvg, ty.VecSum)
 	assertMetricFound(t, val, found, err, 4.5)
 }
 
@@ -423,7 +424,7 @@ func TestMemStoreMinOverTime(t *testing.T) {
 	}
 	name := "m3t/r1c"
 	setupMetrics(ms, name, 10, labels, 99., 2., 1., 4., 5.)
-	val, found, err := ms.Get(ty.MetricName(name), labels, ty.OpMin, ty.VecSum)
+	val, found, err := getWithLabels(ms, ty.MetricName(name), labels, ty.OpMin, ty.VecSum)
 	assertMetricFound(t, val, found, err, 1.)
 }
 
@@ -435,7 +436,7 @@ func TestMemStoreLastOneOverTime(t *testing.T) {
 	}
 	name := "m3t/r1c"
 	setupMetrics(ms, name, 10, labels, 99., 2., 1., 4., 5.)
-	val, found, err := ms.Get(ty.MetricName(name), labels, ty.OpLastOne, ty.VecSum)
+	val, found, err := getWithLabels(ms, ty.MetricName(name), labels, ty.OpLastOne, ty.VecSum)
 	assertMetricFound(t, val, found, err, 5.)
 }
 
@@ -447,7 +448,7 @@ func TestMemStoreMinOverTimeStale(t *testing.T) {
 	}
 	name := "m3t/r1c"
 	setupMetrics(ms, name, 10, labels, 1., 2., 3., 4., 5.)
-	val, found, err := ms.Get(ty.MetricName(name), labels, ty.OpMin, ty.VecSum)
+	val, found, err := getWithLabels(ms, ty.MetricName(name), labels, ty.OpMin, ty.VecSum)
 	assertMetricFound(t, val, found, err, 3.)
 }
 
@@ -459,7 +460,7 @@ func TestMemStoreCountsOverTime(t *testing.T) {
 	}
 	name := "m3t/r1c"
 	setupMetrics(ms, name, 10, labels, 1., 2., 3., 4., 5., 6.)
-	val, found, err := ms.Get(ty.MetricName(name), labels, ty.OpCount, ty.VecSum)
+	val, found, err := getWithLabels(ms, ty.MetricName(name), labels, ty.OpCount, ty.VecSum)
 	assertMetricFound(t, val, found, err, 6.)
 }
 
@@ -471,7 +472,7 @@ func TestMemStoreRateOverTime1(t *testing.T) {
 	}
 	name := "m3t/r1c"
 	setupMetrics(ms, name, 10, labels, 0., 10., 20., 30., 40., 50., 60.)
-	val, found, err := ms.Get(ty.MetricName(name), labels, ty.OpRate, ty.VecSum)
+	val, found, err := getWithLabels(ms, ty.MetricName(name), labels, ty.OpRate, ty.VecSum)
 	assertMetricFound(t, val, found, err, 1.)
 }
 
@@ -483,7 +484,7 @@ func TestMemStoreRateOverTime2(t *testing.T) {
 	}
 	name := "m3t/r1c"
 	setupMetrics(ms, name, 20, labels, 0., 10., 20., 30., 40., 50., 60., 70.)
-	val, found, err := ms.Get(ty.MetricName(name), labels, ty.OpRate, ty.VecSum)
+	val, found, err := getWithLabels(ms, ty.MetricName(name), labels, ty.OpRate, ty.VecSum)
 	assertMetricFound(t, val, found, err, .5)
 }
 
@@ -495,7 +496,7 @@ func TestMemStoreRateOverTime3(t *testing.T) {
 	}
 	name := "m3t/r1c"
 	setupMetrics(ms, name, 10, labels, 10., 30., 50., 70., 90., 110.)
-	val, found, err := ms.Get(ty.MetricName(name), labels, ty.OpRate, ty.VecSum)
+	val, found, err := getWithLabels(ms, ty.MetricName(name), labels, ty.OpRate, ty.VecSum)
 	assertMetricFound(t, val, found, err, 2.)
 }
 
@@ -507,7 +508,7 @@ func TestMemStoreRateOverTime4(t *testing.T) {
 	}
 	name := "m3t/r1c"
 	setupMetrics(ms, name, 30, labels, 0., 100., 200., 300., 400., 500.)
-	val, found, err := ms.Get(ty.MetricName(name), labels, ty.OpRate, ty.VecSum)
+	val, found, err := getWithLabels(ms, ty.MetricName(name), labels, ty.OpRate, ty.VecSum)
 	assertMetricFound(t, val, found, err, 3.333)
 }
 
@@ -519,7 +520,7 @@ func TestMemStoreRateOverTimeForgetOld(t *testing.T) {
 	}
 	name := "m3t/r1c"
 	setupMetrics(ms, name, 10, labels, 0., 100., 300., 310., 320., 330., 340., 350.)
-	val, found, err := ms.Get(ty.MetricName(name), labels, ty.OpRate, ty.VecSum)
+	val, found, err := getWithLabels(ms, ty.MetricName(name), labels, ty.OpRate, ty.VecSum)
 	assertMetricFound(t, val, found, err, 1.)
 }
 
@@ -533,7 +534,7 @@ func TestMemStoreRateOverTimeCounterReset(t *testing.T) {
 	setupMetrics(ms, name, 10, labels, 1., 3., 4., 6., 7., 9., 10., 0., 1.)
 
 	// check
-	val, found, err := ms.Get(ty.MetricName(name), labels, ty.OpRate, ty.VecSum)
+	val, found, err := getWithLabels(ms, ty.MetricName(name), labels, ty.OpRate, ty.VecSum)
 	assertMetricFound(t, val, found, err, .125)
 }
 
@@ -552,7 +553,7 @@ func TestMemStoreSumOverAverages(t *testing.T) {
 	setupMetrics(ms, name1, 1, labels1, 1., 2., 3., 4., 5., 6.) // avg is 3.5
 	setupMetrics(ms, name1, 1, labels2, 2., 2., 2., 4., 2., 2.) // avg is 2.333
 	setupMetrics(ms, "noise", 1, labels2, 1., 2., 3., 4., 5.)   // this shouldn't be included
-	val, found, err := ms.Get(ty.MetricName(name1), map[string]any{
+	val, found, err := getWithLabels(ms, ty.MetricName(name1), map[string]any{
 		"a": "1",
 	}, ty.OpAvg, ty.VecSum)
 	assertMetricFound(t, val, found, err, 3.5+2.333)
@@ -583,18 +584,18 @@ func TestMemStoreCount(t *testing.T) {
 	setupMetrics(ms, name1, 1, labels3, 1., 2., 3., 4.)
 	setupMetrics(ms, name1, 1, labels4, 1., 2., 3., 4., 5.)
 	setupMetrics(ms, "noise", 1, labels2, 1., 2., 3., 4., 5.) // this shouldn't be included
-	val1, found1, err1 := ms.Get(ty.MetricName(name1), map[string]any{
+	val1, found1, err1 := getWithLabels(ms, ty.MetricName(name1), map[string]any{
 		"a": "1",
 	}, ty.OpAvg, ty.VecCount)
 	assertMetricFound(t, val1, found1, err1, 3.)
 
-	val2, found2, err2 := ms.Get(ty.MetricName(name1), map[string]any{
+	val2, found2, err2 := getWithLabels(ms, ty.MetricName(name1), map[string]any{
 		"b": "2",
 	}, ty.OpAvg, ty.VecCount)
 	assertMetricFound(t, val2, found2, err2, 2.)
-	val3, found3, err3 := ms.Get(ty.MetricName(name1), map[string]any{}, ty.OpAvg, ty.VecCount)
+	val3, found3, err3 := getWithLabels(ms, ty.MetricName(name1), map[string]any{}, ty.OpAvg, ty.VecCount)
 	assertMetricFound(t, val3, found3, err3, 4.)
-	val4, found4, err4 := ms.Get(ty.MetricName(name1), map[string]any{
+	val4, found4, err4 := getWithLabels(ms, ty.MetricName(name1), map[string]any{
 		"a": "1",
 		"b": "2",
 	}, ty.OpAvg, ty.VecCount)
@@ -640,12 +641,12 @@ func assertMetricFound(t *testing.T, val float64, found ty.Found, err error, exp
 }
 
 func assertMetricFoundAndEqualTo(t *testing.T, ms ty.MemStore, name string, labels map[string]any, opTime ty.OperationOverTime, opVec ty.AggregationOverVectors, expectedVal float64) {
-	val, found, err := ms.Get(ty.MetricName(name), labels, opTime, opVec)
+	val, found, err := getWithLabels(ms, ty.MetricName(name), labels, opTime, opVec)
 	assertMetricFound(t, val, found, err, expectedVal)
 }
 
 func assertNotThere(t *testing.T, ms ty.MemStore, name string, labels map[string]any, opTime ty.OperationOverTime, opVec ty.AggregationOverVectors) {
-	val, found, err := ms.Get(ty.MetricName(name), labels, opTime, opVec)
+	val, found, err := getWithLabels(ms, ty.MetricName(name), labels, opTime, opVec)
 	assertMetricNotFound(t, val, found, err)
 }
 
@@ -666,4 +667,13 @@ func newMetricStore(metricStoreRetentionSeconds int, lazySeries, lazyAggregates 
 		MetricStoreLazySeries:       lazySeries,
 		MetricStoreLazyAggregates:   lazyAggregates,
 	})
+}
+
+// getWithLabels keeps the existing store fixtures expressed as equality labels.
+func getWithLabels(store ty.MemStore, name ty.MetricName, labels ty.Labels, timeOp ty.OperationOverTime, vecOp ty.AggregationOverVectors) (float64, ty.Found, error) {
+	matchers := make(ty.LabelMatchers, 0, len(labels))
+	for name, value := range labels {
+		matchers = append(matchers, ty.LabelMatcher{Name: name, Operator: ty.MatchEqual, Value: fmt.Sprint(value)})
+	}
+	return store.Get(name, matchers, timeOp, vecOp)
 }

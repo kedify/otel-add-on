@@ -14,7 +14,7 @@ func NewNoopMetricStore(debug bool) t.MemStore {
 	return noopMs{debug: debug}
 }
 
-func (m noopMs) Get(unescapedName t.MetricName, _searchLabels t.Labels, _timeOp t.OperationOverTime, _defaultAggregation t.AggregationOverVectors) (float64, t.Found, error) {
+func (m noopMs) Get(unescapedName t.MetricName, _searchLabels t.LabelMatchers, _timeOp t.OperationOverTime, _defaultAggregation t.AggregationOverVectors) (float64, t.Found, error) {
 	if m.debug {
 		fmt.Println("noop metric store called Get: " + unescapedName)
 	}
