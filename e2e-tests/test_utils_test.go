@@ -71,3 +71,26 @@ cp "$TEST_HELM_INSTALLER" ./bin/get_helm.sh
 		})
 	}
 }
+
+func TestCheckClusterVersions(t *testing.T) {
+	const server = `{"serverVersion":{"gitVersion":"v1.37.1+k3s1"}}`
+	const node = `{"metadata":{"name":"server-0"},"status":{"nodeInfo":{"kubeletVersion":"v1.37.1+k3s1"}}}`
+	for _, tc := range []struct {
+		name, server, nodes string
+		wantError           bool
+	}{
+		{name: "matching versions", server: server, nodes: `{"items":[` + node + `]}`},
+		{name: "wrong server", server: `{"serverVersion":{"gitVersion":"v1.36.4+k3s1"}}`, nodes: `{"items":[` + node + `]}`, wantError: true},
+		{name: "one wrong node", server: server, nodes: `{"items":[` + node + `,{"metadata":{"name":"agent-0"},"status":{"nodeInfo":{"kubeletVersion":"v1.36.4+k3s1"}}}]}`, wantError: true},
+		{name: "no nodes", server: server, nodes: `{"items":[]}`, wantError: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkClusterVersions("v1.37.1+k3s1", []byte(tc.server), []byte(tc.nodes))
+			if tc.wantError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
