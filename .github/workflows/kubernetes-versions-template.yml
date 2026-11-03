@@ -1,0 +1,104 @@
+# Source: kedify/github-meta/.github/workflows/kubernetes-versions.yml
+# Update this source first, then refresh public copies as for the backup template.
+# Public copies use the local updater script instead of the shared checkout.
+
+name: Rotate Kubernetes CI versions
+
+on:
+  workflow_call:
+    inputs:
+      manifest:
+        description: Pinned Kubernetes JSON manifest relative to the repository root
+        required: true
+        type: string
+      count:
+        description: Number of recent Kubernetes minors (1 or 3)
+        required: true
+        type: number
+      labels:
+        description: Optional comma-separated labels required to enable the caller's PR checks
+        type: string
+        default: ''
+      base-branch:
+        description: Development branch to update; defaults to the repository's default branch
+        type: string
+        default: ''
+    secrets:
+      GH_PAT:
+        description: KedifyBot PAT with contents and pull request write access so PR checks run
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: kubernetes-versions-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  rotate:
+    if: github.repository_owner == 'kedify' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.GH_PAT }}
+      MANIFEST: ${{ inputs.manifest }}
+      COUNT: ${{ inputs.count }}
+      LABELS: ${{ inputs.labels }}
+      BASE: ${{ inputs.base-branch || github.event.repository.default_branch }}
+    steps:
+      - name: Checkout target repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ env.BASE }}
+          token: ${{ secrets.GH_PAT }}
+          path: target
+          fetch-depth: 0
+      - name: Resolve upstream and provider versions
+        working-directory: target
+        run: |
+          set -euo pipefail
+          body="$RUNNER_TEMP/kubernetes-versions.md"
+          if python3 .github/scripts/rotate_kubernetes.py "$MANIFEST" --count "$COUNT" > "$body" 2>&1; then
+            cat "$body" >> "$GITHUB_STEP_SUMMARY"
+          else
+            tee -a "$GITHUB_STEP_SUMMARY" < "$body"
+            exit 1
+          fi
+      - name: Propose CI version window
+        working-directory: target
+        run: |
+          set -euo pipefail
+          MANIFEST="$(python3 -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve().relative_to(Path.cwd()))' "$MANIFEST")"
+          if git diff --quiet -- "$MANIFEST"; then exit 0; fi
+          branch=automation/kubernetes-versions
+          old_sha="$(git ls-remote --heads origin "refs/heads/$branch" | cut -f1)"
+          if [[ -n "$old_sha" ]]; then
+            git fetch origin "$branch"
+            branch_files="$(git diff --name-only "HEAD...$old_sha")"
+            if git log --format='%ae%n%ce' "HEAD..$old_sha" | grep -Fvx 'kedifybot@kedify.io' >/dev/null ||
+               [[ -n "$branch_files" && "$branch_files" != "$MANIFEST" ]]; then
+              echo "The automation branch has other edits; review it before rerunning." >&2
+              exit 1
+            fi
+          fi
+          if [[ -z "$old_sha" ]] || ! git show "$old_sha:$MANIFEST" | cmp -s - "$MANIFEST"; then
+            git switch -c "$branch"
+            git config user.name 'Kedify Bot'
+            git config user.email kedifybot@kedify.io
+            git add -- "$MANIFEST"
+            git commit -s -m 'ci: rotate Kubernetes compatibility versions'
+            git push --force-with-lease="refs/heads/$branch:$old_sha" origin "HEAD:refs/heads/$branch"
+          fi
+          pr="$(gh pr list --head "$branch" --base "$BASE" --state open --json number --jq '.[0].number // empty')"
+          label_flag=--label
+          if [[ -n "$pr" ]]; then label_flag=--add-label; fi
+          label_args=()
+          if [[ -n "$LABELS" ]]; then label_args=("$label_flag" "$LABELS"); fi
+          if [[ -n "$pr" ]]; then
+            gh pr edit "$pr" --body-file "$RUNNER_TEMP/kubernetes-versions.md" "${label_args[@]}"
+          else
+            gh pr create --head "$branch" --base "$BASE" --title 'ci: rotate Kubernetes compatibility versions' \
+              --body-file "$RUNNER_TEMP/kubernetes-versions.md" "${label_args[@]}"
+          fi
