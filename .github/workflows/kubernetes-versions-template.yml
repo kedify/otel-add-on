@@ -83,7 +83,8 @@ jobs:
               exit 1
             fi
           fi
-          if [[ -z "$old_sha" ]] || ! git show "$old_sha:$MANIFEST" | cmp -s - "$MANIFEST"; then
+          if [[ -z "$old_sha" ]] || ! git merge-base --is-ancestor HEAD "$old_sha" ||
+             ! git show "$old_sha:$MANIFEST" | cmp -s - "$MANIFEST"; then
             git switch -c "$branch"
             git config user.name 'Kedify Bot'
             git config user.email kedifybot@kedify.io
