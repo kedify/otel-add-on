@@ -179,7 +179,7 @@ if [[ "${1:-}" == --pane ]]; then
     scaler)
       wait_for_setup
       heading 'OTel Scaler logs'
-      follow_logs keda 'app.kubernetes.io/instance=keda-otel-scaler,app.kubernetes.io/name=otel-add-on' main
+      follow_logs keda 'app.kubernetes.io/instance=keda-otel-scaler,app.kubernetes.io/name=otel-add-on' otel-add-on
       ;;
     pods)
       watch_output pods_snapshot
