@@ -1,0 +1,20 @@
+name: Update Kubernetes test versions
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    if: github.repository_owner == 'kedify'
+    uses: kedify/github-meta/.github/workflows/kubernetes-versions.yml@main
+    with:
+      manifest: e2e-tests/kubernetes-versions.json
+      count: 1
+    secrets:
+      GH_PAT: ${{ secrets.GH_PAT }}
