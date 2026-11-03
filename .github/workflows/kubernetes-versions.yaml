@@ -12,7 +12,8 @@ permissions:
 jobs:
   update:
     if: github.repository_owner == 'kedify'
-    uses: kedify/github-meta/.github/workflows/kubernetes-versions.yml@main
+    # Public repo: use a local copy, as for repository backups.
+    uses: ./.github/workflows/kubernetes-versions-template.yml
     with:
       manifest: e2e-tests/kubernetes-versions.json
       count: 1

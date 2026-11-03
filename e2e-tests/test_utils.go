@@ -82,6 +82,10 @@ func kubectl(args string) (string, error) {
 	return execCmdOE("kubectl "+args, "")
 }
 
+func kubectlStdout(args string) (string, error) {
+	return shell.RunCommandAndGetStdOutE(ctx.t, parseCommand("kubectl "+args, ""))
+}
+
 func kapply(path string) (string, error) {
 	return kubectl("apply -f" + path)
 }
@@ -256,11 +260,11 @@ func prepareCluster(name string, params string) error {
 	if _, err = kubectl("wait --for=condition=Ready node --all --timeout=2m"); err != nil {
 		return err
 	}
-	server, err := kubectl("version -o json")
+	server, err := kubectlStdout("version -o json")
 	if err != nil {
 		return err
 	}
-	nodes, err := kubectl("get nodes -o json")
+	nodes, err := kubectlStdout("get nodes -o json")
 	if err != nil {
 		return err
 	}
