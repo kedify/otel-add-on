@@ -93,10 +93,13 @@ jobs:
             git push --force-with-lease="refs/heads/$branch:$old_sha" origin "HEAD:refs/heads/$branch"
           fi
           pr="$(gh pr list --head "$branch" --base "$BASE" --state open --json number --jq '.[0].number // empty')"
+          version_label="$(gh label list --search version-bump --json name --jq '.[] | select(.name == "version-bump") | .name')"
+          if [[ -z "$version_label" ]]; then
+            gh label create version-bump --color 1d76db --description 'Automated version updates'
+          fi
           label_flag=--label
           if [[ -n "$pr" ]]; then label_flag=--add-label; fi
-          label_args=()
-          if [[ -n "$LABELS" ]]; then label_args=("$label_flag" "$LABELS"); fi
+          label_args=("$label_flag" "version-bump${LABELS:+,$LABELS}")
           if [[ -n "$pr" ]]; then
             gh pr edit "$pr" --body-file "$RUNNER_TEMP/kubernetes-versions.md" "${label_args[@]}"
           else
