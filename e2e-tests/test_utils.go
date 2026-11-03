@@ -2,10 +2,13 @@ package e2e_tests
 
 import (
 	"context"
+	_ "embed"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +24,9 @@ import (
 
 	"github.com/kedacore/keda/v2/pkg/generated/clientset/versioned/typed/keda/v1alpha1"
 )
+
+//go:embed kubernetes-versions.json
+var kubernetesImages []byte
 
 const (
 	k3dVersion                 = "v5.8.3"
@@ -237,12 +243,75 @@ func installHey() error {
 }
 
 func prepareCluster(name string, params string) error {
+	image, expectedVersion, err := configuredKubernetesImage()
+	if err != nil {
+		return err
+	}
 	ctx.t.Log("Creating k3d cluster..")
-	out, err := execCmdOE(fmt.Sprintf("k3d cluster create %s %s", name, params), "")
+	out, err := execCmdOE(fmt.Sprintf("k3d cluster create %s %s --image %s --wait", name, params, image), "")
 	if err != nil {
 		require.NoErrorf(ctx.t, err, "cannot create new k3d cluster: %s", out)
+		return err
 	}
-	return err
+	if _, err = kubectl("wait --for=condition=Ready node --all --timeout=2m"); err != nil {
+		return err
+	}
+	server, err := kubectl("version -o json")
+	if err != nil {
+		return err
+	}
+	nodes, err := kubectl("get nodes -o json")
+	if err != nil {
+		return err
+	}
+	return checkClusterVersions(expectedVersion, []byte(server), []byte(nodes))
+}
+
+func configuredKubernetesImage() (string, string, error) {
+	var images []string
+	if err := json.Unmarshal(kubernetesImages, &images); err != nil {
+		return "", "", err
+	}
+	if len(images) != 1 {
+		return "", "", fmt.Errorf("expected one Kubernetes image, got %d", len(images))
+	}
+	parts := regexp.MustCompile(`^rancher/k3s:(v1\.[0-9]+\.[0-9]+)-k3s([0-9]+)@sha256:[a-f0-9]{64}$`).FindStringSubmatch(images[0])
+	if len(parts) != 3 {
+		return "", "", fmt.Errorf("expected a pinned stable k3s image, got %q", images[0])
+	}
+	return images[0], parts[1] + "+k3s" + parts[2], nil
+}
+
+func checkClusterVersions(expected string, serverJSON, nodesJSON []byte) error {
+	var server struct {
+		ServerVersion struct{ GitVersion string }
+	}
+	if err := json.Unmarshal(serverJSON, &server); err != nil {
+		return err
+	}
+	if server.ServerVersion.GitVersion != expected {
+		return fmt.Errorf("Kubernetes server is %q, expected %q", server.ServerVersion.GitVersion, expected)
+	}
+	var nodes struct {
+		Items []struct {
+			Metadata struct{ Name string }
+			Status   struct {
+				NodeInfo struct{ KubeletVersion string }
+			}
+		}
+	}
+	if err := json.Unmarshal(nodesJSON, &nodes); err != nil {
+		return err
+	}
+	if len(nodes.Items) == 0 {
+		return fmt.Errorf("cluster has no nodes")
+	}
+	for _, node := range nodes.Items {
+		if node.Status.NodeInfo.KubeletVersion != expected {
+			return fmt.Errorf("node %q is %q, expected %q", node.Metadata.Name, node.Status.NodeInfo.KubeletVersion, expected)
+		}
+	}
+	return nil
 }
 
 func deploy(name string, namespace string, timeoutSec int) (string, error) {
