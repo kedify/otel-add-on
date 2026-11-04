@@ -23,6 +23,14 @@ on:
         description: Development branch to update; defaults to the repository's default branch
         type: string
         default: ''
+      sync-command:
+        description: Optional trusted base-branch command to align support declarations after rotation
+        type: string
+        default: ''
+      sync-paths:
+        description: Newline-separated tracked files that the sync command may update, in addition to the manifest
+        type: string
+        default: ''
     secrets:
       GH_PAT:
         description: KedifyBot PAT with contents and pull request write access so PR checks run
@@ -47,6 +55,8 @@ jobs:
       COUNT: ${{ inputs.count }}
       LABELS: ${{ inputs.labels }}
       BASE: ${{ inputs.base-branch || github.event.repository.default_branch }}
+      SYNC_COMMAND: ${{ inputs.sync-command }}
+      SYNC_PATHS: ${{ inputs.sync-paths }}
     steps:
       - name: Checkout target repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -70,27 +80,75 @@ jobs:
         working-directory: target
         run: |
           set -euo pipefail
-          MANIFEST="$(python3 -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).resolve().relative_to(Path.cwd()))' "$MANIFEST")"
-          if git diff --quiet -- "$MANIFEST"; then exit 0; fi
+          paths_file="$RUNNER_TEMP/kubernetes-sync-paths"
+          python3 - <<'PY' > "$paths_file"
+          import os
+          from pathlib import Path
+          root = Path.cwd()
+          declared = [os.environ["MANIFEST"], *os.environ.get("SYNC_PATHS", "").splitlines()]
+          paths = []
+          for value in declared:
+              if not value.strip():
+                  continue
+              path = Path(value.strip())
+              if path.is_absolute() or any(char in value for char in "*?["):
+                  raise ValueError("sync paths must be literal repository-relative files")
+              name = str(path.resolve().relative_to(root))
+              if name.startswith(":"):
+                  raise ValueError("sync paths must be literal repository-relative files")
+              if not (root / name).is_file():
+                  raise ValueError(f"sync path is not an existing file: {name}")
+              if name not in paths:
+                  paths.append(name)
+          print("\n".join(paths))
+          PY
+          mapfile -t paths < "$paths_file"
+          for path in "${paths[@]}"; do git ls-files --error-unmatch -- "$path" >/dev/null; done
+          if [[ -n "${SYNC_COMMAND:-}" ]]; then
+            bash -euo pipefail -c "$SYNC_COMMAND" | tee -a "$RUNNER_TEMP/kubernetes-versions.md" "$GITHUB_STEP_SUMMARY"
+          fi
+          while IFS= read -r -d '' path; do
+            if ! grep -Fxq -- "$path" "$paths_file"; then
+              echo "The updater changed an undeclared file: $path" >&2
+              exit 1
+            fi
+          done < <(git diff HEAD --name-only -z)
+          if [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
+            echo "The updater created undeclared files; stopping before commit." >&2
+            exit 1
+          fi
+          if git diff HEAD --quiet -- "${paths[@]}"; then exit 0; fi
           branch=automation/kubernetes-versions
           old_sha="$(git ls-remote --heads origin "refs/heads/$branch" | cut -f1)"
           if [[ -n "$old_sha" ]]; then
             git fetch origin "$branch"
             branch_files="$(git diff --name-only "HEAD...$old_sha")"
-            if git log --format='%ae%n%ce' "HEAD..$old_sha" | grep -Fvx 'kedifybot@kedify.io' >/dev/null ||
-               [[ -n "$branch_files" && "$branch_files" != "$MANIFEST" ]]; then
+            if git log --format='%ae%n%ce' "HEAD..$old_sha" | grep -Fvx 'kedifybot@kedify.io' >/dev/null; then
               echo "The automation branch has other edits; review it before rerunning." >&2
               exit 1
             fi
+            while IFS= read -r path; do
+              if [[ -n "$path" ]] && ! grep -Fxq -- "$path" "$paths_file"; then
+                echo "The automation branch has edits outside the declared files: $path" >&2
+                exit 1
+              fi
+            done <<< "$branch_files"
           fi
           if [[ -z "$old_sha" ]] || ! git merge-base --is-ancestor HEAD "$old_sha" ||
-             ! git show "$old_sha:$MANIFEST" | cmp -s - "$MANIFEST"; then
+             ! git diff --quiet "$old_sha" -- "${paths[@]}"; then
             git switch -c "$branch"
             git config user.name 'Kedify Bot'
             git config user.email kedifybot@kedify.io
-            git add -- "$MANIFEST"
+            git add -- "${paths[@]}"
             git commit -s -m 'ci: rotate Kubernetes compatibility versions'
             git push --force-with-lease="refs/heads/$branch:$old_sha" origin "HEAD:refs/heads/$branch"
+          fi
+          if [[ -n "${SYNC_COMMAND:-}" ]]; then
+            {
+              echo
+              echo "Support declarations synchronized in this PR:"
+              sed 's/^/- /' "$paths_file"
+            } >> "$RUNNER_TEMP/kubernetes-versions.md"
           fi
           pr="$(gh pr list --head "$branch" --base "$BASE" --state open --json number --jq '.[0].number // empty')"
           version_label="$(gh label list --search version-bump --json name --jq '.[] | select(.name == "version-bump") | .name')"
