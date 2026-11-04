@@ -1,0 +1,34 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: rabbitmq-workers
+  namespace: rabbitmq
+spec:
+  scaleTargetRef:
+    name: rabbitmq-worker
+  pollingInterval: 5
+  minReplicaCount: 1
+  maxReplicaCount: 10
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 30
+        scaleUp:
+          stabilizationWindowSeconds: 0
+  triggers:
+    - type: external
+      metadata:
+        scalerAddress: "keda-otel-scaler.keda.svc:4318"
+        operationOverTime: "last_one"
+        targetValue: "1"
+        # Each selected queue is evaluated separately, then max chooses the largest.
+        # Queue depths 1 and 9 produce 1.1 and 4.9, so this query returns 4.9.
+        metricQuery: |-
+          max(
+            log2(clamp_min(rabbitmq_detailed_queue_messages_ready{queue=~"example-queue1|example-queue2"}
+            - 1, 1)) +
+            clamp_max(rabbitmq_detailed_queue_messages_ready{queue=~"example-queue1|example-queue2"},
+            1) +
+            rabbitmq_detailed_queue_messages_ready{queue=~"example-queue1|example-queue2"}/10
+          )

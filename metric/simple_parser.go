@@ -9,52 +9,17 @@ import (
 	"github.com/kedify/otel-add-on/types"
 )
 
-type p struct {
+type parser struct {
 }
 
 // enforce iface impl
-var _ types.Parser = new(p)
+var _ types.Parser = new(parser)
 
 func NewParser() types.Parser {
-	return p{}
+	return parser{}
 }
 
-func (p p) Parse(metricQuery string) (types.MetricName, types.LabelMatchers, types.AggregationOverVectors, error) {
-	mq := strings.TrimSpace(metricQuery)
-	aggregateFunction := types.VecSum
-	for _, aggFn := range []types.AggregationOverVectors{types.VecSum, types.VecAvg, types.VecMin, types.VecMax, types.VecCount} {
-		prefix := string(aggFn) + "("
-		if strings.HasPrefix(mq, prefix) {
-			if !strings.HasSuffix(mq, ")") {
-				return "", nil, "", fmt.Errorf("unable to parse metric query: %s", metricQuery)
-			}
-			aggregateFunction = aggFn
-			mq = strings.TrimSpace(mq[len(prefix) : len(mq)-1])
-			break
-		}
-	}
-
-	name, labelQuery, hasLabels := strings.Cut(mq, "{")
-	name = strings.TrimSpace(name)
-	if name == "" || strings.IndexFunc(name, func(r rune) bool {
-		return unicode.IsSpace(r) || strings.ContainsRune("{}(),=!~\"'`[]", r)
-	}) >= 0 {
-		return "", nil, "", fmt.Errorf("unable to parse metric query: %s", metricQuery)
-	}
-	if !hasLabels {
-		return types.MetricName(name), nil, aggregateFunction, nil
-	}
-	if !strings.HasSuffix(labelQuery, "}") {
-		return "", nil, "", fmt.Errorf("unable to parse metric query: %s", metricQuery)
-	}
-	matchers, err := p.ParseLabels(labelQuery[:len(labelQuery)-1])
-	if err != nil {
-		return "", nil, "", err
-	}
-	return types.MetricName(name), matchers, aggregateFunction, nil
-}
-
-func (p p) ParseLabels(labelsQuery string) (types.LabelMatchers, error) {
+func (p parser) ParseLabels(labelsQuery string) (types.LabelMatchers, error) {
 	remaining := strings.TrimSpace(labelsQuery)
 	if remaining == "" {
 		return nil, fmt.Errorf("unable to parse labels: %s", labelsQuery)

@@ -1,0 +1,71 @@
+image:
+  repository: ghcr.io/kedify/otel-add-on
+  tag: promql
+  pullPolicy: IfNotPresent
+
+settings:
+  metricStore:
+    retentionSeconds: 15
+
+otelCollector:
+  enabled: true
+  mode: deployment
+  replicaCount: 1
+  fullnameOverride: otelcol
+  image:
+    tag: 0.132.4
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+  alternateConfig:
+    extensions:
+      health_check:
+        endpoint: ${env:MY_POD_IP}:13133
+    receivers:
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: rabbitmq
+              scrape_interval: 2s
+              scrape_timeout: 1s
+              metrics_path: /metrics/detailed
+              params:
+                family: [queue_coarse_metrics]
+                vhost: [/]
+              static_configs:
+                - targets: ["rabbitmq.rabbitmq.svc.cluster.local:15692"]
+              metric_relabel_configs:
+                - source_labels: [__name__]
+                  regex: rabbitmq_detailed_queue_messages_ready
+                  action: keep
+                - source_labels: [queue]
+                  regex: example-queue1|example-queue2
+                  action: keep
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 200
+        spike_limit_mib: 40
+      filter/queue_depth:
+        error_mode: propagate
+        metrics:
+          metric:
+            - 'name != "rabbitmq_detailed_queue_messages_ready"'
+      batch:
+        timeout: 1s
+    exporters:
+      otlp:
+        endpoint: keda-otel-scaler.keda.svc:4317
+        compression: none
+        tls:
+          insecure: true
+    service:
+      extensions: [health_check]
+      pipelines:
+        metrics:
+          receivers: [prometheus]
+          processors: [memory_limiter, filter/queue_depth, batch]
+          exporters: [otlp]

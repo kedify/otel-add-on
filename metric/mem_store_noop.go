@@ -11,6 +11,7 @@ type noopMs struct {
 }
 
 func NewNoopMetricStore(debug bool) t.MemStore {
+	Metrics().Init()
 	return noopMs{debug: debug}
 }
 
@@ -25,6 +26,13 @@ func (m noopMs) Put(entry t.NewMetricEntry) {
 	if m.debug {
 		fmt.Println("noop metric store called Put: " + entry.Name)
 	}
+}
+
+func (m noopMs) GetSeries(name t.MetricName, _ t.LabelMatchers, _ t.OperationOverTime) ([]t.Series, error) {
+	if m.debug {
+		fmt.Println("noop metric store called GetSeries: " + name)
+	}
+	return nil, nil
 }
 
 func (m noopMs) IsSubscribed(_lazyAggregates bool, name t.MetricName, _overTime t.OperationOverTime) bool {
