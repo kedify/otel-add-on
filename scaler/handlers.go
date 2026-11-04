@@ -116,13 +116,15 @@ func (e *impl) GetMetricSpec(
 	sor *externalscaler.ScaledObjectRef,
 ) (*externalscaler.GetMetricSpecResponse, error) {
 	lggr := e.lggr.WithName("GetMetricSpec")
-	isLazy := e.cfg.MetricStoreLazySeries || e.cfg.MetricStoreLazyAggregates
-	metricName, labels, agg, err := util.GetMetricQuery(lggr, sor.GetScalerMetadata(), e.metricParser)
-	if err == nil {
+	query, err := util.GetMetricQuery(lggr, sor.GetScalerMetadata(), e.metricParser)
+	if err != nil {
+		return nil, err
+	}
+	if e.cfg.MetricStoreLazySeries || e.cfg.MetricStoreLazyAggregates {
 		opOverTime := util.GetOperationOverTime(lggr, sor.GetScalerMetadata())
-		if isLazy && e.metricStore.IsSubscribed(e.cfg.MetricStoreLazyAggregates, metricName, opOverTime) {
-			if _, _, er := e.metricStore.Get(metricName, labels, opOverTime, agg); err != nil {
-				lggr.Error(er, "unable to initialize the metric in lazy mode", "metricName", metricName, "labels", labels)
+		for _, name := range query.MetricNames() {
+			if _, err := e.metricStore.GetSeries(name, nil, opOverTime); err != nil {
+				return nil, fmt.Errorf("unable to initialize metric %s in lazy mode: %w", name, err)
 			}
 		}
 	}
@@ -181,23 +183,27 @@ func (e *impl) GetMetrics(
 
 func (e *impl) getMetric(sor *externalscaler.ScaledObjectRef) (float64, error) {
 	lggr := e.lggr.WithName("getMetric")
-	metricName, labels, agg, err := util.GetMetricQuery(lggr, sor.GetScalerMetadata(), e.metricParser)
+	query, err := util.GetMetricQuery(lggr, sor.GetScalerMetadata(), e.metricParser)
 	if err != nil {
 		return e.cfg.MetricStoreValueIfNotFound, err
 	}
 	opOverTime := util.GetOperationOverTime(lggr, sor.GetScalerMetadata())
-	value, found, err := e.metricStore.Get(metricName, labels, opOverTime, agg)
-	lggr.Info("got metric value: ", "name", metricName, "labels", labels, "value", value, "found", found, "error", err)
+	value, found, err := query.Evaluate(e.metricStore, opOverTime)
+	lggr.Info("got metric value: ", "query", sor.GetScalerMetadata()[util.MetadataMetricQuery], "value", value, "found", found, "error", err)
+	if err != nil {
+		return e.cfg.MetricStoreValueIfNotFound, err
+	}
 	if !found {
 		if e.cfg.MetricStoreErrIfNotFound {
 			return e.cfg.MetricStoreValueIfNotFound, fmt.Errorf("not found")
 		}
 		return e.cfg.MetricStoreValueIfNotFound, nil
 	}
-	if err != nil {
-		return e.cfg.MetricStoreValueIfNotFound, err
-	}
+	e.metricsExporter.SetMetricValue(fmt.Sprint(query.MetricNames()), sor.GetScalerMetadata()[util.MetadataMetricQuery], string(opOverTime), "expression", value)
 	value = util.ClampValue(lggr, value, sor.GetScalerMetadata())
-	e.metricsExporter.SetMetricValueClamped(string(metricName), fmt.Sprint(labels), string(opOverTime), string(agg), sor.GetName(), sor.GetNamespace(), value)
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		return e.cfg.MetricStoreValueIfNotFound, fmt.Errorf("metric value after metadata clamps is non-finite: %v", value)
+	}
+	e.metricsExporter.SetMetricValueClamped(fmt.Sprint(query.MetricNames()), sor.GetScalerMetadata()[util.MetadataMetricQuery], string(opOverTime), "expression", sor.GetName(), sor.GetNamespace(), value)
 	return value, nil
 }

@@ -34,6 +34,12 @@ type ObservedValue struct {
 	Time uint32 `json:"time"`
 }
 
+// Series is one labeled time series after applying OperationOverTime.
+type Series struct {
+	Labels Labels
+	Value  float64
+}
+
 const (
 	// following aggregations can be applied across multiple metric series. This automatically happens if provided
 	// set of labels wasn't specific enough to identify just one vector. In which case we first apply the OperationOverTime
@@ -72,6 +78,10 @@ type MemStore interface {
 	// Get retrieves the latest value from the in-memory metric store
 	Get(MetricName, LabelMatchers, OperationOverTime, AggregationOverVectors) (float64, Found, error)
 
+	// GetSeries retrieves individual matching series without a not-found fallback.
+	// In lazy modes, the first read subscribes the metric and returns no series.
+	GetSeries(MetricName, LabelMatchers, OperationOverTime) ([]Series, error)
+
 	// Put stores the value
 	Put(NewMetricEntry)
 
@@ -83,6 +93,12 @@ type MemStore interface {
 }
 
 type Parser interface {
-	// Parse parses the metric query provided as a string
-	Parse(string) (MetricName, LabelMatchers, AggregationOverVectors, error)
+	// Parse compiles and type-checks the metric expression.
+	Parse(string) (Query, error)
+}
+
+// Query is an immutable compiled metric expression, safe to evaluate concurrently.
+type Query interface {
+	MetricNames() []MetricName
+	Evaluate(MemStore, OperationOverTime) (float64, Found, error)
 }

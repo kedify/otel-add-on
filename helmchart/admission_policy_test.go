@@ -81,6 +81,7 @@ func admissionMetricQueryRegexp(t *testing.T) *regexp.Regexp {
 func TestAdmissionPolicyMetricQueries(t *testing.T) {
 	re := admissionMetricQueryRegexp(t)
 	for _, query := range []string{
+		"sum(avg(queue_depth))", "ln(queue_depth)", "1 + 2 * 3", "max(\nclamp_min(queue_depth, 1)\n)",
 		"queue_depth", "avg(queue_depth)", "min(queue_depth)", "max(queue_depth)", "sum(queue_depth)", "count(queue_depth)",
 		`queue_depth{queue=orders}`, `queue_depth{queue="orders"}`, `queue_depth{environment!="dev"}`,
 		`queue_depth{queue=~"orders-.*",environment!="dev"}`, `count(queue_depth{queue!~".*-dev"})`,
@@ -89,10 +90,10 @@ func TestAdmissionPolicyMetricQueries(t *testing.T) {
 		`queue_depth{queue="a,b=c{}()",environment=""}`, `queue_depth{queue="quote\" comma, slash\\"}`,
 		`queue_depth{queue='it\'s a queue',"http.method"='GET'}`,
 		"queue_depth{queue=`raw,=\\value`}", "queue_depth{queue=`multi\nline`}",
-		` avg( metric/name.test { queue =~ "orders-(a|b)", environment != 'dev', } ) `,
+		` avg( metric_name_test { queue =~ "orders-(a|b)", environment != 'dev', } ) `,
 	} {
 		t.Run(query, func(t *testing.T) {
-			if _, _, _, err := metric.NewParser().Parse(query); err != nil {
+			if _, err := metric.NewParser().Parse(query); err != nil {
 				t.Fatalf("parser rejected supported query: %v", err)
 			}
 			if !re.MatchString(query) {
@@ -100,19 +101,18 @@ func TestAdmissionPolicyMetricQueries(t *testing.T) {
 			}
 		})
 	}
-	// The policy validates selector grammar; the parser also validates regexes.
-	for _, query := range []string{
-		"", "  ", "queue_depth{}", `queue_depth{queue="orders"`, `queue_depth{queue=}`,
-		`queue_depth{queue=="orders"}`, `queue_depth{queue~="orders"}`, `queue_depth{queue>="orders"}`,
-		`queue_depth{queue="orders" environment="prod"}`, `queue_depth{queue="orders",,environment="prod"}`,
-		`queue_depth{queue="unterminated}`, `queue_depth{queue='unterminated}`, "queue_depth{queue=`unterminated}",
-		`queue_depth{queue="orders"}junk`, `queue_depth{queue="orders"}}`, `{queue="orders"}`,
-		"unknown(queue_depth)", "sum(avg(queue_depth))", "sum(queue_depth", "queue_depth)", "queue_depth[5m]",
-	} {
-		t.Run(query, func(t *testing.T) {
-			if re.MatchString(query) {
-				t.Fatalf("admission policy accepted malformed query %q", query)
-			}
-		})
+	// Admission deliberately leaves grammar and type checks to the application.
+	for _, query := range []string{"unknown(queue_depth)", "sum(queue_depth", "queue_depth[5m]"} {
+		if !re.MatchString(query) {
+			t.Errorf("admission must defer expression syntax validation: %q", query)
+		}
+		if _, err := metric.NewParser().Parse(query); err == nil {
+			t.Errorf("application accepted unsupported query: %q", query)
+		}
+	}
+	for _, query := range []string{"", "  ", "\n\t\r "} {
+		if re.MatchString(query) {
+			t.Errorf("admission accepted blank query: %q", query)
+		}
 	}
 }

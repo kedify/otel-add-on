@@ -66,17 +66,17 @@ func GetTargetValue(metadata map[string]string) (float64, error) {
 	return targetValue, nil
 }
 
-func GetMetricQuery(lggr logr.Logger, metadata map[string]string, mp types.Parser) (types.MetricName, types.LabelMatchers, types.AggregationOverVectors, error) {
+func GetMetricQuery(lggr logr.Logger, metadata map[string]string, mp types.Parser) (types.Query, error) {
 	metricQuery, found := metadata[MetadataMetricQuery]
 	if !found {
 		err := fmt.Errorf("unable to get metric query from scaled object's metadata")
 		lggr.Error(err, "GetMetricQuery")
-		return "", nil, "", err
+		return nil, err
 	}
-	name, labels, agg, err := mp.Parse(metricQuery)
+	query, err := mp.Parse(metricQuery)
 	if err != nil {
 		lggr.Error(err, "GetMetricQuery: cannot parse "+MetadataMetricQuery, MetadataMetricQuery, metricQuery)
-		return "", nil, "", err
+		return nil, err
 	}
-	return name, labels, agg, nil
+	return query, nil
 }

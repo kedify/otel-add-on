@@ -21,7 +21,7 @@ func TestMemStoreAdvancedLabelMatching(t *testing.T) {
 					MetricStoreLazyAggregates:   lazyAggregates,
 					MetricStoreValueIfNotFound:  -99,
 				})
-				name, matchers, agg, err := NewParser().Parse(`queue_depth{queue=~"orders-.*",environment!="dev"}`)
+				name, matchers, agg, err := parseSelector(`queue_depth{queue=~"orders-.*",environment!="dev"}`)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -57,14 +57,14 @@ func TestMemStoreAdvancedLabelMatching(t *testing.T) {
 					{`queue_depth{queue=~"orders-.*",queue!~".*-dev",environment=~"prod|staging"}`, 30},
 					{`queue_depth{queue=~"orders-.*",environment=""}`, 5},
 				} {
-					name, matchers, agg, err := NewParser().Parse(tt.query)
+					name, matchers, agg, err := parseSelector(tt.query)
 					if err != nil {
 						t.Fatal(err)
 					}
 					value, found, err := store.Get(name, matchers, types.OpLastOne, agg)
 					assertMetricFound(t, value, found, err, tt.want)
 				}
-				name, matchers, agg, err = NewParser().Parse(`queue_depth{queue=~"missing-.*"}`)
+				name, matchers, agg, err = parseSelector(`queue_depth{queue=~"missing-.*"}`)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -90,7 +90,7 @@ func TestMemStoreIncludesExactLabelSetAndSupersets(t *testing.T) {
 		{"queue_depth", 117},
 		{"count(queue_depth)", 4},
 	} {
-		name, matchers, agg, err := NewParser().Parse(tt.query)
+		name, matchers, agg, err := parseSelector(tt.query)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -110,7 +110,7 @@ func TestMemStoreMatcherStaleness(t *testing.T) {
 			})
 			freshLabels := types.Labels{"queue": "orders-new"}
 			setupMetrics(store, "queue_depth", 1, freshLabels, 10)
-			name, matchers, agg, err := NewParser().Parse(query)
+			name, matchers, agg, err := parseSelector(query)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -137,7 +137,7 @@ func TestMemStoreMatcherStaleness(t *testing.T) {
 func TestMemStoreMatchedZeroIsFound(t *testing.T) {
 	store := newMetricStore(60, false, false)
 	setupMetrics(store, "queue_depth", 1, types.Labels{"queue": "orders"}, 0)
-	name, matchers, agg, err := NewParser().Parse(`queue_depth{queue=~"orders.*"}`)
+	name, matchers, agg, err := parseSelector(`queue_depth{queue=~"orders.*"}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestMemStoreCountWithoutTimeAggregate(t *testing.T) {
 					MetricStoreLazyAggregates:   lazyAggregates,
 					MetricStoreValueIfNotFound:  -99,
 				})
-				name, matchers, agg, err := NewParser().Parse(`count(queue_depth{queue="orders"})`)
+				name, matchers, agg, err := parseSelector(`count(queue_depth{queue="orders"})`)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -165,8 +165,7 @@ func TestMemStoreCountWithoutTimeAggregate(t *testing.T) {
 				store.Put(types.NewMetricEntry{
 					Name: name, Labels: types.Labels{"queue": "orders"}, MeasurementValue: 10, MeasurementTime: now,
 				})
-				// A first sample does not yet have an OpMin aggregate; count still
-				// selects the series, and does not need to read that aggregate.
+				// Count includes each matching series from its first sample.
 				value, found, err = store.Get(name, matchers, types.OpMin, agg)
 				assertMetricFound(t, value, found, err, 1)
 				for _, labels := range []types.Labels{
