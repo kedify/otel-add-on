@@ -172,8 +172,8 @@ def main():
         updated = rotate(document, latest, args.count, available)
         print("\nComplete provider window: " + ", ".join(f"1.{minor}" for minor in wanted) + ".")
         print("\nRotate CI minors only; existing image pins are retained for Renovate patch/digest updates.")
-        print("No published support bounds or Go/envtest dependencies are changed. Support-gated repositories may require "
-              "a separately reviewed support change; failing packaging checks intentionally block merge.")
+        print("The image updater does not change support bounds or Go dependencies. A caller may synchronize "
+              "support declarations below; review the complete PR before merging. Packaging checks block inconsistent support changes.")
         if isinstance(document, dict):
             print("New KPA rows enable both suites. Confirm their recorded manual envtest assets before a support campaign.")
         if updated != document:
