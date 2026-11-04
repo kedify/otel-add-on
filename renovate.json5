@@ -5,7 +5,6 @@
     ":gitSignOff",
   ],
   "labels": ["renovate"],
-  "addLabels": ["version-bump"],
   "prConcurrentLimit": 2,
   "ignorePaths": ["**/vendor/**"],
   // ignore everything except those that are white-listed
@@ -32,6 +31,11 @@
       "versioning": "regex:^v(?<major>1)\\.(?<compatibility>[0-9]+)\\.(?<patch>[0-9]+)$",
       "pinDigests": true,
       "automerge": false
+    },
+    {
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["rancher/k3s", "kindest/node", "kubernetes-sigs/kind"],
+      "addLabels": ["version-bump"],
     },
     {
       "packagePatterns": ["*"],
