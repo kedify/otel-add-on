@@ -2,12 +2,41 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:base",
+    ":gitSignOff",
   ],
   "labels": ["renovate"],
   "prConcurrentLimit": 2,
   "ignorePaths": ["**/vendor/**"],
   // ignore everything except those that are white-listed
   "packageRules": [
+    // Kubernetes rules copied from kedify/github-meta/kubernetes-versions.json.
+    {
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchPackageNames": [
+        "rancher/k3s"
+      ],
+      "versioning": "regex:^v(?<major>1)\\.(?<compatibility>[0-9]+)\\.(?<patch>[0-9]+)-k3s(?<build>[0-9]+)$",
+      "pinDigests": true,
+      "automerge": false
+    },
+    {
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchPackageNames": [
+        "kindest/node"
+      ],
+      "versioning": "regex:^v(?<major>1)\\.(?<compatibility>[0-9]+)\\.(?<patch>[0-9]+)$",
+      "pinDigests": true,
+      "automerge": false
+    },
+    {
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["rancher/k3s", "kindest/node", "kubernetes-sigs/kind"],
+      "addLabels": ["version-bump"],
+    },
     {
       "packagePatterns": ["*"],
       "enabled": false,
@@ -25,9 +54,38 @@
       ],
       "labels": ["skip-ci", "renovate"],
       "enabled": true,
-    }
+    },
+    {
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["rancher/k3s"],
+      "matchFileNames": ["e2e-tests/kubernetes-versions.json"],
+      "enabled": true,
+      "pinDigests": true,
+      "labels": ["dependencies", "kubernetes"],
+    },
   ],
   "regexManagers": [
+    // Shared managers, in this file's existing regexManagers format.
+    {
+      "fileMatch": [
+        "(^|/)(kedify-)?kubernetes-versions\\.json$"
+      ],
+      "matchStrings": [
+        "\"(?<depName>rancher/k3s|kindest/node):(?<currentValue>v1\\.[0-9]+\\.[0-9]+(?:-k3s[0-9]+)?)@(?<currentDigest>sha256:[0-9a-f]{64})\""
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "fileMatch": [
+        "^\\.github/workflows/.*\\.ya?ml$"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=github-releases depName=kubernetes-sigs/kind\\s+version: (?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "kubernetes-sigs/kind",
+      "versioningTemplate": "semver"
+    },
     {
       // bump helm chart version if there is a release
       "fileMatch": [
