@@ -117,17 +117,17 @@ func (m ms) Put(entry t.NewMetricEntry) {
 	labelsH := hashOfMap(entry.Labels)
 	md, found := metrics.LoadOrStore(labelsH, newFirstMetricDatapoint(entry, m.lazyAggregates))
 	m.metricsExporter.IncMetricWrite(string(name))
-	now := time.Now().Unix()
+	now := time.Now()
 	if found {
 		// Publish a new snapshot so readers of GetStore never see mutations.
 		previous := md
-		md = &t.MetricData{Labels: previous.Labels, Data: previous.Data}
+		md = &t.MetricData{Labels: previous.Labels, Data: previous.Data, LastWrite: now}
 		previous.AggregatesOverTime.Range(func(op t.OperationOverTime, value float64) bool {
 			md.AggregatesOverTime.Store(op, value)
 			return true
 		})
 		notStale := util.Filter(md.Data, func(val t.ObservedValue) bool {
-			return !m.isStale(val.Time, now)
+			return !m.isStale(val.Time, now.Unix())
 		})
 		timeInSeconds := timestampToSeconds(entry.MeasurementTime)
 		md.Data = append(notStale, t.ObservedValue{
@@ -139,6 +139,35 @@ func (m ms) Put(entry t.NewMetricEntry) {
 	}
 	metrics.Store(labelsH, md)
 	m.store.Store(string(name), metrics)
+}
+
+// CollectStale uses receipt time rather than sample time, so old or future-dated
+// producer timestamps cannot prematurely expire or indefinitely retain a series.
+// Reads do not extend this deadline. Sample retention still uses isStale.
+func (m ms) CollectStale(now time.Time, staleAfter time.Duration) int {
+	if staleAfter <= 0 {
+		return 0
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	removed := 0
+	m.store.Range(func(name string, series *t.Map[t.LabelsHash, *t.MetricData]) bool {
+		empty := true
+		series.Range(func(key t.LabelsHash, md *t.MetricData) bool {
+			if now.Sub(md.LastWrite) > staleAfter {
+				series.Delete(key)
+				removed++
+			} else {
+				empty = false
+			}
+			return true
+		})
+		if empty {
+			m.store.Delete(name)
+		}
+		return true
+	})
+	return removed
 }
 
 func (m ms) IsSubscribed(lazyAggregates bool, name t.MetricName, overTime t.OperationOverTime) bool {
@@ -247,6 +276,7 @@ func newFirstMetricDatapoint(entry t.NewMetricEntry, lazyAggregates bool) *t.Met
 	md := t.MetricData{
 		Labels:     maps.Clone(entry.Labels),
 		LastUpdate: timeInSeconds,
+		LastWrite:  time.Now(),
 		Data: []t.ObservedValue{
 			{
 				Time:  timeInSeconds,

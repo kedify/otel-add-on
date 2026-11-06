@@ -28,6 +28,12 @@
     "settings": {
       "type": "object",
       "properties": {
+        "gcStaleAfterMinutes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 153722867,
+          "description": "Idle minutes before exported query-value records (no REST/KEDA queries) and in-memory series (no writes) are garbage-collected; 0 disables background GC. Independent of metricStore.retentionSeconds."
+        },
         "metricStore": {
           "type": "object",
           "properties": {
@@ -98,6 +104,7 @@
         }
       },
       "required": [
+        "gcStaleAfterMinutes",
         "metricStore",
         "isActivePollingIntervalMilliseconds",
         "internalMetricsPort",
