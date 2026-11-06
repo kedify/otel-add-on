@@ -120,7 +120,12 @@ func startRestServer(eg *errgroup.Group, restApiPort int, info prometheus.Labels
 
 func startInternalMetricsServer(ctx context.Context, cfg *util.Config) (prometheus.Labels, error) {
 	addr := fmt.Sprintf("0.0.0.0:%d", cfg.InternalMetricsPort)
+	pprofAddr := ""
+	if cfg.ProfilingEnabled {
+		pprofAddr = fmt.Sprintf("0.0.0.0:%d", cfg.ProfilingPort)
+	}
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		PprofBindAddress: pprofAddr,
 		Metrics: server.Options{
 			BindAddress: addr,
 		},

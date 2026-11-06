@@ -56,6 +56,23 @@
         "restApiPort": {
           "type": "number"
         },
+        "profiling": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            }
+          },
+          "required": [
+            "enabled",
+            "port"
+          ]
+        },
         "logs": {
           "type": "object",
           "properties": {
@@ -85,6 +102,7 @@
         "isActivePollingIntervalMilliseconds",
         "internalMetricsPort",
         "restApiPort",
+        "profiling",
         "logs"
       ]
     },

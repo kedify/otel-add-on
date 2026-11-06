@@ -41,6 +41,12 @@ settings:
   # -- port where rest api should be listening
   restApiPort: 9090
 
+  profiling:
+    # -- Enable profiling for OTel scaler
+    enabled: false
+    # -- Expose profiling on a specific port
+    port: 8081
+
   logs:
     # -- Can be one of 'debug', 'info', 'error', or any integer value > 0
     # which corresponds to custom debug levels of increasing verbosity

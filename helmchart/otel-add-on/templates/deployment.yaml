@@ -51,6 +51,12 @@ spec:
             - name: REST_API_PORT
               value: {{ .Values.settings.restApiPort | quote }}
 
+            # Profiling
+            - name: PROFILING_ENABLED
+              value: {{ .Values.settings.profiling.enabled | quote }}
+            - name: PROFILING_PORT
+              value: {{ .Values.settings.profiling.port | quote }}
+
             # Metric Store
             - name: METRIC_STORE_RETENTION_SECONDS
               value: {{ .Values.settings.metricStore.retentionSeconds | quote }}
