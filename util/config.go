@@ -13,6 +13,10 @@ type Config struct {
 	RestApiPort            int `envconfig:"REST_API_PORT" default:"9090"`
 	InternalMetricsPort    int `envconfig:"INTERNAL_METRICS_PORT" default:"8080"`
 
+	// Profiling
+	ProfilingEnabled bool `envconfig:"PROFILING_ENABLED" default:"false"`
+	ProfilingPort    int  `envconfig:"PROFILING_PORT" default:"8081"`
+
 	// Metric Store
 	MetricStoreRetentionSeconds int     `envconfig:"METRIC_STORE_RETENTION_SECONDS" default:"120"`
 	MetricStoreLazySeries       bool    `envconfig:"METRIC_STORE_LAZY_SERIES" default:"false"`
