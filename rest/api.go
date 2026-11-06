@@ -110,7 +110,7 @@ func (a api) query(c *gin.Context) {
 		return
 	}
 	p := metric.NewParser()
-	name, labels, aggregationOverVectors, err := p.Parse(request.Query)
+	query, err := p.Parse(request.Query)
 	if err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -121,7 +121,9 @@ func (a api) query(c *gin.Context) {
 		return
 	}
 
-	value, found, err := a.ms.Get(name, labels, opOverTime, aggregationOverVectors)
+	metricNames := fmt.Sprint(query.MetricNames())
+	metric.Metrics().TouchMetricValues(metricNames, request.Query, string(opOverTime), "expression", "", "")
+	value, found, err := query.Evaluate(a.ms, opOverTime)
 	if err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -136,6 +138,7 @@ func (a api) query(c *gin.Context) {
 		return
 	}
 
+	metric.Metrics().SetMetricValue(metricNames, request.Query, string(opOverTime), "expression", value)
 	c.IndentedJSON(http.StatusOK, OperationResult{
 		Operation: "query",
 		Ok:        true,

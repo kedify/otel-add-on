@@ -23,8 +23,6 @@ helm upgrade -i keda kedify/keda --namespace keda --create-namespace --version $
 #helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.5 -f ${DIR}/scaler-with-collector-pull-values.yaml
 helm upgrade -i keda-otel-scaler -nkeda ${DIR}/../../helmchart/otel-add-on -f ${DIR}/scaler-with-collector-pull-values.yaml
 
-[ "x${SETUP_ONLY}" = "xtrue" ] && exit 0
-
 kubectl rollout status -n keda --timeout=300s \
  deploy/keda-operator \
  deploy/keda-operator-metrics-apiserver \
@@ -33,6 +31,8 @@ kubectl rollout status --timeout=300s deploy/podinfo
 
 # create scaled objects
 kubectl apply -f ${DIR}/podinfo-so.yaml
+
+[ "x${SETUP_ONLY}" = "xtrue" ] && exit 0
 
 # create some traffic
 (hey -n 7000 -z 180s http://localhost:8181/delay/2 &> /dev/null)&

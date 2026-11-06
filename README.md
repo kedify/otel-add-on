@@ -35,6 +35,77 @@ and can talk to KEDA operator by implementing the External Scaler [contract](htt
 It queries the internal in-memory metric storage for metric value and sends it to KEDA operator. The metric query is specified as a metadata on KEDA's
 ScaledObject CR, and it provides a limited subset of features as PromQL.
 
+#### Metric expressions
+
+Both ScaledObject `metricQuery` metadata and REST `/memstore/query` requests
+support arithmetic and nested functions. Expressions accept decimal and scientific
+numeric literals, multiline whitespace, parentheses, unary `+`/`-`, and binary
+`+`, `-`, `*`, `/`, `%`, and `^`. The vector union operator `or` has lower precedence
+than arithmetic and supports explicit fallbacks. Arithmetic precedence follows
+PromQL: exponentiation binds most tightly and associates right to left, followed by
+unary signs, multiplication, division and modulo, then addition and subtraction.
+For example, `-2 ^ 2` is `-4`.
+
+| Function | Arguments | Result |
+| --- | --- | --- |
+| `ln` | vector | Natural logarithm of each value |
+| `log2` | vector | Base-2 logarithm of each value |
+| `scalar` | vector | Scalar value of exactly one series; otherwise NaN |
+| `vector` | scalar | One unlabeled series containing the scalar |
+| `clamp_min` | vector, scalar | Raise each value to at least the scalar |
+| `clamp_max` | vector, scalar | Lower each value to at most the scalar |
+| `sum`, `avg`, `min`, `max`, `count` | vector | One unlabeled series containing the aggregate |
+
+Evaluation first applies `operationOverTime` to each stored series, then evaluates
+the expression on those values. Scalar arithmetic applies to every vector element.
+Arithmetic between vectors, including differently named metrics, matches their
+complete label sets, ignoring `__name__`. Label values are compared as strings and
+label order does not matter. Unmatched series are omitted; duplicate matching label
+sets produce an error. Labels are retained until an explicit aggregation removes
+them, so `count(sum(metric))` returns `1` when the selector is nonempty.
+
+An aggregation such as `sum(metric)` returns a vector even when it contains one
+series. Use `scalar(log2(sum(requests))) - errors` to subtract each labeled
+`errors` value from the same number without vector label matching. There is no
+implicit vector-to-scalar conversion. Like PromQL's [`scalar()`](https://prometheus.io/docs/prometheus/latest/querying/functions/#scalar),
+`scalar` requires one vector argument and returns NaN if it contains zero or
+multiple series; a nonfinite final result is rejected as described below.
+
+Missing selectors produce empty vectors, as in PromQL. Use
+`sum(optional_metric) or vector(0)` to explicitly substitute zero for an absent
+aggregate. `or` keeps every left-hand series plus right-hand series whose labels
+have no match on the left; an existing left-hand value wins, including zero or
+NaN. Aggregate first when you want one total with an unlabeled fallback:
+
+```promql
+log2(sum(requests)) - (sum(optional_updates) or vector(0))
+```
+
+This subtracts zero until updates are populated, then subtracts their total.
+Apply the fallback before `scalar()` when needed, for example
+`scalar(sum(optional_metric) or vector(0))`. A fallback after the entire arithmetic
+expression would replace that entire result rather than just the missing operand.
+
+A scalar result is returned directly. A final vector is summed implicitly. Empty
+vectors, including empty aggregations, use the existing metric-not-found behavior;
+fallback values are never inserted into intermediate expressions. Intermediate
+floating-point values may be infinite or NaN (for example, `ln(0)` and `ln(-1)`).
+A nonfinite final expression result is rejected before the optional ScaledObject
+`clampMin` and `clampMax` metadata limits are applied.
+
+Use the normalized metric names shown by `/memstore/names`: stored metric names
+replace `.`, `/`, and `-` with `_`. Dotted names remain accepted as aliases, but `/`
+and `-` in queries always mean arithmetic. Label names and values remain unchanged.
+Every referenced metric is registered for lazy collection, and repeated selectors
+share a single metric snapshot within each evaluation. Existing lazy warmup rules
+and stale-series filtering still apply.
+
+Other functions, the `and`/`unless` operators, comparisons, grouping/vector-matching
+modifiers, range selectors, offsets, and subqueries are unsupported. Admission
+requires a nonblank query and valid required metadata/time operations; the
+application compiler checks expression syntax, argument counts, and scalar/vector
+types.
+
 #### Metric label matching
 
 Metric queries support the PromQL label operators `=` (equal), `!=` (not equal),
@@ -99,9 +170,10 @@ OTTL lang:
 - [spec](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/pkg/ottl/LANGUAGE.md)
 - [functions](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/pkg/ottl/ottlfuncs)
 
-If the simple metric query is not enough and one requires to combine multiple metric vectors into one or perform simple
-arithmetic operations on the metrics, there is the [Metrics Generation Processor](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/metricsgenerationprocessor)
-available as an option
+The scaler can combine metrics with matching labels and evaluate arithmetic in
+`metricQuery`. To derive metrics within the collector pipeline, the
+[Metrics Generation Processor](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/metricsgenerationprocessor)
+is also available.
 
 #### 4. OTel patterns (metric pipelines)
 Basically any scenario described in [OTel patterns](https://github.com/jpkrohling/opentelemetry-collector-deployment-patterns) or [architecture](https://opentelemetry.io/docs/collector/architecture/)

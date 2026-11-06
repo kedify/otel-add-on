@@ -1,6 +1,10 @@
 package types
 
-import "go.opentelemetry.io/collector/pdata/pcommon"
+import (
+	"time"
+
+	"go.opentelemetry.io/collector/pdata/pcommon"
+)
 
 type NewMetricEntry struct {
 	// metric name
@@ -25,6 +29,8 @@ type MetricData struct {
 	Data               []ObservedValue                 `json:"data"`
 	AggregatesOverTime Map[OperationOverTime, float64] `json:"aggregatesOverTime"`
 	LastUpdate         uint32                          `json:"lastUpdate"`
+	// LastWrite tracks receipt time, independently of the producer's timestamp.
+	LastWrite time.Time `json:"-"`
 }
 
 type ObservedValue struct {
@@ -32,6 +38,12 @@ type ObservedValue struct {
 	Value float64 `json:"value"`
 	// timestamp of last update (in seconds)
 	Time uint32 `json:"time"`
+}
+
+// Series is one labeled time series after applying OperationOverTime.
+type Series struct {
+	Labels Labels
+	Value  float64
 }
 
 const (
@@ -72,8 +84,16 @@ type MemStore interface {
 	// Get retrieves the latest value from the in-memory metric store
 	Get(MetricName, LabelMatchers, OperationOverTime, AggregationOverVectors) (float64, Found, error)
 
+	// GetSeries retrieves individual matching series without a not-found fallback.
+	// In lazy modes, the first read subscribes the metric and returns no series.
+	GetSeries(MetricName, LabelMatchers, OperationOverTime) ([]Series, error)
+
 	// Put stores the value
 	Put(NewMetricEntry)
+
+	// CollectStale removes series with no writes for longer than staleAfter,
+	// including series whose metric family is never read. It returns the count removed.
+	CollectStale(now time.Time, staleAfter time.Duration) int
 
 	// GetStore returns the internal storage
 	GetStore() *Map[string, *Map[LabelsHash, *MetricData]]
@@ -83,6 +103,12 @@ type MemStore interface {
 }
 
 type Parser interface {
-	// Parse parses the metric query provided as a string
-	Parse(string) (MetricName, LabelMatchers, AggregationOverVectors, error)
+	// Parse compiles and type-checks the metric expression.
+	Parse(string) (Query, error)
+}
+
+// Query is an immutable compiled metric expression, safe to evaluate concurrently.
+type Query interface {
+	MetricNames() []MetricName
+	Evaluate(MemStore, OperationOverTime) (float64, Found, error)
 }

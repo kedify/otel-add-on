@@ -14,23 +14,21 @@ spec:
 #        scalerAddress: "host.k3d.internal:4318"
 
         # required - no default
-        # PromQL-like query identifying exactly one metric name
-        # if metric has more dimensions, these can be further specified by labels {a=b,c=2..}
-        # when multiple time series (/dimensions) fulfil the label selector, then we first apply the operationOverTime
-        # on each time series and combine the result with the optional operation that's part of this query (if omitted, it's sum)
-        #
-        # grammar:
-        # op(metricName{label1=val1, label2=val2})  , where 'op' is one of {sum, min, max, avg, count}
+        # PromQL-like expression: apply operationOverTime to each series first,
+        # then evaluate arithmetic/functions, then sum the final vector implicitly.
+        # Use sum, min, max, avg, or count for explicit (and nested) aggregation.
+        # Functions: ln(vector), log2(vector), scalar(vector), vector(scalar), clamp_min(vector, scalar), clamp_max(vector, scalar).
+        # Operators: +, -, *, /, %, ^, or; unary +/-, parentheses, and multiline whitespace.
+        # Explicit zero fallback for an optional metric: sum(optional_metric) or vector(0).
+        # Stored metric names normalize '.', '/', and '-' to '_'.
+        # Label matchers support =, !=, =~, !~ and repeated constraints.
         #
         # examples:
         #  - avg(http_requests_total{code=200,handler=targets,instance=example:8080,method=get})   (good with operationOverTime=rate)
         #  - up{instance=prod:8080}
         #  - foobar
-        #
-        # caveats:
-        #  - label selector do not support advanced operators like != or =~ (only simple = denoting exact match is supported atm.)
-        #  - it's not supported to combine different metric names here
-        #  - no arithmetic
+        #  - max(clamp_min(log2(queue_depth + 1), 1))
+        #  - messages_ready / consumer_count (only matching label sets are combined)
         metricQuery: "avg(http_server_request_count{app_id=nodeapp, method=GET, path=/v1.0/state/statestore})"
 
         targetValue: "5"

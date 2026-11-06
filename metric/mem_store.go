@@ -3,10 +3,12 @@ package metric
 import (
 	"crypto/sha256"
 	"fmt"
+	"maps"
 	"math"
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -16,6 +18,7 @@ import (
 )
 
 type ms struct {
+	mu                 *sync.RWMutex
 	store              *t.Map[string, *t.Map[t.LabelsHash, *t.MetricData]]
 	stalePeriodSeconds int
 	metricsExporter    *InternalMetrics
@@ -29,6 +32,7 @@ func NewMetricStore(cfg *util.Config) t.MemStore {
 	m := Metrics()
 	m.Init()
 	return ms{
+		mu:                 &sync.RWMutex{},
 		store:              &t.Map[string, *t.Map[t.LabelsHash, *t.MetricData]]{},
 		stalePeriodSeconds: cfg.MetricStoreRetentionSeconds,
 		metricsExporter:    m,
@@ -44,33 +48,46 @@ func (m ms) Get(unescapedName t.MetricName, searchLabels t.LabelMatchers, timeOp
 	name := escapeName(unescapedName)
 	value, found, err := m.get(name, searchLabels, timeOp, defaultAggregation)
 	if err == nil {
-		m.metricsExporter.IncMetricRead(string(name))
 		m.metricsExporter.SetMetricValue(string(name), fmt.Sprint(searchLabels), string(timeOp), string(defaultAggregation), value)
 	}
 	return value, found, err
 }
 
 func (m ms) get(name t.MetricName, searchLabels t.LabelMatchers, timeOp t.OperationOverTime, vecOp t.AggregationOverVectors) (float64, t.Found, error) {
-	now := time.Now().Unix()
-	if err := util.CheckTimeOp(timeOp); err != nil {
-		return m.valIfNotFound, false, err
-	}
 	if err := checkVectorAggregation(vecOp); err != nil {
 		return m.valIfNotFound, false, err
 	}
+	series, err := m.GetSeries(name, searchLabels, timeOp)
+	if err != nil || len(series) == 0 {
+		return m.valIfNotFound, false, err
+	}
+	var value float64
+	for i, sample := range series {
+		value = calculateAggregate(sample.Value, i+1, value, vecOp)
+	}
+	return value, true, nil
+}
+
+// GetSeries snapshots individual matched series after time aggregation.
+func (m ms) GetSeries(unescapedName t.MetricName, searchLabels t.LabelMatchers, timeOp t.OperationOverTime) ([]t.Series, error) {
+	if err := util.CheckTimeOp(timeOp); err != nil {
+		return nil, err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	name := escapeName(unescapedName)
+	m.metricsExporter.IncMetricRead(string(name))
 	if m.lazySeries || m.lazyAggregates {
 		if firstTime := subscribe(m.subscriptions, m.lazyAggregates, name, timeOp); firstTime {
-			return m.valIfNotFound, false, nil
+			return nil, nil
 		}
 	}
-	storedMetrics, foundMetric := m.store.Load(string(name))
-	if !foundMetric {
-		// not found
-		return m.valIfNotFound, false, nil
+	storedMetrics, found := m.store.Load(string(name))
+	if !found {
+		return nil, nil
 	}
-	// A selector can match both an exact label set and series with extra labels.
-	var accumulator float64
-	counter := 0
+	now := time.Now().Unix()
+	var result []t.Series
 	storedMetrics.Range(func(key t.LabelsHash, md *t.MetricData) bool {
 		if m.isStale(md.LastUpdate, now) {
 			storedMetrics.Delete(key)
@@ -79,23 +96,18 @@ func (m ms) get(name t.MetricName, searchLabels t.LabelMatchers, timeOp t.Operat
 		if !searchLabels.Matches(md.Labels) {
 			return true
 		}
-		val, found := md.AggregatesOverTime.Load(timeOp)
-		// Count matching series even when their time aggregate is not initialized.
-		if !found && vecOp != t.VecCount {
-			return true
+		if value, found := md.AggregatesOverTime.Load(timeOp); found {
+			result = append(result, t.Series{Labels: maps.Clone(md.Labels), Value: value})
 		}
-		counter++
-		accumulator = m.calculateAggregate(val, counter, accumulator, vecOp)
 		return true
 	})
-	if counter == 0 {
-		return m.valIfNotFound, false, nil
-	}
-	return accumulator, true, nil
+	return result, nil
 }
 
 // Put stores the t.NewMetricEntry in the metric store and updates the stored aggregates
 func (m ms) Put(entry t.NewMetricEntry) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	name := escapeName(entry.Name)
 	if (m.lazySeries || m.lazyAggregates) && len(m.subscriptions[name]) == 0 {
 		// nobody has been listening yet
@@ -105,10 +117,17 @@ func (m ms) Put(entry t.NewMetricEntry) {
 	labelsH := hashOfMap(entry.Labels)
 	md, found := metrics.LoadOrStore(labelsH, newFirstMetricDatapoint(entry, m.lazyAggregates))
 	m.metricsExporter.IncMetricWrite(string(name))
-	now := time.Now().Unix()
+	now := time.Now()
 	if found {
+		// Publish a new snapshot so readers of GetStore never see mutations.
+		previous := md
+		md = &t.MetricData{Labels: previous.Labels, Data: previous.Data, LastWrite: now}
+		previous.AggregatesOverTime.Range(func(op t.OperationOverTime, value float64) bool {
+			md.AggregatesOverTime.Store(op, value)
+			return true
+		})
 		notStale := util.Filter(md.Data, func(val t.ObservedValue) bool {
-			return !m.isStale(val.Time, now)
+			return !m.isStale(val.Time, now.Unix())
 		})
 		timeInSeconds := timestampToSeconds(entry.MeasurementTime)
 		md.Data = append(notStale, t.ObservedValue{
@@ -122,8 +141,39 @@ func (m ms) Put(entry t.NewMetricEntry) {
 	m.store.Store(string(name), metrics)
 }
 
+// CollectStale uses receipt time rather than sample time, so old or future-dated
+// producer timestamps cannot prematurely expire or indefinitely retain a series.
+// Reads do not extend this deadline. Sample retention still uses isStale.
+func (m ms) CollectStale(now time.Time, staleAfter time.Duration) int {
+	if staleAfter <= 0 {
+		return 0
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	removed := 0
+	m.store.Range(func(name string, series *t.Map[t.LabelsHash, *t.MetricData]) bool {
+		empty := true
+		series.Range(func(key t.LabelsHash, md *t.MetricData) bool {
+			if now.Sub(md.LastWrite) > staleAfter {
+				series.Delete(key)
+				removed++
+			} else {
+				empty = false
+			}
+			return true
+		})
+		if empty {
+			m.store.Delete(name)
+		}
+		return true
+	})
+	return removed
+}
+
 func (m ms) IsSubscribed(lazyAggregates bool, name t.MetricName, overTime t.OperationOverTime) bool {
-	ops, found := m.subscriptions[name]
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	ops, found := m.subscriptions[escapeName(name)]
 	if !lazyAggregates {
 		return found
 	} else {
@@ -132,7 +182,7 @@ func (m ms) IsSubscribed(lazyAggregates bool, name t.MetricName, overTime t.Oper
 }
 
 func escapeName(name t.MetricName) t.MetricName {
-	return t.MetricName(strings.ReplaceAll(strings.ReplaceAll(string(name), "/", "_"), ".", "_"))
+	return t.MetricName(strings.NewReplacer("/", "_", ".", "_", "-", "_").Replace(string(name)))
 }
 
 func subscribe(subscriptions map[t.MetricName][]t.OperationOverTime, lazyAggregates bool, metricName t.MetricName, op t.OperationOverTime) bool {
@@ -193,7 +243,7 @@ func (m ms) isStale(datapoint uint32, now int64) bool {
 	return now-int64(m.stalePeriodSeconds) > int64(datapoint)
 }
 
-func (m ms) calculateAggregate(value float64, counter int, accumulator float64, aggregation t.AggregationOverVectors) float64 {
+func calculateAggregate(value float64, counter int, accumulator float64, aggregation t.AggregationOverVectors) float64 {
 	if counter == 1 {
 		if aggregation == t.VecCount {
 			return 1
@@ -224,8 +274,9 @@ func (m ms) calculateAggregate(value float64, counter int, accumulator float64, 
 func newFirstMetricDatapoint(entry t.NewMetricEntry, lazyAggregates bool) *t.MetricData {
 	timeInSeconds := timestampToSeconds(entry.MeasurementTime)
 	md := t.MetricData{
-		Labels:     entry.Labels,
+		Labels:     maps.Clone(entry.Labels),
 		LastUpdate: timeInSeconds,
+		LastWrite:  time.Now(),
 		Data: []t.ObservedValue{
 			{
 				Time:  timeInSeconds,
@@ -235,12 +286,14 @@ func newFirstMetricDatapoint(entry t.NewMetricEntry, lazyAggregates bool) *t.Met
 		AggregatesOverTime: t.Map[t.OperationOverTime, float64]{},
 	}
 	if lazyAggregates {
+		md.AggregatesOverTime.Store(t.OpMin, 0)
 		md.AggregatesOverTime.Store(t.OpMax, 0)
 		md.AggregatesOverTime.Store(t.OpAvg, 0)
 		md.AggregatesOverTime.Store(t.OpLastOne, 0)
 		md.AggregatesOverTime.Store(t.OpCount, 0)
 		md.AggregatesOverTime.Store(t.OpRate, 0)
 	} else {
+		md.AggregatesOverTime.Store(t.OpMin, entry.MeasurementValue)
 		md.AggregatesOverTime.Store(t.OpMax, entry.MeasurementValue)
 		md.AggregatesOverTime.Store(t.OpAvg, entry.MeasurementValue)
 		md.AggregatesOverTime.Store(t.OpLastOne, entry.MeasurementValue)
@@ -267,7 +320,7 @@ func (m ms) updateAggregationOverTime(overTime t.OperationOverTime, md *t.Metric
 	case t.OpMin, t.OpMax, t.OpAvg:
 		acc, _ := md.AggregatesOverTime.Load(overTime)
 		for i := 0; i < len(md.Data); i++ {
-			acc = m.calculateAggregate(md.Data[i].Value, i+1, acc, t.AggregationOverVectors(overTime))
+			acc = calculateAggregate(md.Data[i].Value, i+1, acc, t.AggregationOverVectors(overTime))
 		}
 		md.AggregatesOverTime.Store(overTime, acc)
 	case t.OpCount:

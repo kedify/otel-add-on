@@ -25,6 +25,12 @@ spec:
       targetPort: {{ .Values.settings.restApiPort }}
       protocol: TCP
       name: rest-api
+    {{- if .Values.settings.profiling.enabled }}
+    - port: {{ .Values.settings.profiling.port }}
+      targetPort: {{ .Values.settings.profiling.port }}
+      protocol: TCP
+      name: profiler
+    {{- end }}
   selector:
     {{- include "otel-add-on.selectorLabels" . | nindent 4 }}
 {{- end }}
