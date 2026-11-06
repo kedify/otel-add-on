@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
@@ -23,6 +24,7 @@ type Config struct {
 	MetricStoreLazyAggregates   bool    `envconfig:"METRIC_STORE_LAZY_AGGREGATES" default:"false"`
 	MetricStoreErrIfNotFound    bool    `envconfig:"METRIC_STORE_ERROR_IF_NOT_FOUND" default:"false"`
 	MetricStoreValueIfNotFound  float64 `envconfig:"METRIC_STORE_VALUE_IF_NOT_FOUND" default:"0."`
+	GCStaleAfterMinutes         int     `envconfig:"GC_STALE_AFTER_MINUTES" default:"10"`
 
 	// TLS
 	TLSCaFile          string        `envconfig:"OTLP_TLS_CA_FILE" default:""`
@@ -41,5 +43,8 @@ type Config struct {
 func MustParseConfig() *Config {
 	ret := new(Config)
 	envconfig.MustProcess("", ret)
+	if ret.GCStaleAfterMinutes < 0 || int64(ret.GCStaleAfterMinutes) > int64((1<<63-1)/time.Minute) {
+		panic(fmt.Sprintf("GC_STALE_AFTER_MINUTES must be between 0 and %d", (1<<63-1)/time.Minute))
+	}
 	return ret
 }

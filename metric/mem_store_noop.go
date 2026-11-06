@@ -2,6 +2,7 @@ package metric
 
 import (
 	"fmt"
+	"time"
 
 	t "github.com/kedify/otel-add-on/types"
 )
@@ -27,6 +28,8 @@ func (m noopMs) Put(entry t.NewMetricEntry) {
 		fmt.Println("noop metric store called Put: " + entry.Name)
 	}
 }
+
+func (m noopMs) CollectStale(time.Time, time.Duration) int { return 0 }
 
 func (m noopMs) GetSeries(name t.MetricName, _ t.LabelMatchers, _ t.OperationOverTime) ([]t.Series, error) {
 	if m.debug {

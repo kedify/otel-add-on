@@ -14,6 +14,14 @@ image:
   tag: ""
 
 settings:
+  # -- Idle timeout in minutes for both exported query-value metrics and in-memory metric-store series; 0 disables background GC.
+  # Removes keda_otel_scaler_metric_value and keda_otel_scaler_metric_value_clamped records
+  # after no queries (REST POST /memstore/query or KEDA gRPC) address that record for this long.
+  # Also removes each in-memory series with no writes for this long, even when nobody reads it;
+  # reads do not extend the write deadline. Independent of metricStore.retentionSeconds,
+  # which controls the sample-retention/query window. Cleanup runs once per minute.
+  gcStaleAfterMinutes: 10
+
   metricStore:
     # -- how long the metrics should be kept in the short term (in memory) storage
     retentionSeconds: 120

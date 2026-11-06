@@ -58,6 +58,8 @@ spec:
               value: {{ .Values.settings.profiling.port | quote }}
 
             # Metric Store
+            - name: GC_STALE_AFTER_MINUTES
+              value: {{ .Values.settings.gcStaleAfterMinutes | quote }}
             - name: METRIC_STORE_RETENTION_SECONDS
               value: {{ .Values.settings.metricStore.retentionSeconds | quote }}
             - name: METRIC_STORE_LAZY_SERIES

@@ -188,6 +188,9 @@ func (e *impl) getMetric(sor *externalscaler.ScaledObjectRef) (float64, error) {
 		return e.cfg.MetricStoreValueIfNotFound, err
 	}
 	opOverTime := util.GetOperationOverTime(lggr, sor.GetScalerMetadata())
+	metricNames := fmt.Sprint(query.MetricNames())
+	metricQuery := sor.GetScalerMetadata()[util.MetadataMetricQuery]
+	e.metricsExporter.TouchMetricValues(metricNames, metricQuery, string(opOverTime), "expression", sor.GetName(), sor.GetNamespace())
 	value, found, err := query.Evaluate(e.metricStore, opOverTime)
 	lggr.Info("got metric value: ", "query", sor.GetScalerMetadata()[util.MetadataMetricQuery], "value", value, "found", found, "error", err)
 	if err != nil {
@@ -199,11 +202,11 @@ func (e *impl) getMetric(sor *externalscaler.ScaledObjectRef) (float64, error) {
 		}
 		return e.cfg.MetricStoreValueIfNotFound, nil
 	}
-	e.metricsExporter.SetMetricValue(fmt.Sprint(query.MetricNames()), sor.GetScalerMetadata()[util.MetadataMetricQuery], string(opOverTime), "expression", value)
+	e.metricsExporter.SetMetricValue(metricNames, metricQuery, string(opOverTime), "expression", value)
 	value = util.ClampValue(lggr, value, sor.GetScalerMetadata())
 	if math.IsNaN(value) || math.IsInf(value, 0) {
 		return e.cfg.MetricStoreValueIfNotFound, fmt.Errorf("metric value after metadata clamps is non-finite: %v", value)
 	}
-	e.metricsExporter.SetMetricValueClamped(fmt.Sprint(query.MetricNames()), sor.GetScalerMetadata()[util.MetadataMetricQuery], string(opOverTime), "expression", sor.GetName(), sor.GetNamespace(), value)
+	e.metricsExporter.SetMetricValueClamped(metricNames, metricQuery, string(opOverTime), "expression", sor.GetName(), sor.GetNamespace(), value)
 	return value, nil
 }

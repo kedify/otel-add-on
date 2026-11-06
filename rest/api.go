@@ -121,6 +121,8 @@ func (a api) query(c *gin.Context) {
 		return
 	}
 
+	metricNames := fmt.Sprint(query.MetricNames())
+	metric.Metrics().TouchMetricValues(metricNames, request.Query, string(opOverTime), "expression", "", "")
 	value, found, err := query.Evaluate(a.ms, opOverTime)
 	if err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -136,7 +138,7 @@ func (a api) query(c *gin.Context) {
 		return
 	}
 
-	metric.Metrics().SetMetricValue(fmt.Sprint(query.MetricNames()), request.Query, string(opOverTime), "expression", value)
+	metric.Metrics().SetMetricValue(metricNames, request.Query, string(opOverTime), "expression", value)
 	c.IndentedJSON(http.StatusOK, OperationResult{
 		Operation: "query",
 		Ok:        true,

@@ -136,6 +136,25 @@ tweak the OTel collector config. This has the benefit that it will also enable i
 repeat yourself. However, if you want to provide the full OTel collector configuration, you can do that by putting it under `alternateOtelConfig` (again CR level or default template).
 When `alternateOtelConfig` is set, all the `alternate{Receivers,Exporters,Processors,Extensions,Pipelines}` are ignored.
 
+## Garbage collection
+
+`settings.gcStaleAfterMinutes` defaults to `10`. Set it with, for example,
+`--set settings.gcStaleAfterMinutes=5`; `0` disables background garbage collection.
+A shared routine checks once per minute and removes:
+
+- Idle `keda_otel_scaler_metric_value` and `keda_otel_scaler_metric_value_clamped`
+  records from `/metrics`. Activity is tracked per exported label set: REST
+  `POST /memstore/query` and KEDA gRPC queries refresh the records they address,
+  including valid queries that return no data or an evaluation error.
+  Scraping `/metrics` does not refresh them. A later query recreates an expired record.
+- In-memory metric series with no received writes for that many minutes, including
+  series in families that nobody reads. Other active series in the same family
+  are preserved; empty families are removed. Reads do not extend this deadline.
+
+This idle timeout is independent of `settings.metricStore.retentionSeconds`, which
+still controls the sample-retention/query window. Idle deletion happens on the
+first sweep after the timeout, so it can take up to one additional minute.
+
 {{ template "chart.valuesSectionHtml" . }}
 
 <!-- uncomment this for markdown style (use either valuesTableHtml or valuesSection)

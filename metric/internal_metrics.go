@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	crm "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -43,6 +44,15 @@ type InternalMetrics struct {
 	registerOnce sync.Once
 	initOnce     sync.Once
 	metrics      collectors
+	valueMu      sync.Mutex
+	valueUpdates map[metricValueLabels]time.Time
+}
+
+// metricValueLabels identifies one exported gauge, not an entire metric family.
+type metricValueLabels struct {
+	name, labels, timeOp, aggregation string
+	scaledObject, namespace           string
+	clamped                           bool
 }
 
 func Metrics() *InternalMetrics {
@@ -86,6 +96,7 @@ func (m *InternalMetrics) registry() (r map[string]prometheus.Collector) {
 
 func (m *InternalMetrics) Init() {
 	m.initOnce.Do(func() {
+		m.valueUpdates = make(map[metricValueLabels]time.Time)
 		m.metrics.KedaOtelScalerRuntimeInfo = prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: KedaOtelScalerRuntimeInfo,
@@ -133,18 +144,61 @@ func (m *InternalMetrics) IncMetricWrite(name string) {
 }
 
 func (m *InternalMetrics) SetMetricValue(name, labels, timeOp, aggregation string, value float64) {
-	m.metrics.KedaOtelScalerValue.With(prometheus.Labels{"name": name, "labels": labels, "timeOp": timeOp, "aggregation": aggregation}).Set(value)
+	m.valueMu.Lock()
+	defer m.valueMu.Unlock()
+	m.metrics.KedaOtelScalerValue.WithLabelValues(name, labels, timeOp, aggregation).Set(value)
+	m.valueUpdates[metricValueLabels{name: name, labels: labels, timeOp: timeOp, aggregation: aggregation}] = time.Now()
 }
 
 func (m *InternalMetrics) SetMetricValueClamped(name, labels, timeOp, aggregation, scaledObject, namespace string, value float64) {
-	m.metrics.KedaOtelScalerValueClamped.With(prometheus.Labels{
-		"name":         name,
-		"labels":       labels,
-		"timeOp":       timeOp,
-		"aggregation":  aggregation,
-		"scaledObject": scaledObject,
-		"namespace":    namespace,
-	}).Set(value)
+	m.valueMu.Lock()
+	defer m.valueMu.Unlock()
+	m.metrics.KedaOtelScalerValueClamped.WithLabelValues(name, labels, timeOp, aggregation, scaledObject, namespace).Set(value)
+	m.valueUpdates[metricValueLabels{name: name, labels: labels, timeOp: timeOp, aggregation: aggregation, scaledObject: scaledObject, namespace: namespace, clamped: true}] = time.Now()
+}
+
+// TouchMetricValues records query activity even when evaluation fails or finds
+// no data. It refreshes only existing gauges, without creating or changing values.
+// REST requests have no ScaledObject identity and refresh only the unclamped value.
+func (m *InternalMetrics) TouchMetricValues(name, labels, timeOp, aggregation, scaledObject, namespace string) {
+	m.valueMu.Lock()
+	defer m.valueMu.Unlock()
+	now := time.Now()
+	key := metricValueLabels{name: name, labels: labels, timeOp: timeOp, aggregation: aggregation}
+	if _, exists := m.valueUpdates[key]; exists {
+		m.valueUpdates[key] = now
+	}
+	if scaledObject != "" {
+		key.clamped, key.scaledObject, key.namespace = true, scaledObject, namespace
+		if _, exists := m.valueUpdates[key]; exists {
+			m.valueUpdates[key] = now
+		}
+	}
+}
+
+// CollectStale removes idle exported gauges and their activity records. Updates
+// share the lock with deletion so a concurrent query cannot refresh a detached
+// gauge that no longer appears in /metrics. Scraping /metrics does not refresh it.
+func (m *InternalMetrics) CollectStale(now time.Time, staleAfter time.Duration) int {
+	if staleAfter <= 0 {
+		return 0
+	}
+	m.valueMu.Lock()
+	defer m.valueMu.Unlock()
+	removed := 0
+	for labels, updated := range m.valueUpdates {
+		if now.Sub(updated) <= staleAfter {
+			continue
+		}
+		if labels.clamped {
+			m.metrics.KedaOtelScalerValueClamped.DeleteLabelValues(labels.name, labels.labels, labels.timeOp, labels.aggregation, labels.scaledObject, labels.namespace)
+		} else {
+			m.metrics.KedaOtelScalerValue.DeleteLabelValues(labels.name, labels.labels, labels.timeOp, labels.aggregation)
+		}
+		delete(m.valueUpdates, labels)
+		removed++
+	}
+	return removed
 }
 
 func (m *InternalMetrics) SetRuntimeInfo(cfg *util.Config) prometheus.Labels {
