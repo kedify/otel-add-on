@@ -37,7 +37,13 @@ type expressionParser struct {
 	names []types.MetricName
 }
 
+// Bound both recursive parsing and evaluation without tracking expression depth.
+const maxQueryLength = 4096
+
 func (p parser) Parse(input string) (types.Query, error) {
+	if len(input) > maxQueryLength {
+		return nil, fmt.Errorf("metric query exceeds maximum length of %d bytes", maxQueryLength)
+	}
 	parser := expressionParser{input: input}
 	root, err := parser.parseBinary(1)
 	if err != nil {

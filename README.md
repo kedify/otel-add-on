@@ -46,6 +46,8 @@ PromQL: exponentiation binds most tightly and associates right to left, followed
 unary signs, multiplication, division and modulo, then addition and subtraction.
 For example, `-2 ^ 2` is `-4`.
 
+Queries are limited to 4096 bytes to bound recursive parsing and evaluation.
+
 | Function | Arguments | Result |
 | --- | --- | --- |
 | `ln` | vector | Natural logarithm of each value |

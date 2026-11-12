@@ -315,6 +315,39 @@ func TestExpressionNaturalLogAndNonfinite(t *testing.T) {
 	}
 }
 
+func TestExpressionQueryLengthLimit(t *testing.T) {
+	store := newMetricStore(60, false, false)
+	for _, tt := range []struct {
+		name    string
+		input   string
+		tooLong bool
+	}{
+		{"below limit", strings.Repeat("+", maxQueryLength-2) + "1", false},
+		{"at limit", strings.Repeat("+", maxQueryLength-1) + "1", false},
+		{"unary signs", strings.Repeat("+", maxQueryLength) + "1", true},
+		{"parentheses", strings.Repeat("(", maxQueryLength/2) + "1" + strings.Repeat(")", maxQueryLength/2), true},
+		{"addition", strings.Repeat("1+", maxQueryLength/2) + "1", true},
+		{"exponentiation", strings.Repeat("1^", maxQueryLength/2) + "1", true},
+		{"functions", strings.Repeat("sum(", maxQueryLength/5) + "input" + strings.Repeat(")", maxQueryLength/5), true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			query, err := NewParser().Parse(tt.input)
+			if tt.tooLong {
+				want := fmt.Sprintf("metric query exceeds maximum length of %d bytes", maxQueryLength)
+				if err == nil || err.Error() != want || query != nil {
+					t.Fatalf("want nil query and error %q, got %v, %v", want, query, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			value, found, err := query.Evaluate(store, types.OpLastOne)
+			assertMetricFound(t, value, found, err, 1)
+		})
+	}
+}
+
 func TestExpressionCompileErrors(t *testing.T) {
 	for _, tt := range []struct{ input, error string }{
 		{"ln()", "expects 1"}, {"ln(input, 1)", "expects 1"}, {"clamp_min(input)", "expects 2"},
