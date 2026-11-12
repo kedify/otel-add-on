@@ -677,3 +677,50 @@ func getWithLabels(store ty.MemStore, name ty.MetricName, labels ty.Labels, time
 	}
 	return store.Get(name, matchers, timeOp, vecOp)
 }
+
+func TestMemStoreAllMatchingSeriesStale(t *testing.T) {
+	// setup
+	ms := newMetricStore(60, false, false)
+	now := time.Now().Unix()
+	for _, s := range []struct {
+		labels map[string]any
+		age    int64
+	}{
+		{map[string]any{"queue": "orders", "pod": "p1"}, 120},
+		{map[string]any{"queue": "orders", "pod": "p2"}, 120},
+		{map[string]any{"queue": "payments", "pod": "p3"}, 0},
+	} {
+		ms.Put(ty.NewMetricEntry{
+			Name:             "queue_depth",
+			MeasurementTime:  pcommon.Timestamp(now - s.age),
+			MeasurementValue: 42.,
+			Labels:           s.labels,
+		})
+	}
+
+	// check: the metric name is still fresh via "payments", but every "orders" series is stale
+	assertNotThere(t, ms, "queue_depth", map[string]any{"queue": "orders"}, ty.OpLastOne, ty.VecSum)
+	assertNotThere(t, ms, "queue_depth", map[string]any{"queue": "orders", "pod": "p1"}, ty.OpLastOne, ty.VecSum)
+	assertMetricFoundAndEqualTo(t, ms, "queue_depth", map[string]any{"queue": "payments"}, ty.OpLastOne, ty.VecSum, 42.)
+}
+
+func TestMemStoreSomeMatchingSeriesStale(t *testing.T) {
+	// setup
+	ms := newMetricStore(60, false, false)
+	now := time.Now().Unix()
+	ms.Put(ty.NewMetricEntry{
+		Name:             "queue_depth",
+		MeasurementTime:  pcommon.Timestamp(now - 120),
+		MeasurementValue: 100.,
+		Labels:           map[string]any{"queue": "orders", "pod": "p1"},
+	})
+	ms.Put(ty.NewMetricEntry{
+		Name:             "queue_depth",
+		MeasurementTime:  pcommon.Timestamp(now),
+		MeasurementValue: 7.,
+		Labels:           map[string]any{"queue": "orders", "pod": "p2"},
+	})
+
+	// check: only the fresh series contributes
+	assertMetricFoundAndEqualTo(t, ms, "queue_depth", map[string]any{"queue": "orders"}, ty.OpLastOne, ty.VecSum, 7.)
+}

@@ -69,3 +69,34 @@ func TestGetMetricsLabelMatchers(t *testing.T) {
 		})
 	}
 }
+
+func TestGetMetricsErrorsWhenAllMatchingSeriesAreStale(t *testing.T) {
+	cfg := &util.Config{MetricStoreRetentionSeconds: 60, MetricStoreValueIfNotFound: -99, MetricStoreErrIfNotFound: true}
+	store := metric.NewMetricStore(cfg)
+	now := time.Now().Unix()
+	store.Put(types.NewMetricEntry{
+		Name: "queue_depth", Labels: types.Labels{"queue": "orders"}, MeasurementValue: 10,
+		MeasurementTime: pcommon.Timestamp(now - 120),
+	})
+	store.Put(types.NewMetricEntry{
+		Name: "queue_depth", Labels: types.Labels{"queue": "payments"}, MeasurementValue: 20,
+		MeasurementTime: pcommon.Timestamp(now),
+	})
+	scaler := New(logr.Discard(), store, metric.NewParser(), cfg)
+
+	// A stale-only selector must error so KEDA's fallback applies, instead of reporting 0 and scaling in.
+	for _, query := range []string{`queue_depth{queue="orders"}`, `count(queue_depth{queue="orders"})`} {
+		t.Run(query, func(t *testing.T) {
+			_, err := scaler.GetMetrics(context.Background(), &externalscaler.GetMetricsRequest{
+				MetricName: "queue-scaling",
+				ScaledObjectRef: &externalscaler.ScaledObjectRef{
+					Name: "queue-worker", Namespace: "default",
+					ScalerMetadata: map[string]string{util.MetadataMetricQuery: query},
+				},
+			})
+			if err == nil || !strings.Contains(err.Error(), "not found") {
+				t.Fatalf("expected error containing %q, got %v", "not found", err)
+			}
+		})
+	}
+}
