@@ -46,13 +46,13 @@ func TestSimpleParser(t *testing.T) {
 		{`metric{key=~"orders-[0-9]{1,3}\\.ready"}`, "metric", types.VecSum, types.LabelMatchers{
 			{Name: "key", Operator: types.MatchRegexp, Value: `orders-[0-9]{1,3}\.ready`},
 		}},
-		{` avg( metric/name.test { queue =~ "orders-(a|b)", environment != 'dev', } ) `, "metric/name.test", types.VecAvg, types.LabelMatchers{
+		{` avg( metric_name_test { queue =~ "orders-(a|b)", environment != 'dev', } ) `, "metric_name_test", types.VecAvg, types.LabelMatchers{
 			{Name: "queue", Operator: types.MatchRegexp, Value: "orders-(a|b)"}, {Name: "environment", Operator: types.MatchNotEqual, Value: "dev"},
 		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.query, func(t *testing.T) {
-			name, matchers, agg, err := NewParser().Parse(tt.query)
+			name, matchers, agg, err := parseSelector(tt.query)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -79,12 +79,27 @@ func TestSimpleParserFail(t *testing.T) {
 		`metric{a="\q"}`, "metric{a=\"new\nline\"}", `metric{a=~"["}`, `metric{a!~"("}`,
 		`metric{a=~")|("}`, `metric{a=~"(?=lookahead)"}`, `metric{a=~"(a)\\1"}`,
 		`metric{="value"}`, `metric{""="value"}`, `{a="1"}`, `metric{a="1"}junk`,
-		`metric{a="1"}}`, `metric{a="1"}{b="2"}`, "unknown(metric)", "sum(avg(metric))", "metric[5m]",
+		`metric{a="1"}}`, `metric{a="1"}{b="2"}`, "unknown(metric)", "metric[5m]",
 	} {
 		t.Run(query, func(t *testing.T) {
-			if _, _, _, err := NewParser().Parse(query); err == nil {
+			if _, err := NewParser().Parse(query); err == nil {
 				t.Fatalf("expected parse error for %q", query)
 			}
 		})
 	}
+}
+
+// Inspect simple selector compilation while retaining the label-matcher regressions.
+func parseSelector(input string) (types.MetricName, types.LabelMatchers, types.AggregationOverVectors, error) {
+	query, err := NewParser().Parse(input)
+	if err != nil {
+		return "", nil, "", err
+	}
+	node := query.(*compiledQuery).root
+	agg := types.VecSum
+	if node.op != "selector" {
+		agg = types.AggregationOverVectors(node.op)
+		node = node.args[0]
+	}
+	return node.name, node.matchers, agg, nil
 }

@@ -1,0 +1,201 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq-worker
+  namespace: rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq-worker
+  template:
+    metadata:
+      labels:
+        app: rabbitmq-worker
+    spec:
+      # Use DNS; Service links would inject RABBITMQ_PORT=tcp://...:5672.
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: worker
+          image: rabbitmq-demo:latest
+          imagePullPolicy: IfNotPresent
+          command: [python, /app/consumer.py]
+          envFrom:
+            - secretRef:
+                name: rabbitmq-auth
+          env:
+            - name: RABBITMQ_HOST
+              value: rabbitmq
+            - name: WORK_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: workload-config
+                  key: WORK_SECONDS
+          readinessProbe:
+            exec:
+              command: [test, -f, /tmp/ready]
+            periodSeconds: 2
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq-producer-queue1
+  namespace: rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq-producer-queue1
+  template:
+    metadata:
+      labels:
+        app: rabbitmq-producer-queue1
+    spec:
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: producer
+          image: rabbitmq-demo:latest
+          imagePullPolicy: IfNotPresent
+          command: [python, /app/producer.py]
+          envFrom:
+            - secretRef:
+                name: rabbitmq-auth
+          env:
+            - name: RABBITMQ_HOST
+              value: rabbitmq
+            - name: QUEUE_NAME
+              value: example-queue1
+            - name: INTERVAL_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: workload-config
+                  key: QUEUE1_INTERVAL_SECONDS
+            - name: TASKS_PER_BATCH
+              valueFrom:
+                configMapKeyRef:
+                  name: workload-config
+                  key: QUEUE1_TASKS_PER_BATCH
+          readinessProbe:
+            exec:
+              command: [test, -f, /tmp/ready]
+            periodSeconds: 2
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq-producer-queue2
+  namespace: rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq-producer-queue2
+  template:
+    metadata:
+      labels:
+        app: rabbitmq-producer-queue2
+    spec:
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: producer
+          image: rabbitmq-demo:latest
+          imagePullPolicy: IfNotPresent
+          command: [python, /app/producer.py]
+          envFrom:
+            - secretRef:
+                name: rabbitmq-auth
+          env:
+            - name: RABBITMQ_HOST
+              value: rabbitmq
+            - name: QUEUE_NAME
+              value: example-queue2
+            - name: INTERVAL_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: workload-config
+                  key: QUEUE2_INTERVAL_SECONDS
+            - name: TASKS_PER_BATCH
+              valueFrom:
+                configMapKeyRef:
+                  name: workload-config
+                  key: QUEUE2_TASKS_PER_BATCH
+          readinessProbe:
+            exec:
+              command: [test, -f, /tmp/ready]
+            periodSeconds: 2
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi

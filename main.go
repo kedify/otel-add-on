@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
@@ -60,6 +61,12 @@ func main() {
 	eg, ctx := errgroup.WithContext(ctx)
 	ms := metric.NewMetricStore(cfg)
 	mp := metric.NewParser()
+	if cfg.GCStaleAfterMinutes > 0 {
+		eg.Go(func() error {
+			metric.RunGarbageCollector(ctx, ms, metric.Metrics(), time.Duration(cfg.GCStaleAfterMinutes)*time.Minute)
+			return nil
+		})
+	}
 
 	defer metric.Metrics().Unregister()
 	eg.Go(func() error {
@@ -120,7 +127,12 @@ func startRestServer(eg *errgroup.Group, restApiPort int, info prometheus.Labels
 
 func startInternalMetricsServer(ctx context.Context, cfg *util.Config) (prometheus.Labels, error) {
 	addr := fmt.Sprintf("0.0.0.0:%d", cfg.InternalMetricsPort)
+	pprofAddr := ""
+	if cfg.ProfilingEnabled {
+		pprofAddr = fmt.Sprintf("0.0.0.0:%d", cfg.ProfilingPort)
+	}
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		PprofBindAddress: pprofAddr,
 		Metrics: server.Options{
 			BindAddress: addr,
 		},

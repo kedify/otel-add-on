@@ -2,7 +2,7 @@
 
 # otel-add-on
 
-![Version: v0.1.3](https://img.shields.io/badge/Version-v0.1.3-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.3](https://img.shields.io/badge/AppVersion-v0.1.3-informational?style=flat-square)
+![Version: v0.1.5](https://img.shields.io/badge/Version-v0.1.5-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: v0.1.5](https://img.shields.io/badge/AppVersion-v0.1.5-informational?style=flat-square)
 
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/otel-add-on)](https://artifacthub.io/packages/search?repo=otel-add-on)
 
@@ -144,6 +144,25 @@ tweak the OTel collector config. This has the benefit that it will also enable i
 repeat yourself. However, if you want to provide the full OTel collector configuration, you can do that by putting it under `alternateOtelConfig` (again CR level or default template).
 When `alternateOtelConfig` is set, all the `alternate{Receivers,Exporters,Processors,Extensions,Pipelines}` are ignored.
 
+## Garbage collection
+
+`settings.gcStaleAfterMinutes` defaults to `10`. Set it with, for example,
+`--set settings.gcStaleAfterMinutes=5`; `0` disables background garbage collection.
+A shared routine checks once per minute and removes:
+
+- Idle `keda_otel_scaler_metric_value` and `keda_otel_scaler_metric_value_clamped`
+  records from `/metrics`. Activity is tracked per exported label set: REST
+  `POST /memstore/query` and KEDA gRPC queries refresh the records they address,
+  including valid queries that return no data or an evaluation error.
+  Scraping `/metrics` does not refresh them. A later query recreates an expired record.
+- In-memory metric series with no received writes for that many minutes, including
+  series in families that nobody reads. Other active series in the same family
+  are preserved; empty families are removed. Reads do not extend this deadline.
+
+This idle timeout is independent of `settings.metricStore.retentionSeconds`, which
+still controls the sample-retention/query window. Idle deletion happens on the
+first sweep after the timeout, so it can take up to one additional minute.
+
 ## Values
 
 <table>
@@ -202,8 +221,24 @@ When `alternateOtelConfig` is set, all the `alternate{Receivers,Exporters,Proces
                </td>
           </tr>
           <tr>
+               <td id="settings--gcStaleAfterMinutes">
+<a href="./values.yaml#L23">settings.gcStaleAfterMinutes</a><br/>
+
+(Type: int)</td>
+               <td>
+               Idle timeout in minutes for both exported query-value metrics and in-memory metric-store series; 0 disables background GC. Removes keda_otel_scaler_metric_value and keda_otel_scaler_metric_value_clamped records after no queries (REST POST /memstore/query or KEDA gRPC) address that record for this long. Also removes each in-memory series with no writes for this long, even when nobody reads it; reads do not extend the write deadline. Independent of metricStore.retentionSeconds, which controls the sample-retention/query window. Cleanup runs once per minute.
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+10
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
                <td id="settings--metricStore--retentionSeconds">
-<a href="./values.yaml#L19">settings<br/>.metricStore<br/>.retentionSeconds</a><br/>
+<a href="./values.yaml#L27">settings<br/>.metricStore<br/>.retentionSeconds</a><br/>
 
 (Type: int)</td>
                <td>
@@ -219,7 +254,7 @@ When `alternateOtelConfig` is set, all the `alternate{Receivers,Exporters,Proces
           </tr>
           <tr>
                <td id="settings--metricStore--lazySeries">
-<a href="./values.yaml#L23">settings<br/>.metricStore<br/>.lazySeries</a><br/>
+<a href="./values.yaml#L31">settings<br/>.metricStore<br/>.lazySeries</a><br/>
 
 (Type: bool)</td>
                <td>
@@ -235,7 +270,7 @@ false
           </tr>
           <tr>
                <td id="settings--metricStore--lazyAggregates">
-<a href="./values.yaml#L27">settings<br/>.metricStore<br/>.lazyAggregates</a><br/>
+<a href="./values.yaml#L35">settings<br/>.metricStore<br/>.lazyAggregates</a><br/>
 
 (Type: bool)</td>
                <td>
@@ -251,7 +286,7 @@ false
           </tr>
           <tr>
                <td id="settings--metricStore--errIfNotFound">
-<a href="./values.yaml#L30">settings<br/>.metricStore<br/>.errIfNotFound</a><br/>
+<a href="./values.yaml#L38">settings<br/>.metricStore<br/>.errIfNotFound</a><br/>
 
 (Type: bool)</td>
                <td>
@@ -267,7 +302,7 @@ false
           </tr>
           <tr>
                <td id="settings--metricStore--valueIfNotFound">
-<a href="./values.yaml#L33">settings<br/>.metricStore<br/>.valueIfNotFound</a><br/>
+<a href="./values.yaml#L41">settings<br/>.metricStore<br/>.valueIfNotFound</a><br/>
 
 (Type: float)</td>
                <td>
@@ -283,7 +318,7 @@ false
           </tr>
           <tr>
                <td id="settings--isActivePollingIntervalMilliseconds">
-<a href="./values.yaml#L36">settings<br/>.isActivePollingIntervalMilliseconds</a><br/>
+<a href="./values.yaml#L44">settings<br/>.isActivePollingIntervalMilliseconds</a><br/>
 
 (Type: int)</td>
                <td>
@@ -299,7 +334,7 @@ false
           </tr>
           <tr>
                <td id="settings--internalMetricsPort">
-<a href="./values.yaml#L39">settings.internalMetricsPort</a><br/>
+<a href="./values.yaml#L47">settings.internalMetricsPort</a><br/>
 
 (Type: int)</td>
                <td>
@@ -315,7 +350,7 @@ false
           </tr>
           <tr>
                <td id="settings--restApiPort">
-<a href="./values.yaml#L42">settings.restApiPort</a><br/>
+<a href="./values.yaml#L50">settings.restApiPort</a><br/>
 
 (Type: int)</td>
                <td>
@@ -330,8 +365,40 @@ false
                </td>
           </tr>
           <tr>
+               <td id="settings--profiling--enabled">
+<a href="./values.yaml#L54">settings.profiling.enabled</a><br/>
+
+(Type: bool)</td>
+               <td>
+               Enable profiling for OTel scaler
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+false
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
+               <td id="settings--profiling--port">
+<a href="./values.yaml#L56">settings.profiling.port</a><br/>
+
+(Type: int)</td>
+               <td>
+               Expose profiling on a specific port
+               </td>
+               <td>
+                    <div style="max-width: 200px;">
+<pre lang="json">
+8081
+</pre>
+</div>
+               </td>
+          </tr>
+          <tr>
                <td id="settings--logs--logLvl">
-<a href="./values.yaml#L47">settings.logs.logLvl</a><br/>
+<a href="./values.yaml#L61">settings.logs.logLvl</a><br/>
 
 (Type: string)</td>
                <td>
@@ -347,7 +414,7 @@ false
           </tr>
           <tr>
                <td id="settings--logs--stackTracesLvl">
-<a href="./values.yaml#L50">settings.logs.stackTracesLvl</a><br/>
+<a href="./values.yaml#L64">settings.logs.stackTracesLvl</a><br/>
 
 (Type: string)</td>
                <td>
@@ -363,7 +430,7 @@ false
           </tr>
           <tr>
                <td id="settings--logs--noColor">
-<a href="./values.yaml#L53">settings.logs.noColor</a><br/>
+<a href="./values.yaml#L67">settings.logs.noColor</a><br/>
 
 (Type: bool)</td>
                <td>
@@ -379,7 +446,7 @@ false
           </tr>
           <tr>
                <td id="settings--logs--noBanner">
-<a href="./values.yaml#L56">settings.logs.noBanner</a><br/>
+<a href="./values.yaml#L70">settings.logs.noBanner</a><br/>
 
 (Type: bool)</td>
                <td>
@@ -395,7 +462,7 @@ false
           </tr>
           <tr>
                <td id="settings--tls--caFile">
-<a href="./values.yaml#L60">settings.tls.caFile</a><br/>
+<a href="./values.yaml#L74">settings.tls.caFile</a><br/>
 
 (Type: optional)</td>
                <td>
@@ -411,7 +478,7 @@ false
           </tr>
           <tr>
                <td id="settings--tls--certFile">
-<a href="./values.yaml#L62">settings.tls.certFile</a><br/>
+<a href="./values.yaml#L76">settings.tls.certFile</a><br/>
 
 (Type: optional)</td>
                <td>
@@ -427,7 +494,7 @@ false
           </tr>
           <tr>
                <td id="settings--tls--keyFile">
-<a href="./values.yaml#L64">settings.tls.keyFile</a><br/>
+<a href="./values.yaml#L78">settings.tls.keyFile</a><br/>
 
 (Type: optional)</td>
                <td>
@@ -443,7 +510,7 @@ false
           </tr>
           <tr>
                <td id="settings--tls--reloadInterval">
-<a href="./values.yaml#L67">settings.tls.reloadInterval</a><br/>
+<a href="./values.yaml#L81">settings.tls.reloadInterval</a><br/>
 
 (Type: optional)</td>
                <td>
@@ -459,7 +526,7 @@ false
           </tr>
           <tr>
                <td id="settings--tls--keda--certFile">
-<a href="./values.yaml#L71">settings.tls.keda.certFile</a><br/>
+<a href="./values.yaml#L85">settings.tls.keda.certFile</a><br/>
 
 (Type: optional)</td>
                <td>
@@ -475,7 +542,7 @@ false
           </tr>
           <tr>
                <td id="settings--tls--keda--keyFile">
-<a href="./values.yaml#L73">settings.tls.keda.keyFile</a><br/>
+<a href="./values.yaml#L87">settings.tls.keda.keyFile</a><br/>
 
 (Type: optional)</td>
                <td>
@@ -491,7 +558,7 @@ false
           </tr>
           <tr>
                <td id="settings--tls--secrets">
-<a href="./values.yaml#L76">settings.tls.secrets</a><br/>
+<a href="./values.yaml#L90">settings.tls.secrets</a><br/>
 
 (Type: optional)</td>
                <td>
@@ -507,7 +574,7 @@ false
           </tr>
           <tr>
                <td id="deploymentStrategy">
-<a href="./values.yaml#L83">deploymentStrategy</a><br/>
+<a href="./values.yaml#L97">deploymentStrategy</a><br/>
 <br/>
 (Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy">strategy</a>)</td>
                <td>
@@ -523,7 +590,7 @@ false
           </tr>
           <tr>
                <td id="deployScaler">
-<a href="./values.yaml#L86">deployScaler</a><br/>
+<a href="./values.yaml#L100">deployScaler</a><br/>
 
 (Type: bool)</td>
                <td>
@@ -539,7 +606,7 @@ true
           </tr>
           <tr>
                <td id="validatingAdmissionPolicy--enabled">
-<a href="./values.yaml#L90">validatingAdmissionPolicy<br/>.enabled</a><br/>
+<a href="./values.yaml#L104">validatingAdmissionPolicy<br/>.enabled</a><br/>
 
 (Type: bool)</td>
                <td>
@@ -555,7 +622,7 @@ false
           </tr>
           <tr>
                <td id="asciiArt">
-<a href="./values.yaml#L94">asciiArt</a><br/>
+<a href="./values.yaml#L108">asciiArt</a><br/>
 
 (Type: bool)</td>
                <td>
@@ -571,7 +638,7 @@ true
           </tr>
           <tr>
                <td id="imagePullSecrets">
-<a href="./values.yaml#L97">imagePullSecrets</a><br/>
+<a href="./values.yaml#L111">imagePullSecrets</a><br/>
 <br/>
 (Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod">specifying-imagepullsecrets-on-a-pod</a>)</td>
                <td>
@@ -587,7 +654,7 @@ true
           </tr>
           <tr>
                <td id="serviceAccount--create">
-<a href="./values.yaml#L103">serviceAccount.create</a><br/>
+<a href="./values.yaml#L117">serviceAccount.create</a><br/>
 
 (Type: bool)</td>
                <td>
@@ -603,7 +670,7 @@ true
           </tr>
           <tr>
                <td id="serviceAccount--annotations">
-<a href="./values.yaml#L106">serviceAccount.annotations</a><br/>
+<a href="./values.yaml#L120">serviceAccount.annotations</a><br/>
 
 (Type: object)</td>
                <td>
@@ -619,7 +686,7 @@ true
           </tr>
           <tr>
                <td id="serviceAccount--name">
-<a href="./values.yaml#L108">serviceAccount.name</a><br/>
+<a href="./values.yaml#L122">serviceAccount.name</a><br/>
 
 (Type: string)</td>
                <td>
@@ -635,7 +702,7 @@ true
           </tr>
           <tr>
                <td id="podAnnotations">
-<a href="./values.yaml#L111">podAnnotations</a><br/>
+<a href="./values.yaml#L125">podAnnotations</a><br/>
 
 (Type: object)</td>
                <td>
@@ -651,7 +718,7 @@ true
           </tr>
           <tr>
                <td id="podLabels">
-<a href="./values.yaml#L114">podLabels</a><br/>
+<a href="./values.yaml#L128">podLabels</a><br/>
 
 (Type: object)</td>
                <td>
@@ -667,7 +734,7 @@ true
           </tr>
           <tr>
                <td id="podSecurityContext">
-<a href="./values.yaml#L117">podSecurityContext</a><br/>
+<a href="./values.yaml#L131">podSecurityContext</a><br/>
 <br/>
 (Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/security/pod-security-standards">pod-security-standards</a>)</td>
                <td>
@@ -683,7 +750,7 @@ true
           </tr>
           <tr>
                <td id="securityContext">
-<a href="./values.yaml#L121">securityContext</a><br/>
+<a href="./values.yaml#L135">securityContext</a><br/>
 <br/>
 (Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/security/pod-security-standards">pod-security-standards</a>)</td>
                <td>
@@ -705,7 +772,7 @@ runAsUser: 1000
           </tr>
           <tr>
                <td id="service--type">
-<a href="./values.yaml#L131">service.type</a><br/>
+<a href="./values.yaml#L145">service.type</a><br/>
 <br/>
 (Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types">publishing-services-service-types</a>)</td>
                <td>
@@ -721,7 +788,7 @@ runAsUser: 1000
           </tr>
           <tr>
                <td id="service--otlpReceiverPort">
-<a href="./values.yaml#L133">service.otlpReceiverPort</a><br/>
+<a href="./values.yaml#L147">service.otlpReceiverPort</a><br/>
 
 (Type: int)</td>
                <td>
@@ -737,7 +804,7 @@ runAsUser: 1000
           </tr>
           <tr>
                <td id="service--kedaExternalScalerPort">
-<a href="./values.yaml#L135">service.kedaExternalScalerPort</a><br/>
+<a href="./values.yaml#L149">service.kedaExternalScalerPort</a><br/>
 
 (Type: int)</td>
                <td>
@@ -753,7 +820,7 @@ runAsUser: 1000
           </tr>
           <tr>
                <td id="service--name">
-<a href="./values.yaml#L138">service.name</a><br/>
+<a href="./values.yaml#L152">service.name</a><br/>
 
 (Type: string)</td>
                <td>
@@ -769,7 +836,7 @@ runAsUser: 1000
           </tr>
           <tr>
                <td id="resources">
-<a href="./values.yaml#L142">resources</a><br/>
+<a href="./values.yaml#L156">resources</a><br/>
 <br/>
 (Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/configuration/manage-resources-containers">manage-resources-containers</a>)</td>
                <td>
@@ -791,7 +858,7 @@ requests:
           </tr>
           <tr>
                <td id="nodeSelector">
-<a href="./values.yaml#L162">nodeSelector</a><br/>
+<a href="./values.yaml#L176">nodeSelector</a><br/>
 <br/>
 (Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector">nodeselector</a>)</td>
                <td>
@@ -807,7 +874,7 @@ requests:
           </tr>
           <tr>
                <td id="tolerations">
-<a href="./values.yaml#L165">tolerations</a><br/>
+<a href="./values.yaml#L179">tolerations</a><br/>
 <br/>
 (Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration">taint-and-toleration</a>)</td>
                <td>
@@ -823,7 +890,7 @@ requests:
           </tr>
           <tr>
                <td id="affinity">
-<a href="./values.yaml#L168">affinity</a><br/>
+<a href="./values.yaml#L182">affinity</a><br/>
 <br/>
 (Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity">affinity-and-anti-affinity</a>)</td>
                <td>
@@ -839,7 +906,7 @@ requests:
           </tr>
           <tr>
                <td id="kubectlImage">
-<a href="./values.yaml#L172">kubectlImage</a><br/>
+<a href="./values.yaml#L186">kubectlImage</a><br/>
 
 (Type: yaml)</td>
                <td>
@@ -859,7 +926,7 @@ pullSecrets: []
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate">
-<a href="./values.yaml#L276">otelOperatorCrDefaultTemplate</a><br/>
+<a href="./values.yaml#L290">otelOperatorCrDefaultTemplate</a><br/>
 
 (Type: raw)</td>
                <td>
@@ -969,7 +1036,7 @@ graph TD;
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--debug">
-<a href="./values.yaml#L278">otelOperatorCrDefaultTemplate<br/>.debug</a><br/>
+<a href="./values.yaml#L292">otelOperatorCrDefaultTemplate<br/>.debug</a><br/>
 
 (Type: bool)</td>
                <td>
@@ -985,7 +1052,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--mode">
-<a href="./values.yaml#L282">otelOperatorCrDefaultTemplate<br/>.mode</a><br/>
+<a href="./values.yaml#L296">otelOperatorCrDefaultTemplate<br/>.mode</a><br/>
 
 (Type: string)</td>
                <td>
@@ -1001,7 +1068,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--targetAllocatorEnabled">
-<a href="./values.yaml#L285">otelOperatorCrDefaultTemplate<br/>.targetAllocatorEnabled</a><br/>
+<a href="./values.yaml#L299">otelOperatorCrDefaultTemplate<br/>.targetAllocatorEnabled</a><br/>
 
 (Type: bool)</td>
                <td>
@@ -1017,7 +1084,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--targetAllocatorClusterRoles">
-<a href="./values.yaml#L287">otelOperatorCrDefaultTemplate<br/>.targetAllocatorClusterRoles</a><br/>
+<a href="./values.yaml#L301">otelOperatorCrDefaultTemplate<br/>.targetAllocatorClusterRoles</a><br/>
 
 (Type: list)</td>
                <td>
@@ -1036,7 +1103,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--targetAllocator--prometheusCR--serviceMonitorSelector">
-<a href="./values.yaml#L296">otelOperatorCrDefaultTemplate<br/>.targetAllocator<br/>.prometheusCR<br/>.serviceMonitorSelector</a><br/>
+<a href="./values.yaml#L310">otelOperatorCrDefaultTemplate<br/>.targetAllocator<br/>.prometheusCR<br/>.serviceMonitorSelector</a><br/>
 
 (Type: object)</td>
                <td>
@@ -1052,7 +1119,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--targetAllocator--prometheusCR--podMonitorSelector">
-<a href="./values.yaml#L300">otelOperatorCrDefaultTemplate<br/>.targetAllocator<br/>.prometheusCR<br/>.podMonitorSelector</a><br/>
+<a href="./values.yaml#L314">otelOperatorCrDefaultTemplate<br/>.targetAllocator<br/>.prometheusCR<br/>.podMonitorSelector</a><br/>
 
 (Type: object)</td>
                <td>
@@ -1068,7 +1135,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--tls">
-<a href="./values.yaml#L312">otelOperatorCrDefaultTemplate<br/>.tls</a><br/>
+<a href="./values.yaml#L326">otelOperatorCrDefaultTemplate<br/>.tls</a><br/>
 
 (Type: object)</td>
                <td>
@@ -1084,7 +1151,7 @@ false
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--resources">
-<a href="./values.yaml#L340">otelOperatorCrDefaultTemplate<br/>.resources</a><br/>
+<a href="./values.yaml#L354">otelOperatorCrDefaultTemplate<br/>.resources</a><br/>
 <br/>
 (Type: <a target="_blank" href="https://kubernetes.io/docs/concepts/configuration/manage-resources-containers">manage-resources-containers</a>)</td>
                <td>
@@ -1106,7 +1173,7 @@ requests:
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--alternateOtelConfig">
-<a href="./values.yaml#L349">otelOperatorCrDefaultTemplate<br/>.alternateOtelConfig</a><br/>
+<a href="./values.yaml#L363">otelOperatorCrDefaultTemplate<br/>.alternateOtelConfig</a><br/>
 
 (Type: object)</td>
                <td>
@@ -1122,7 +1189,7 @@ requests:
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--prometheusScrapeConfigs">
-<a href="./values.yaml#L353">otelOperatorCrDefaultTemplate<br/>.prometheusScrapeConfigs</a><br/>
+<a href="./values.yaml#L367">otelOperatorCrDefaultTemplate<br/>.prometheusScrapeConfigs</a><br/>
 
 (Type: list)</td>
                <td>
@@ -1150,7 +1217,7 @@ requests:
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--alternateReceivers">
-<a href="./values.yaml#L359">otelOperatorCrDefaultTemplate<br/>.alternateReceivers</a><br/>
+<a href="./values.yaml#L373">otelOperatorCrDefaultTemplate<br/>.alternateReceivers</a><br/>
 
 (Type: object)</td>
                <td>
@@ -1166,7 +1233,7 @@ requests:
           </tr>
           <tr>
                <td id="otelOperatorCrDefaultTemplate--includeMetrics">
-<a href="./values.yaml#L363">otelOperatorCrDefaultTemplate<br/>.includeMetrics</a><br/>
+<a href="./values.yaml#L377">otelOperatorCrDefaultTemplate<br/>.includeMetrics</a><br/>
 
 (Type: list)</td>
                <td>
@@ -1182,7 +1249,7 @@ requests:
           </tr>
           <tr>
                <td id="otelOperatorCrs">
-<a href="./values.yaml#L414">otelOperatorCrs</a><br/>
+<a href="./values.yaml#L428">otelOperatorCrs</a><br/>
 
 (Type: yaml)</td>
                <td>
@@ -1208,7 +1275,7 @@ requests:
           </tr>
           <tr>
                <td id="otelOperatorCrs[0]">
-<a href="./values.yaml#L416">otelOperatorCrs[0]</a><br/>
+<a href="./values.yaml#L430">otelOperatorCrs[0]</a><br/>
 
 (Type: object)</td>
                <td>
@@ -1228,7 +1295,7 @@ requests:
           </tr>
           <tr>
                <td id="otelOperatorCrs[0]--name">
-<a href="./values.yaml#L418">otelOperatorCrs[0].name</a><br/>
+<a href="./values.yaml#L432">otelOperatorCrs[0].name</a><br/>
 
 (Type: string)</td>
                <td>
@@ -1244,7 +1311,7 @@ requests:
           </tr>
           <tr>
                <td id="otelOperatorCrs[0]--namespace">
-<a href="./values.yaml#L420">otelOperatorCrs[0].namespace</a><br/>
+<a href="./values.yaml#L434">otelOperatorCrs[0].namespace</a><br/>
 
 (Type: string)</td>
                <td>
@@ -1260,7 +1327,7 @@ requests:
           </tr>
           <tr>
                <td id="otelOperator">
-<a href="./values.yaml#L431">otelOperator</a><br/>
+<a href="./values.yaml#L445">otelOperator</a><br/>
 
 (Type: yaml)</td>
                <td>
@@ -1288,7 +1355,7 @@ admissionWebhooks:
           </tr>
           <tr>
                <td id="otelCollector">
-<a href="./values.yaml#L449">otelCollector</a><br/>
+<a href="./values.yaml#L463">otelCollector</a><br/>
 
 (Type: yaml)</td>
                <td>
@@ -1356,7 +1423,7 @@ alternateConfig:
           </tr>
           <tr>
                <td id="otelCollector--enabled">
-<a href="./values.yaml#L451">otelCollector.enabled</a><br/>
+<a href="./values.yaml#L465">otelCollector.enabled</a><br/>
 
 (Type: bool)</td>
                <td>
@@ -1372,7 +1439,7 @@ false
           </tr>
           <tr>
                <td id="otelCollector--mode">
-<a href="./values.yaml#L453">otelCollector.mode</a><br/>
+<a href="./values.yaml#L467">otelCollector.mode</a><br/>
 
 (Type: string)</td>
                <td>
@@ -1388,7 +1455,7 @@ false
           </tr>
           <tr>
                <td id="otelCollector--alternateConfig">
-<a href="./values.yaml#L468">otelCollector.alternateConfig</a><br/>
+<a href="./values.yaml#L482">otelCollector.alternateConfig</a><br/>
 
 (Type: yaml)</td>
                <td>
