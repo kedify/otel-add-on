@@ -59,6 +59,9 @@ func (e *expression) evaluate(metrics map[types.MetricName][]types.Series) (expr
 		var result []types.Series
 		for _, series := range metrics[e.name] {
 			if e.matchers.Matches(series.Labels) {
+				if series.HistoryError != nil {
+					return expressionValue{}, series.HistoryError
+				}
 				result = append(result, series)
 			}
 		}

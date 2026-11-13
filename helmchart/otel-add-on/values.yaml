@@ -14,6 +14,14 @@ image:
   tag: ""
 
 settings:
+  ha:
+    # -- Deploy active-active scaler replicas as a StatefulSet and broadcast metrics to every replica.
+    enabled: false
+    # -- Number of scaler replicas when HA is enabled; replicaCount is ignored in HA mode.
+    replicas: 3
+    # -- HA-only warmup after fresh metrics first arrive; 0 uses metricStore.retentionSeconds.
+    warmupSeconds: 0
+
   # -- Idle timeout in minutes for both exported query-value metrics and in-memory metric-store series; 0 disables background GC.
   # Removes keda_otel_scaler_metric_value and keda_otel_scaler_metric_value_clamped records
   # after no queries (REST POST /memstore/query or KEDA gRPC) address that record for this long.

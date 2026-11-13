@@ -1,0 +1,33 @@
+{{- $ha := .Values.settings.ha | default dict -}}
+{{/* Helm renders deeper template paths first. Keep this initialization here so
+     the bundled Collector's ConfigMaps and Pod checksums use the same HA config.
+     Mutate only the enabled dependency's scoped values, and only in HA mode. */}}
+{{- if $ha.enabled }}
+{{- $retention := float64 .Values.settings.metricStore.retentionSeconds }}
+{{- if or (lt $retention 1.0) (ne $retention (floor $retention)) }}
+{{- fail "HA requires settings.metricStore.retentionSeconds to be a positive integer" }}
+{{- end }}
+{{- if or .Values.settings.metricStore.lazySeries .Values.settings.metricStore.lazyAggregates }}
+{{- fail "HA requires settings.metricStore.lazySeries=false and settings.metricStore.lazyAggregates=false so every replica collects the same history" }}
+{{- end }}
+{{- if hasKey .Subcharts "otelCollector" }}
+{{- $collector := .Subcharts.otelCollector }}
+{{- if and $collector.Values.configMap.create (not $collector.Values.configMap.existingName) }}
+{{- $config := deepCopy ($collector.Values.alternateConfig | default $collector.Values.config) }}
+{{/* The dependency templates endpoint values with its own scope. Resolve just
+     the original endpoint here so TLS identity and HTTPS semantics survive the
+     switch to per-Pod addresses; other configuration is still templated once. */}}
+{{- $source := get ($config.exporters | default dict) "otlp" | default dict }}
+{{- if $source.endpoint }}
+{{- $base := printf "%s/charts/%s/templates" (trimSuffix "/templates" .Template.BasePath) $collector.Chart.Name }}
+{{- $file := "configmap.yaml" }}
+{{- if eq $collector.Values.mode "daemonset" }}{{- $file = "configmap-agent.yaml" }}{{- end }}
+{{- if eq $collector.Values.mode "statefulset" }}{{- $file = "configmap-statefulset.yaml" }}{{- end }}
+{{- $scope := merge (dict "Template" (dict "BasePath" $base "Name" (printf "%s/%s" $base $file))) $collector }}
+{{- $_ := set $source "endpoint" (tpl $source.endpoint $scope) }}
+{{- end }}
+{{- $config = include "otel-add-on.haCollectorConfig" (dict "root" . "config" $config "exporter" "otlp") | fromYaml }}
+{{- $_ := set $collector.Values "alternateConfig" $config }}
+{{- end }}
+{{- end }}
+{{- end }}

@@ -31,6 +31,8 @@ type MetricData struct {
 	LastUpdate         uint32                          `json:"lastUpdate"`
 	// LastWrite tracks receipt time, independently of the producer's timestamp.
 	LastWrite time.Time `json:"-"`
+	// FirstWrite is retained across snapshots for HA history warmup.
+	FirstWrite time.Time `json:"-"`
 }
 
 type ObservedValue struct {
@@ -44,6 +46,9 @@ type ObservedValue struct {
 type Series struct {
 	Labels Labels
 	Value  float64
+	// HistoryError is checked after applying a selector's labels. An unrelated
+	// warming series must not prevent a query for an already-warm series.
+	HistoryError error `json:"-"`
 }
 
 const (
@@ -86,6 +91,7 @@ type MemStore interface {
 
 	// GetSeries retrieves individual matching series without a not-found fallback.
 	// In lazy modes, the first read subscribes the metric and returns no series.
+	// HA history validity is attached to each Series for checking after selection.
 	GetSeries(MetricName, LabelMatchers, OperationOverTime) ([]Series, error)
 
 	// Put stores the value

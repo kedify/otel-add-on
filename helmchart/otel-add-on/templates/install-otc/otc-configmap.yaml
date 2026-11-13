@@ -1,3 +1,4 @@
+{{- $ha := .Values.settings.ha | default dict -}}
 {{- range $i, $c := include "operatorCrs" . | fromJsonArray }}
 {{- if $c.enabled }}
 apiVersion: v1
@@ -77,7 +78,11 @@ data:
 
       config:
         {{- if $c.alternateOtelConfig }}
+        {{- if $ha.enabled }}
+        {{- include "otel-add-on.haCollectorConfig" (dict "root" $ "config" $c.alternateOtelConfig "exporter" "otlp/keda") | nindent 8 }}
+        {{- else }}
         {{- toYaml $c.alternateOtelConfig | nindent 8 }}
+        {{- end }}
         {{- else}}
 
         {{- $extensions := list }}
@@ -160,19 +165,46 @@ data:
         {{- $exporters := list }}
         exporters:
         {{- if $c.alternateExporters }}
-        {{- range $exporter, $exporterCfg := .alternateExporters }}
+        {{- $custom := dict "exporters" $c.alternateExporters "service" (dict "pipelines" (dict "metrics" (dict "exporters" (keys $c.alternateExporters | sortAlpha)))) }}
+        {{- if $ha.enabled }}
+        {{- $_ := set $custom.service "pipelines" ($c.alternatePipelines | default $custom.service.pipelines) }}
+        {{- $custom = include "otel-add-on.haCollectorConfig" (dict "root" $ "config" $custom "exporter" "otlp/keda") | fromYaml }}
+        {{- end }}
+        {{- range $exporter, $exporterCfg := $custom.exporters }}
           {{- $exporters = append $exporters $exporter }}
           {{ $exporter }}:
             {{- toYaml $exporterCfg | nindent 12 }}
         {{- end }}
         {{- else}}
-          {{- $exporters = append $exporters "otlp/keda" }}
-          otlp/keda:
+          {{- $ordinals := list -1 }}
+          {{- if $ha.enabled }}
+          {{- $ordinals = until (int ($ha.replicas | default 3)) }}
+          {{- end }}
+          {{- range $ordinal := $ordinals }}
+          {{- $name := "otlp/keda" }}
+          {{- if $ha.enabled }}
+          {{- $name = printf "otlp/keda-%d" $ordinal }}
+          {{- end }}
+          {{- $exporters = append $exporters $name }}
+          {{ $name }}:
+            {{- if $ha.enabled }}
+            endpoint: {{ include "otel-add-on.replicaEndpoint" (dict "root" $ "ordinal" $ordinal) }}
+            sending_queue:
+              enabled: true
+              wait_for_result: false
+              block_on_overflow: false
+            retry_on_failure:
+              enabled: true
+            {{- else }}
             endpoint: {{ $.Values.service.name | default $.Values.fullnameOverride | default $.Release.Name }}.{{ $.Values.namespace | default $.Release.Namespace }}.svc:4317
+            {{- end }}
             compression: "none"
             tls:
               {{- if or ($c.tls).caFile (and ($c.tls).certFile ($c.tls).keyFile) }}
               insecure: false
+              {{- if and $ha.enabled (not (hasKey ($c.tls.extraSettings | default dict) "server_name_override")) }}
+              server_name_override: {{ $.Values.service.name | default $.Values.fullnameOverride | default $.Release.Name }}.{{ $.Values.namespace | default $.Release.Namespace }}.svc
+              {{- end }}
                 {{- if not $c.tls.caFile }}
               insecure_skip_verify: true
                 {{- else }}
@@ -186,6 +218,7 @@ data:
               {{- else }}
               insecure: true
               {{- end }}
+          {{- end }}
           {{- if $c.debug }}
           {{- $exporters = append $exporters "debug" }}
           debug:
@@ -209,7 +242,13 @@ data:
           {{- end }}
           pipelines:
             {{- if $c.alternatePipelines }}
+            {{- if $ha.enabled }}
+            {{- $pipelineConfig := dict "exporters" (dict "otlp/keda" (dict "compression" "none")) "service" (dict "pipelines" $c.alternatePipelines) }}
+            {{- $pipelineConfig = include "otel-add-on.haCollectorConfig" (dict "root" $ "config" $pipelineConfig "exporter" "otlp/keda") | fromYaml }}
+            {{- toYaml $pipelineConfig.service.pipelines | nindent 12 }}
+            {{- else }}
             {{- toYaml $c.alternatePipelines | nindent 12 }}
+            {{- end }}
             {{- else}}
             metrics:
               receivers: [{{- join "," $receivers -}}]

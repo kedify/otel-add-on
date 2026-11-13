@@ -8,6 +8,10 @@ import (
 )
 
 type Config struct {
+	// HA settings are opt-in; zero warmup uses the metric retention window.
+	HAEnabled       bool `envconfig:"HA_ENABLED" default:"false"`
+	HAWarmupSeconds int  `envconfig:"HA_WARMUP_SECONDS" default:"0"`
+
 	// Ports
 	OTLPReceiverPort       int `envconfig:"OTLP_RECEIVER_PORT" default:"4317"`
 	KedaExternalScalerPort int `envconfig:"KEDA_EXTERNAL_SCALER_PORT" default:"4318"`
@@ -43,6 +47,9 @@ type Config struct {
 func MustParseConfig() *Config {
 	ret := new(Config)
 	envconfig.MustProcess("", ret)
+	if ret.HAEnabled && (ret.HAWarmupSeconds < 0 || ret.MetricStoreRetentionSeconds <= 0 || ret.MetricStoreLazySeries || ret.MetricStoreLazyAggregates) {
+		panic("HA requires nonnegative HA_WARMUP_SECONDS, positive METRIC_STORE_RETENTION_SECONDS, and eager metric series and aggregates")
+	}
 	if ret.GCStaleAfterMinutes < 0 || int64(ret.GCStaleAfterMinutes) > int64((1<<63-1)/time.Minute) {
 		panic(fmt.Sprintf("GC_STALE_AFTER_MINUTES must be between 0 and %d", (1<<63-1)/time.Minute))
 	}
