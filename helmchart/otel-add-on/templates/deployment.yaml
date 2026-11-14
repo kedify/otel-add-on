@@ -1,17 +1,24 @@
+{{- $ha := .Values.settings.ha | default dict -}}
 {{- if .Values.deployScaler }}
 apiVersion: apps/v1
-kind: Deployment
+kind: {{ if $ha.enabled }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
-  name: {{ .Values.fullnameOverride | default .Release.Name }}
+  name: {{ if $ha.enabled }}{{ include "otel-add-on.haWorkloadName" . }}{{ else }}{{ .Values.fullnameOverride | default .Release.Name }}{{ end }}
   namespace: {{ .Values.namespace | default .Release.Namespace }}
   labels:
     {{- include "otel-add-on.labels" . | nindent 4 }}
 spec:
+  {{- if $ha.enabled }}
+  replicas: {{ ($ha.replicas | default 3) }}
+  serviceName: {{ include "otel-add-on.headlessServiceName" . }}
+  podManagementPolicy: Parallel
+  {{- else }}
   replicas: {{ .Values.replicaCount }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "otel-add-on.selectorLabels" . | nindent 6 }}
-  {{- if eq .Values.deploymentStrategy "Recreate" }}
+  {{- if and (not $ha.enabled) (eq .Values.deploymentStrategy "Recreate") }}
   strategy:
     type: Recreate
   {{- end }}
@@ -41,6 +48,12 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
+            {{- if $ha.enabled }}
+            - name: HA_ENABLED
+              value: "true"
+            - name: HA_WARMUP_SECONDS
+              value: {{ ($ha.warmupSeconds | default 0) | quote }}
+            {{- end }}
             # Ports
             - name: OTLP_RECEIVER_PORT
               value: {{ .Values.service.otlpReceiverPort | quote }}
@@ -111,7 +124,7 @@ spec:
           readinessProbe:
             httpGet:
               port: {{ .Values.settings.restApiPort }}
-              path: /info
+              path: {{ if $ha.enabled }}/readyz{{ else }}/info{{ end }}
             timeoutSeconds: 1
             periodSeconds: 5
             successThreshold: 1
