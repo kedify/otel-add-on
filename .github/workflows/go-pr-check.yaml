@@ -75,6 +75,10 @@ jobs:
   build-and-publish-images:
     needs: [ go-build-test ]
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-ci') && (github.event.action != 'unlabeled' || github.event.label.name == 'skip-ci') }}
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
     secrets: inherit
     uses: ./.github/workflows/release-image.yaml
     with:
