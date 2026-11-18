@@ -1,6 +1,7 @@
 package e2e_tests
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -67,6 +68,68 @@ cp "$TEST_HELM_INSTALLER" ./bin/get_helm.sh
 				require.FileExists(t, "download-called")
 			} else {
 				require.NoFileExists(t, "download-called", "an existing local Helm should be reused")
+			}
+		})
+	}
+}
+
+func TestCheckClusterVersions(t *testing.T) {
+	const server = `{"serverVersion":{"gitVersion":"v1.37.1+k3s1"}}`
+	const node = `{"metadata":{"name":"server-0"},"status":{"nodeInfo":{"kubeletVersion":"v1.37.1+k3s1"}}}`
+	for _, tc := range []struct {
+		name, server, nodes string
+		wantError           bool
+	}{
+		{name: "matching versions", server: server, nodes: `{"items":[` + node + `]}`},
+		{name: "wrong server", server: `{"serverVersion":{"gitVersion":"v1.36.4+k3s1"}}`, nodes: `{"items":[` + node + `]}`, wantError: true},
+		{name: "one wrong node", server: server, nodes: `{"items":[` + node + `,{"metadata":{"name":"agent-0"},"status":{"nodeInfo":{"kubeletVersion":"v1.36.4+k3s1"}}}]}`, wantError: true},
+		{name: "no nodes", server: server, nodes: `{"items":[]}`, wantError: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkClusterVersions("v1.37.1+k3s1", []byte(tc.server), []byte(tc.nodes))
+			if tc.wantError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestPrepareClusterWithKubectlWarnings(t *testing.T) {
+	_, version, err := configuredKubernetesImage()
+	require.NoError(t, err)
+	for _, fail := range []bool{false, true} {
+		t.Run(fmt.Sprintf("command failure=%t", fail), func(t *testing.T) {
+			originalCtx := ctx
+			ctx = TestContext{t: t}
+			t.Cleanup(func() { ctx = originalCtx })
+
+			bin := t.TempDir()
+			t.Setenv("PATH", bin+string(os.PathListSeparator)+"/usr/bin:/bin")
+			t.Setenv("TEST_KUBECTL_FAIL", fmt.Sprint(fail))
+			t.Setenv("TEST_SERVER_JSON", fmt.Sprintf(`{"serverVersion":{"gitVersion":%q}}`, version))
+			t.Setenv("TEST_NODES_JSON", fmt.Sprintf(`{"items":[{"status":{"nodeInfo":{"kubeletVersion":%q}}}]}`, version))
+			require.NoError(t, os.WriteFile(filepath.Join(bin, "k3d"), []byte("#!/bin/sh\nexit 0\n"), 0o755))
+			require.NoError(t, os.WriteFile(filepath.Join(bin, "kubectl"), []byte(`#!/bin/sh
+set -eu
+echo 'Warning: kubectl fixture warning' >&2
+case "$*" in
+  'wait --for=condition=Ready node --all --timeout=2m') ;;
+  'version -o json')
+    printf '%s\n' "$TEST_SERVER_JSON"
+    [ "$TEST_KUBECTL_FAIL" = false ] || exit 42
+    ;;
+  'get nodes -o json') printf '%s\n' "$TEST_NODES_JSON" ;;
+  *) exit 1 ;;
+esac
+`), 0o755))
+
+			err := prepareCluster("warning-fixture", "")
+			if fail {
+				require.ErrorContains(t, err, "kubectl fixture warning")
+			} else {
+				require.NoError(t, err, "stderr warnings must not corrupt valid Kubernetes JSON")
 			}
 		})
 	}
