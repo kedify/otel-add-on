@@ -86,7 +86,10 @@ jobs:
           ' <<< "$reviews" >/dev/null || exit 0
 
           # A completed dispatch job can leave Claude working after the concurrency lock releases.
-          claim="kedifybot-review-$pr-$head"
+          # A new base or qualifying request can replace one that stopped before posting.
+          scope=$(printf '%s\0%s' "$base_ref" "$request_id" | sha256sum)
+          scope=${scope%% *}
+          claim="kedifybot-review-$pr-$head-$scope"
           artifacts=$(github_api --paginate --slurp --method GET "repos/$repo/actions/artifacts" \
             -f name="$claim" -F per_page=100)
           claims=$(jq -r --arg claim "$claim" '
@@ -117,15 +120,16 @@ jobs:
           if (( GITHUB_RUN_ATTEMPT > 1 )); then
             jobs=$(github_api --paginate --slurp --method GET "repos/$repo/actions/runs/$GITHUB_RUN_ID/jobs" \
               -f filter=all -F per_page=100)
-            if jq -e '
+            held=$(jq -r --arg dispatch "Start Claude review $scope" '
               (now - 86400 | todateiso8601) as $cutoff |
               any(.[].jobs[];
-                any(.steps[]; .name == "Start Claude review" and
+                any(.steps[]?; .name == $dispatch and
                   .started_at >= $cutoff and .conclusion != "skipped") and
-                all(.steps[]; .name != "Release rejected review claim" or .conclusion != "success"))
-            ' <<< "$jobs" >/dev/null; then
+                all(.steps[]?; .name != "Release rejected review claim" or .conclusion != "success"))
+            ' <<< "$jobs")
+            if [[ "$held" == true ]]; then
               echo 'An earlier attempt may already have started a Claude review.'
-              printf 'claim=%s\n' "$claim" >> "$GITHUB_OUTPUT"
+              printf 'claim=%s\nscope=%s\n' "$claim" "$scope" >> "$GITHUB_OUTPUT"
               exit 0
             fi
           fi
@@ -135,7 +139,7 @@ jobs:
             {text: ({version: 2, $repo, $action, $pr, $head, $baseRef,
               requestId: (if $requestId == "" then null else $requestId end)} | tojson)}
           ')
-          printf 'claim=%s\npayload=%s\n' "$claim" "$payload" >> "$GITHUB_OUTPUT"
+          printf 'claim=%s\nscope=%s\npayload=%s\n' "$claim" "$scope" "$payload" >> "$GITHUB_OUTPUT"
 
       - name: Prepare review claim
         if: steps.gate.outputs.claim != ''
@@ -164,7 +168,7 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-      - name: Start Claude review
+      - name: Start Claude review ${{ steps.gate.outputs.scope }}
         id: dispatch
         if: steps.gate.outputs.payload != ''
         env:
