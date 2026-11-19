@@ -1,0 +1,106 @@
+name: Kedifybot review
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review, synchronize, review_requested]
+
+permissions:
+  pull-requests: read
+
+concurrency:
+  group: kedifybot-review-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      # This job reads GitHub metadata. It never checks out a repository.
+      - name: Authorize review
+        id: gate
+        env:
+          KEDIFY_PUBLIC_REPO_REVIEW_GITHUB_TOKEN: ${{ github.token }}
+          KEDIFY_PUBLIC_REPO_REVIEW_TEAM_IDS: ${{ secrets.KEDIFY_PUBLIC_REPO_REVIEW_TEAM_IDS }}
+        run: |
+          set -euo pipefail
+          bot=153312683
+          repo=$GITHUB_REPOSITORY
+          [[ $repo =~ ^kedify/[A-Za-z0-9_.-]+$ ]] || exit 0
+          team_ids=$KEDIFY_PUBLIC_REPO_REVIEW_TEAM_IDS
+          if [[ -z $team_ids ]]; then
+            echo 'The Kedify public review roster is unavailable for this run.'
+            exit 0
+          fi
+
+          github_api() {
+            GH_TOKEN="$KEDIFY_PUBLIC_REPO_REVIEW_GITHUB_TOKEN" gh api "$@"
+          }
+
+          action=$(jq -er '.action' "$GITHUB_EVENT_PATH")
+          pr=$(jq -er '.number' "$GITHUB_EVENT_PATH")
+          head=$(jq -er '.pull_request.head.sha' "$GITHUB_EVENT_PATH")
+          [[ $pr =~ ^[1-9][0-9]*$ && $head =~ ^[0-9a-f]{40}$ ]] || exit 1
+          case "$action" in
+            opened|reopened|ready_for_review|synchronize|review_requested) ;;
+            *) exit 0 ;;
+          esac
+          jq -e 'type == "array" and length > 0 and all(.[]; type == "number" and . > 0 and floor == .)' \
+            <<< "$team_ids" >/dev/null
+
+          current=$(github_api "repos/$repo/pulls/$pr")
+          jq -e --arg repo "$repo" --arg head "$head" '
+            .base.repo.full_name == $repo and .base.repo.visibility == "public" and
+            .state == "open" and .draft == false and .head.sha == $head
+          ' <<< "$current" >/dev/null || exit 0
+
+          author=$(jq -er '.user.id' <<< "$current")
+          [[ "$author" != "$bot" ]] || exit 0
+          if jq -e --argjson id "$author" 'index($id) != null' <<< "$team_ids" >/dev/null; then
+            [[ $action != review_requested ]] || exit 0
+          elif [[ $action == review_requested ]]; then
+            jq -e --argjson team "$team_ids" --argjson bot "$bot" '
+              .sender.id as $sender | .requested_reviewer.id == $bot and ($team | index($sender) != null)
+            ' "$GITHUB_EVENT_PATH" >/dev/null || exit 0
+          else
+            events=$(github_api --paginate --slurp "repos/$repo/issues/$pr/timeline?per_page=100")
+            jq -e --argjson team "$team_ids" --argjson bot "$bot" '
+              [.[][] | select(.requested_reviewer.id == $bot) | .review_requester.id as $requester |
+                select(.event == "review_request_removed" or
+                  (.event == "review_requested" and ($team | index($requester) != null)))] |
+              last.event == "review_requested"
+            ' <<< "$events" >/dev/null || exit 0
+          fi
+
+          reviews=$(github_api --paginate --slurp "repos/$repo/pulls/$pr/reviews?per_page=100")
+          jq -e --argjson bot "$bot" --arg head "$head" '
+            all(.[][]; .user.id != $bot or .commit_id != $head or .state != "COMMENTED" or
+              ((.body // "") | contains("<!-- kedifybot:public-review:" + $head + " -->") | not))
+          ' <<< "$reviews" >/dev/null || exit 0
+          printf 'action=%s\npr=%s\nhead=%s\n' "$action" "$pr" "$head" >> "$GITHUB_OUTPUT"
+
+      - name: Start Claude review
+        if: steps.gate.outputs.head != ''
+        env:
+          KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_ID: ${{ secrets.KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_ID }}
+          KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_TOKEN: ${{ secrets.KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_TOKEN }}
+          KEDIFY_PUBLIC_REPO_REVIEW_ACTION: ${{ steps.gate.outputs.action }}
+          KEDIFY_PUBLIC_REPO_REVIEW_PR_NUMBER: ${{ steps.gate.outputs.pr }}
+          KEDIFY_PUBLIC_REPO_REVIEW_HEAD_SHA: ${{ steps.gate.outputs.head }}
+        run: |
+          set -euo pipefail
+          routine_id=$KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_ID
+          routine_token=$KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_TOKEN
+          if [[ ! $routine_id =~ ^trig_[A-Za-z0-9]+$ || -z $routine_token ]]; then
+            echo 'The Claude routine ID or token is missing from this run.' >&2
+            exit 1
+          fi
+          jq -n --arg repo "$GITHUB_REPOSITORY" --arg action "$KEDIFY_PUBLIC_REPO_REVIEW_ACTION" \
+            --argjson pr "$KEDIFY_PUBLIC_REPO_REVIEW_PR_NUMBER" --arg head "$KEDIFY_PUBLIC_REPO_REVIEW_HEAD_SHA" \
+            '{text: ({version: 1, $repo, $action, $pr, $head} | tojson)}' |
+            curl --fail --silent --show-error --max-time 30 --output /dev/null \
+              --header @<(printf 'Authorization: Bearer %s\n' "$routine_token") \
+              --header 'anthropic-version: 2023-06-01' \
+              --header 'anthropic-beta: experimental-cc-routine-2026-04-01' \
+              --header 'content-type: application/json' --data-binary @- \
+              "https://api.anthropic.com/v1/claude_code/routines/$routine_id/fire"
