@@ -30,7 +30,7 @@ jobs:
           [[ $repo =~ ^kedify/[A-Za-z0-9_.-]+$ ]] || exit 0
           team_ids=$KEDIFY_PUBLIC_REPO_REVIEW_TEAM_IDS
           if [[ -z $team_ids ]]; then
-            echo 'The Kedify public review roster is unavailable for this run.'
+            echo '::warning::The Kedify public review roster is unavailable for this run.'
             exit 0
           fi
 
@@ -41,6 +41,7 @@ jobs:
           action=$(jq -er '.action' "$GITHUB_EVENT_PATH")
           pr=$(jq -er '.number' "$GITHUB_EVENT_PATH")
           head=$(jq -er '.pull_request.head.sha' "$GITHUB_EVENT_PATH")
+          base_ref=$(jq -er '.pull_request.base.ref | select(type == "string" and length > 0)' "$GITHUB_EVENT_PATH")
           [[ $pr =~ ^[1-9][0-9]*$ && $head =~ ^[0-9a-f]{40}$ ]] || exit 1
           case "$action" in
             opened|reopened|ready_for_review|synchronize|review_requested) ;;
@@ -50,13 +51,14 @@ jobs:
             <<< "$team_ids" >/dev/null
 
           current=$(github_api "repos/$repo/pulls/$pr")
-          jq -e --arg repo "$repo" --arg head "$head" '
+          jq -e --arg repo "$repo" --arg head "$head" --arg base "$base_ref" '
             .base.repo.full_name == $repo and .base.repo.visibility == "public" and
-            .state == "open" and .draft == false and .head.sha == $head
+            .state == "open" and .draft == false and .head.sha == $head and .base.ref == $base
           ' <<< "$current" >/dev/null || exit 0
 
           author=$(jq -er '.user.id' <<< "$current")
           [[ "$author" != "$bot" ]] || exit 0
+          request_id=
           if jq -e --argjson id "$author" 'index($id) != null' <<< "$team_ids" >/dev/null; then
             [[ $action != review_requested ]] || exit 0
           else
@@ -68,12 +70,13 @@ jobs:
                 <<< "$current" >/dev/null || exit 0
             fi
             events=$(github_api --paginate --slurp "repos/$repo/issues/$pr/timeline?per_page=100")
-            jq -e --argjson team "$team_ids" --argjson bot "$bot" '
+            request_id=$(jq -er --argjson team "$team_ids" --argjson bot "$bot" '
               [.[][] | select(.requested_reviewer.id == $bot) | .review_requester.id as $requester |
                 select(.event == "review_request_removed" or
                   (.event == "review_requested" and ($team | index($requester) != null)))] |
-              last.event == "review_requested"
-            ' <<< "$events" >/dev/null || exit 0
+              last | select(.event == "review_requested") | .node_id |
+              select(type == "string" and length > 0)
+            ' <<< "$events") || exit 0
           fi
 
           reviews=$(github_api --paginate --slurp "repos/$repo/pulls/$pr/reviews?per_page=100")
@@ -86,39 +89,72 @@ jobs:
           claim="kedifybot-review-$pr-$head"
           artifacts=$(github_api --paginate --slurp --method GET "repos/$repo/actions/artifacts" \
             -f name="$claim" -F per_page=100)
-          claim_runs=$(jq -r --arg claim "$claim" '
-            [.[] | .artifacts[] | select(.name == $claim and .expired == false) | .workflow_run.id] |
-            unique[]
+          claims=$(jq -r --arg claim "$claim" '
+            .[].artifacts[] | select(.name == $claim and .expired == false) |
+            [.id, .workflow_run.id] | @tsv
           ' <<< "$artifacts")
-          while IFS= read -r run; do
-            [[ -n "$run" ]] || continue
-            [[ "$run" =~ ^[1-9][0-9]*$ ]] || exit 1
+          while IFS=$'\t' read -r artifact run; do
+            [[ -n "$artifact" ]] || continue
+            [[ "$artifact" =~ ^[1-9][0-9]*$ && "$run" =~ ^[1-9][0-9]*$ ]] || exit 1
             origin=$(github_api "repos/$repo/actions/runs/$run")
-            if jq -e '
-              .event == "pull_request_target" and
+            jq -e --arg repo "$repo" '
+              .repository.full_name == $repo and .event == "pull_request_target" and
               (.path | split("@")[0]) == ".github/workflows/kedifybot-review.yml"
-            ' <<< "$origin" >/dev/null; then
-              echo 'This PR head already has a Claude review claim.'
+            ' <<< "$origin" >/dev/null || continue
+
+            # A receipt releases only the exact claim from the same run.
+            receipt="kedifybot-review-rejected-$artifact"
+            receipts=$(github_api --paginate --slurp --method GET "repos/$repo/actions/runs/$run/artifacts" \
+              -f name="$receipt" -F per_page=100)
+            jq -e --arg receipt "$receipt" '
+              any(.[].artifacts[]; .name == $receipt and .expired == false)
+            ' <<< "$receipts" >/dev/null && continue
+            echo 'This PR head already has a Claude review claim.'
+            exit 0
+          done <<< "$claims"
+
+          # GitHub can discard artifacts when rerunning the same workflow run.
+          if (( GITHUB_RUN_ATTEMPT > 1 )); then
+            jobs=$(github_api --paginate --slurp --method GET "repos/$repo/actions/runs/$GITHUB_RUN_ID/jobs" \
+              -f filter=all -F per_page=100)
+            if jq -e '
+              (now - 86400 | todateiso8601) as $cutoff |
+              any(.[].jobs[];
+                any(.steps[]; .name == "Start Claude review" and
+                  .started_at >= $cutoff and .conclusion != "skipped") and
+                all(.steps[]; .name != "Release rejected review claim" or .conclusion != "success"))
+            ' <<< "$jobs" >/dev/null; then
+              echo 'An earlier attempt may already have started a Claude review.'
+              printf 'claim=%s\n' "$claim" >> "$GITHUB_OUTPUT"
               exit 0
             fi
-          done <<< "$claim_runs"
-          printf 'action=%s\npr=%s\nhead=%s\nclaim=%s\n' "$action" "$pr" "$head" "$claim" >> "$GITHUB_OUTPUT"
+          fi
+
+          payload=$(jq -nc --arg repo "$repo" --arg action "$action" --argjson pr "$pr" \
+            --arg head "$head" --arg baseRef "$base_ref" --arg requestId "$request_id" '
+            {text: ({version: 2, $repo, $action, $pr, $head, $baseRef,
+              requestId: (if $requestId == "" then null else $requestId end)} | tojson)}
+          ')
+          printf 'claim=%s\npayload=%s\n' "$claim" "$payload" >> "$GITHUB_OUTPUT"
 
       - name: Prepare review claim
         if: steps.gate.outputs.claim != ''
         env:
           KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_ID: ${{ secrets.KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_ID }}
           KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_TOKEN: ${{ secrets.KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_TOKEN }}
+          KEDIFY_PUBLIC_REPO_REVIEW_PAYLOAD: ${{ steps.gate.outputs.payload }}
         run: |
           set -euo pipefail
-          if [[ ! $KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_ID =~ ^trig_[A-Za-z0-9]+$ ||
-                -z $KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_TOKEN ]]; then
+          if [[ -n $KEDIFY_PUBLIC_REPO_REVIEW_PAYLOAD &&
+                ( ! $KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_ID =~ ^trig_[A-Za-z0-9]+$ ||
+                -z $KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_TOKEN ) ]]; then
             echo 'The Claude routine ID or token is missing from this run.' >&2
             exit 1
           fi
           printf 'Claude review claimed\n' > "$RUNNER_TEMP/kedifybot-review-claim.txt"
 
       - name: Reserve this PR head
+        id: reserve
         if: steps.gate.outputs.claim != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -129,23 +165,39 @@ jobs:
           overwrite: true
 
       - name: Start Claude review
-        if: steps.gate.outputs.claim != ''
+        id: dispatch
+        if: steps.gate.outputs.payload != ''
         env:
           KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_ID: ${{ secrets.KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_ID }}
           KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_TOKEN: ${{ secrets.KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_TOKEN }}
-          KEDIFY_PUBLIC_REPO_REVIEW_ACTION: ${{ steps.gate.outputs.action }}
-          KEDIFY_PUBLIC_REPO_REVIEW_PR_NUMBER: ${{ steps.gate.outputs.pr }}
-          KEDIFY_PUBLIC_REPO_REVIEW_HEAD_SHA: ${{ steps.gate.outputs.head }}
+          KEDIFY_PUBLIC_REPO_REVIEW_PAYLOAD: ${{ steps.gate.outputs.payload }}
         run: |
           set -euo pipefail
           routine_id=$KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_ID
           routine_token=$KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_TOKEN
-          jq -n --arg repo "$GITHUB_REPOSITORY" --arg action "$KEDIFY_PUBLIC_REPO_REVIEW_ACTION" \
-            --argjson pr "$KEDIFY_PUBLIC_REPO_REVIEW_PR_NUMBER" --arg head "$KEDIFY_PUBLIC_REPO_REVIEW_HEAD_SHA" \
-            '{text: ({version: 1, $repo, $action, $pr, $head} | tojson)}' |
-            curl --fail --silent --show-error --max-time 30 --output /dev/null \
+          if status=$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' \
               --header @<(printf 'Authorization: Bearer %s\n' "$routine_token") \
               --header 'anthropic-version: 2023-06-01' \
               --header 'anthropic-beta: experimental-cc-routine-2026-04-01' \
               --header 'content-type: application/json' --data-binary @- \
-              "https://api.anthropic.com/v1/claude_code/routines/$routine_id/fire"
+              "https://api.anthropic.com/v1/claude_code/routines/$routine_id/fire" \
+              <<< "$KEDIFY_PUBLIC_REPO_REVIEW_PAYLOAD"); then
+            case "$status" in
+              200) exit 0 ;;
+              # The Routine API documents these as rejected requests.
+              400|401|403|404|429) printf 'rejected=true\n' >> "$GITHUB_OUTPUT" ;;
+            esac
+            echo "::error::Claude Routine dispatch returned HTTP $status."
+          else
+            echo '::error::Claude Routine dispatch failed before its outcome could be confirmed.'
+          fi
+          exit 1
+
+      - name: Release rejected review claim
+        if: failure() && steps.dispatch.outputs.rejected == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kedifybot-review-rejected-${{ steps.reserve.outputs.artifact-id }}
+          path: ${{ runner.temp }}/kedifybot-review-claim.txt
+          retention-days: 1
+          if-no-files-found: error
