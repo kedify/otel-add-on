@@ -52,7 +52,7 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: nginx
+          image: nginx:1.30.7
           ports:
             - containerPort: 8080
           volumeMounts:
