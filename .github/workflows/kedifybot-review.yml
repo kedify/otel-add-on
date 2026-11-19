@@ -2,18 +2,20 @@ name: Kedifybot review
 
 on:
   pull_request_target:
-    types: [opened, reopened, ready_for_review, synchronize, review_requested]
+    types: [opened, reopened, ready_for_review, synchronize, review_requested, edited]
 
 permissions:
   actions: read
   pull-requests: read
 
-concurrency:
-  group: kedifybot-review-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
-  cancel-in-progress: false
-
 jobs:
   review:
+    if: >-
+      (github.event.action != 'edited' || github.event.changes.base.ref.from != null) &&
+      (github.event.action != 'review_requested' || github.event.requested_reviewer.id == 153312683)
+    concurrency:
+      group: kedifybot-review-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -43,8 +45,17 @@ jobs:
           head=$(jq -er '.pull_request.head.sha' "$GITHUB_EVENT_PATH")
           base_ref=$(jq -er '.pull_request.base.ref | select(type == "string" and length > 0)' "$GITHUB_EVENT_PATH")
           [[ $pr =~ ^[1-9][0-9]*$ && $head =~ ^[0-9a-f]{40}$ ]] || exit 1
+          transition=
           case "$action" in
-            opened|reopened|ready_for_review|synchronize|review_requested) ;;
+            reopened|ready_for_review) transition=$action ;;
+            edited)
+              jq -e --arg base "$base_ref" '
+                .changes.base.ref.from | type == "string" and length > 0 and . != $base
+              ' "$GITHUB_EVENT_PATH" >/dev/null || exit 0
+              transition=base_ref_changed
+              action=synchronize
+              ;;
+            opened|synchronize|review_requested) ;;
             *) exit 0 ;;
           esac
           jq -e 'type == "array" and length > 0 and all(.[]; type == "number" and . > 0 and floor == .)' \
@@ -59,17 +70,19 @@ jobs:
           author=$(jq -er '.user.id' <<< "$current")
           [[ "$author" != "$bot" ]] || exit 0
           request_id=
-          if jq -e --argjson id "$author" 'index($id) != null' <<< "$team_ids" >/dev/null; then
+          team_author=$(jq -r --argjson id "$author" 'index($id) != null' <<< "$team_ids")
+          if [[ "$team_author" == true ]]; then
             [[ $action != review_requested ]] || exit 0
-          else
-            if [[ $action == review_requested ]]; then
-              jq -e --argjson team "$team_ids" --argjson bot "$bot" '
-                .sender.id as $sender | .requested_reviewer.id == $bot and ($team | index($sender) != null)
-              ' "$GITHUB_EVENT_PATH" >/dev/null || exit 0
-              jq -e --argjson bot "$bot" 'any(.requested_reviewers[]?; .id == $bot)' \
-                <<< "$current" >/dev/null || exit 0
-            fi
-            events=$(github_api --paginate --slurp "repos/$repo/issues/$pr/timeline?per_page=100")
+          elif [[ $action == review_requested ]]; then
+            jq -e --argjson team "$team_ids" --argjson bot "$bot" '
+              .sender.id as $sender | .requested_reviewer.id == $bot and ($team | index($sender) != null)
+            ' "$GITHUB_EVENT_PATH" >/dev/null || exit 0
+            jq -e --argjson bot "$bot" 'any(.requested_reviewers[]?; .id == $bot)' \
+              <<< "$current" >/dev/null || exit 0
+          fi
+
+          events=$(github_api --paginate --slurp "repos/$repo/issues/$pr/timeline?per_page=100")
+          if [[ "$team_author" != true ]]; then
             request_id=$(jq -er --argjson team "$team_ids" --argjson bot "$bot" '
               [.[][] | select(.requested_reviewer.id == $bot) | .review_requester.id as $requester |
                 select(.event == "review_request_removed" or
@@ -79,6 +92,17 @@ jobs:
             ' <<< "$events") || exit 0
           fi
 
+          lifecycle=$(jq -c '
+            [.[][] | select(.event | IN("ready_for_review", "reopened", "base_ref_changed", "convert_to_draft", "closed"))] | last
+          ' <<< "$events")
+          if [[ -n "$transition" ]] && ! jq -e --arg type "$transition" --slurpfile event "$GITHUB_EVENT_PATH" '
+            .event == $type and .actor.id == $event[0].sender.id
+          ' <<< "$lifecycle" >/dev/null; then
+            echo '::error::The latest PR transition differs from the trigger. If it has not appeared in the timeline yet, rerun after it appears.'
+            exit 1
+          fi
+          lifecycle_id=$(jq -c '.node_id' <<< "$lifecycle")
+
           reviews=$(github_api --paginate --slurp "repos/$repo/pulls/$pr/reviews?per_page=100")
           jq -e --argjson bot "$bot" --arg head "$head" '
             all(.[][]; .user.id != $bot or .commit_id != $head or .state != "COMMENTED" or
@@ -86,10 +110,23 @@ jobs:
           ' <<< "$reviews" >/dev/null || exit 0
 
           # A completed dispatch job can leave Claude working after the concurrency lock releases.
-          # A new base or qualifying request can replace one that stopped before posting.
-          scope=$(printf '%s\0%s' "$base_ref" "$request_id" | sha256sum)
+          # A new base, ready transition, or qualifying request can replace a stopped review.
+          scope=$(printf '%s\0%s\0%s' "$base_ref" "$request_id" "$lifecycle_id" | sha256sum)
           scope=${scope%% *}
           claim="kedifybot-review-$pr-$head-$scope"
+
+          review_attempts() {
+            github_api --paginate --slurp --method GET "repos/$repo/actions/runs/$1/jobs" \
+              -f filter=all -F per_page=100 |
+              jq -c --arg dispatch "Start Claude review $scope" '
+                (now - 86400 | todateiso8601) as $cutoff | [.[].jobs[]] as $jobs |
+                {complete: ($jobs | length > 0 and all(.[]; .status == "completed" and (.steps | type == "array" and length > 0))),
+                 held: any($jobs[];
+                   any(.steps[]?; .name == $dispatch and .started_at >= $cutoff and .conclusion != "skipped") and
+                   all(.steps[]?; .name != "Release rejected review claim" or .conclusion != "success"))}
+              '
+          }
+
           artifacts=$(github_api --paginate --slurp --method GET "repos/$repo/actions/artifacts" \
             -f name="$claim" -F per_page=100)
           claims=$(jq -r --arg claim "$claim" '
@@ -112,22 +149,20 @@ jobs:
             jq -e --arg receipt "$receipt" '
               any(.[].artifacts[]; .name == $receipt and .expired == false)
             ' <<< "$receipts" >/dev/null && continue
+
+            # A completed job that never reached dispatch can leave an unused claim.
+            if jq -e '.status == "completed" and .conclusion != "success"' <<< "$origin" >/dev/null; then
+              attempts=$(review_attempts "$run")
+              jq -e '.complete and (.held | not)' <<< "$attempts" >/dev/null && continue
+            fi
             echo 'This PR head already has a Claude review claim.'
             exit 0
           done <<< "$claims"
 
           # GitHub can discard artifacts when rerunning the same workflow run.
           if (( GITHUB_RUN_ATTEMPT > 1 )); then
-            jobs=$(github_api --paginate --slurp --method GET "repos/$repo/actions/runs/$GITHUB_RUN_ID/jobs" \
-              -f filter=all -F per_page=100)
-            held=$(jq -r --arg dispatch "Start Claude review $scope" '
-              (now - 86400 | todateiso8601) as $cutoff |
-              any(.[].jobs[];
-                any(.steps[]?; .name == $dispatch and
-                  .started_at >= $cutoff and .conclusion != "skipped") and
-                all(.steps[]?; .name != "Release rejected review claim" or .conclusion != "success"))
-            ' <<< "$jobs")
-            if [[ "$held" == true ]]; then
+            attempts=$(review_attempts "$GITHUB_RUN_ID")
+            if jq -e '.held' <<< "$attempts" >/dev/null; then
               echo 'An earlier attempt may already have started a Claude review.'
               printf 'claim=%s\nscope=%s\n' "$claim" "$scope" >> "$GITHUB_OUTPUT"
               exit 0
@@ -135,8 +170,9 @@ jobs:
           fi
 
           payload=$(jq -nc --arg repo "$repo" --arg action "$action" --argjson pr "$pr" \
-            --arg head "$head" --arg baseRef "$base_ref" --arg requestId "$request_id" '
-            {text: ({version: 2, $repo, $action, $pr, $head, $baseRef,
+            --arg head "$head" --arg baseRef "$base_ref" --arg requestId "$request_id" \
+            --argjson lifecycleId "$lifecycle_id" '
+            {text: ({version: 3, $repo, $action, $pr, $head, $baseRef, $lifecycleId,
               requestId: (if $requestId == "" then null else $requestId end)} | tojson)}
           ')
           printf 'claim=%s\nscope=%s\npayload=%s\n' "$claim" "$scope" "$payload" >> "$GITHUB_OUTPUT"
