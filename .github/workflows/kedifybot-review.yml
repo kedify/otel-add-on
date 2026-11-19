@@ -5,6 +5,7 @@ on:
     types: [opened, reopened, ready_for_review, synchronize, review_requested]
 
 permissions:
+  actions: read
   pull-requests: read
 
 concurrency:
@@ -58,11 +59,14 @@ jobs:
           [[ "$author" != "$bot" ]] || exit 0
           if jq -e --argjson id "$author" 'index($id) != null' <<< "$team_ids" >/dev/null; then
             [[ $action != review_requested ]] || exit 0
-          elif [[ $action == review_requested ]]; then
-            jq -e --argjson team "$team_ids" --argjson bot "$bot" '
-              .sender.id as $sender | .requested_reviewer.id == $bot and ($team | index($sender) != null)
-            ' "$GITHUB_EVENT_PATH" >/dev/null || exit 0
           else
+            if [[ $action == review_requested ]]; then
+              jq -e --argjson team "$team_ids" --argjson bot "$bot" '
+                .sender.id as $sender | .requested_reviewer.id == $bot and ($team | index($sender) != null)
+              ' "$GITHUB_EVENT_PATH" >/dev/null || exit 0
+              jq -e --argjson bot "$bot" 'any(.requested_reviewers[]?; .id == $bot)' \
+                <<< "$current" >/dev/null || exit 0
+            fi
             events=$(github_api --paginate --slurp "repos/$repo/issues/$pr/timeline?per_page=100")
             jq -e --argjson team "$team_ids" --argjson bot "$bot" '
               [.[][] | select(.requested_reviewer.id == $bot) | .review_requester.id as $requester |
@@ -77,10 +81,55 @@ jobs:
             all(.[][]; .user.id != $bot or .commit_id != $head or .state != "COMMENTED" or
               ((.body // "") | contains("<!-- kedifybot:public-review:" + $head + " -->") | not))
           ' <<< "$reviews" >/dev/null || exit 0
-          printf 'action=%s\npr=%s\nhead=%s\n' "$action" "$pr" "$head" >> "$GITHUB_OUTPUT"
+
+          # A completed dispatch job can leave Claude working after the concurrency lock releases.
+          claim="kedifybot-review-$pr-$head"
+          artifacts=$(github_api --paginate --slurp --method GET "repos/$repo/actions/artifacts" \
+            -f name="$claim" -F per_page=100)
+          claim_runs=$(jq -r --arg claim "$claim" '
+            [.[] | .artifacts[] | select(.name == $claim and .expired == false) | .workflow_run.id] |
+            unique[]
+          ' <<< "$artifacts")
+          while IFS= read -r run; do
+            [[ -n "$run" ]] || continue
+            [[ "$run" =~ ^[1-9][0-9]*$ ]] || exit 1
+            origin=$(github_api "repos/$repo/actions/runs/$run")
+            if jq -e '
+              .event == "pull_request_target" and
+              (.path | split("@")[0]) == ".github/workflows/kedifybot-review.yml"
+            ' <<< "$origin" >/dev/null; then
+              echo 'This PR head already has a Claude review claim.'
+              exit 0
+            fi
+          done <<< "$claim_runs"
+          printf 'action=%s\npr=%s\nhead=%s\nclaim=%s\n' "$action" "$pr" "$head" "$claim" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare review claim
+        if: steps.gate.outputs.claim != ''
+        env:
+          KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_ID: ${{ secrets.KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_ID }}
+          KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_TOKEN: ${{ secrets.KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ ! $KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_ID =~ ^trig_[A-Za-z0-9]+$ ||
+                -z $KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_TOKEN ]]; then
+            echo 'The Claude routine ID or token is missing from this run.' >&2
+            exit 1
+          fi
+          printf 'Claude review claimed\n' > "$RUNNER_TEMP/kedifybot-review-claim.txt"
+
+      - name: Reserve this PR head
+        if: steps.gate.outputs.claim != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.gate.outputs.claim }}
+          path: ${{ runner.temp }}/kedifybot-review-claim.txt
+          retention-days: 1
+          if-no-files-found: error
+          overwrite: true
 
       - name: Start Claude review
-        if: steps.gate.outputs.head != ''
+        if: steps.gate.outputs.claim != ''
         env:
           KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_ID: ${{ secrets.KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_ID }}
           KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_TOKEN: ${{ secrets.KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_TOKEN }}
@@ -91,10 +140,6 @@ jobs:
           set -euo pipefail
           routine_id=$KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_ID
           routine_token=$KEDIFY_PUBLIC_REPO_REVIEW_CLAUDE_ROUTINE_TOKEN
-          if [[ ! $routine_id =~ ^trig_[A-Za-z0-9]+$ || -z $routine_token ]]; then
-            echo 'The Claude routine ID or token is missing from this run.' >&2
-            exit 1
-          fi
           jq -n --arg repo "$GITHUB_REPOSITORY" --arg action "$KEDIFY_PUBLIC_REPO_REVIEW_ACTION" \
             --argjson pr "$KEDIFY_PUBLIC_REPO_REVIEW_PR_NUMBER" --arg head "$KEDIFY_PUBLIC_REPO_REVIEW_HEAD_SHA" \
             '{text: ({version: 1, $repo, $action, $pr, $head} | tojson)}' |
