@@ -61,11 +61,14 @@ jobs:
           jq -e 'type == "array" and length > 0 and all(.[]; type == "number" and . > 0 and floor == .)' \
             <<< "$team_ids" >/dev/null
 
+          matches_pr() {
+            jq -e --arg repo "$repo" --arg head "$head" --arg base "$base_ref" '
+              .base.repo.full_name == $repo and .base.repo.visibility == "public" and
+              .state == "open" and .draft == false and .head.sha == $head and .base.ref == $base
+            ' >/dev/null
+          }
           current=$(github_api "repos/$repo/pulls/$pr")
-          jq -e --arg repo "$repo" --arg head "$head" --arg base "$base_ref" '
-            .base.repo.full_name == $repo and .base.repo.visibility == "public" and
-            .state == "open" and .draft == false and .head.sha == $head and .base.ref == $base
-          ' <<< "$current" >/dev/null || exit 0
+          matches_pr <<< "$current" || exit 0
 
           author=$(jq -er '.user.id' <<< "$current")
           [[ "$author" != "$bot" ]] || exit 0
@@ -77,36 +80,66 @@ jobs:
             jq -e --argjson team "$team_ids" --argjson bot "$bot" '
               .sender.id as $sender | .requested_reviewer.id == $bot and ($team | index($sender) != null)
             ' "$GITHUB_EVENT_PATH" >/dev/null || exit 0
-            jq -e --argjson bot "$bot" 'any(.requested_reviewers[]?; .id == $bot)' \
-              <<< "$current" >/dev/null || exit 0
           fi
 
-          events=$(github_api --paginate --slurp "repos/$repo/issues/$pr/timeline?per_page=100")
-          if [[ "$team_author" != true ]]; then
-            request_id=$(jq -er --argjson team "$team_ids" --argjson bot "$bot" '
-              [.[][] | select(.requested_reviewer.id == $bot) | .review_requester.id as $requester |
-                select(.event == "review_request_removed" or
-                  (.event == "review_requested" and ($team | index($requester) != null)))] |
-              last | select(.event == "review_requested") | .node_id |
-              select(type == "string" and length > 0)
-            ' <<< "$events") || exit 0
-          fi
+          for delay in 0 5 10 15; do
+            if (( delay > 0 )); then
+              sleep "$delay"
+              current=$(github_api "repos/$repo/pulls/$pr")
+              matches_pr <<< "$current" || exit 0
+            fi
+            if [[ "$action" == review_requested ]]; then
+              jq -e --argjson bot "$bot" 'any(.requested_reviewers[]?; .id == $bot)' \
+                <<< "$current" >/dev/null || exit 0
+            fi
+            events=$(github_api --paginate --slurp "repos/$repo/issues/$pr/timeline?per_page=100")
+            if [[ "$team_author" != true ]]; then
+              if ! request_id=$(jq -er --argjson team "$team_ids" --argjson bot "$bot" '
+                [.[][] | select(.requested_reviewer.id == $bot) | .review_requester.id as $requester |
+                  select(.event == "review_request_removed" or
+                    (.event == "review_requested" and ($team | index($requester) != null)))] |
+                last | select(.event == "review_requested") | .node_id |
+                select(type == "string" and length > 0)
+              ' <<< "$events"); then
+                [[ "$action" == review_requested ]] || exit 0
+                (( delay < 15 )) && continue
+                echo '::error::The active review request did not appear in the timeline after 30 seconds. Rerun once it appears.'
+                exit 1
+              fi
+            fi
 
-          lifecycle=$(jq -c '
-            [.[][] | select(.event | IN("ready_for_review", "reopened", "base_ref_changed", "convert_to_draft", "closed"))] | last
-          ' <<< "$events")
-          if [[ -n "$transition" ]] && ! jq -e --arg type "$transition" --slurpfile event "$GITHUB_EVENT_PATH" '
-            .event == $type and .actor.id == $event[0].sender.id
-          ' <<< "$lifecycle" >/dev/null; then
-            echo '::error::The latest PR transition differs from the trigger. If it has not appeared in the timeline yet, rerun after it appears.'
-            exit 1
-          fi
+            lifecycle=$(jq -c '
+              [.[][] | select(.event | IN("ready_for_review", "reopened", "base_ref_changed", "convert_to_draft", "closed"))] | last
+            ' <<< "$events")
+            # Allow older matching timeline entries time to be replaced without making updated_at a hard cutoff.
+            if [[ -z "$transition" ]] || jq -e --arg type "$transition" --argjson delay "$delay" \
+              --slurpfile event "$GITHUB_EVENT_PATH" '
+                def epoch: try fromdateiso8601 catch 0;
+                .event == $type and .actor.id == $event[0].sender.id and
+                  ($delay == 15 or ((.created_at | epoch) >= (($event[0].pull_request.updated_at | epoch) - 5)))
+              ' <<< "$lifecycle" >/dev/null; then
+              break
+            fi
+            if (( delay == 15 )); then
+              echo '::error::The latest PR transition did not match the trigger after 30 seconds. Rerun once it appears in the timeline.'
+              exit 1
+            fi
+          done
           lifecycle_id=$(jq -c '.node_id' <<< "$lifecycle")
 
+          retarget=$(jq -c '[.[][] | select(.event == "base_ref_changed")] | last' <<< "$events")
+          retarget_id=$(jq -r '.node_id // ""' <<< "$retarget")
+          retarget_at=$(jq -r '.created_at // ""' <<< "$retarget")
+          base_key=$(printf '%s\0%s' "$base_ref" "$retarget_id" | sha256sum)
+          base_key=${base_key%% *}
+          marker="<!-- kedifybot:public-review:$head:$base_key -->"
+          legacy_marker="<!-- kedifybot:public-review:$head -->"
           reviews=$(github_api --paginate --slurp "repos/$repo/pulls/$pr/reviews?per_page=100")
-          jq -e --argjson bot "$bot" --arg head "$head" '
-            all(.[][]; .user.id != $bot or .commit_id != $head or .state != "COMMENTED" or
-              ((.body // "") | contains("<!-- kedifybot:public-review:" + $head + " -->") | not))
+          jq -e --argjson bot "$bot" --arg head "$head" --arg marker "$marker" \
+            --arg legacy "$legacy_marker" --arg retarget_at "$retarget_at" '
+            any(.[][]; .user.id == $bot and .commit_id == $head and .state == "COMMENTED" and
+              ((.body // "") as $body | ($body | contains($marker)) or
+                (($body | contains($legacy)) and ($retarget_at == "" or (.submitted_at // "") > $retarget_at)))) | not
           ' <<< "$reviews" >/dev/null || exit 0
 
           # A completed dispatch job can leave Claude working after the concurrency lock releases.
