@@ -136,6 +136,77 @@ tweak the OTel collector config. This has the benefit that it will also enable i
 repeat yourself. However, if you want to provide the full OTel collector configuration, you can do that by putting it under `alternateOtelConfig` (again CR level or default template).
 When `alternateOtelConfig` is set, all the `alternate{Receivers,Exporters,Processors,Extensions,Pipelines}` are ignored.
 
+## High availability
+
+HA is disabled by default. Enable active-active replicas with:
+
+```bash
+helm upgrade --install keda-otel-scaler ./helmchart/otel-add-on -n keda \
+  --set settings.ha.enabled=true \
+  --set settings.ha.replicas=3
+```
+
+When testing the source chart before a release, set `image.tag` to an image built
+with HA support. The default image continues to follow `Chart.appVersion`.
+
+HA replaces the scaler Deployment with a StatefulSet; `settings.ha.replicas`
+(default `3`) controls its size instead of `replicaCount`. It creates two Services:
+
+| Service | Ports | Readiness |
+| --- | --- | --- |
+| Existing name | KEDA gRPC `4318`, metrics `8080`, REST `9090`, optional profiler | Selects ready Pods |
+| Existing name plus `-h` | OTLP/gRPC `4317` | Headless; `publishNotReadyAddresses: true` |
+
+The existing Service name uses `service.name`, then `fullnameOverride`, then the
+release name. Port and namespace overrides continue to apply. For release
+`keda-otel-scaler` in namespace `keda`, the three ingestion endpoints are
+`keda-otel-scaler-{0,1,2}.keda-otel-scaler-h.keda.svc:4317`. KEDA keeps its existing
+`scalerAddress: keda-otel-scaler.keda.svc:4318`. Service balancing happens when
+connections are established; an existing gRPC connection can stay on one replica.
+
+The chart automatically fans out metrics from the bundled Collector's `otlp`
+exporter and operator-managed Collectors' `otlp/keda` exporter. Each replica gets
+its own exporter, asynchronous queue and retries. TLS, authentication, compression,
+timeouts, and queue/retry tuning are copied from the original exporter. TLS keeps
+the original endpoint hostname as its server identity unless an explicit
+`tls.server_name_override` or gRPC `authority` is supplied. HA enables
+queues and retries and disables waiting/blocking on queue overflow, so an
+unavailable replica does not block delivery to its peers. Queues remain bounded.
+Unrelated exporters and pipelines, including forwarding Collectors, are preserved.
+Custom configurations must retain these scaler exporter IDs for automatic fanout.
+For external Collectors or an existing Collector ConfigMap, configure one exporter
+per StatefulSet replica and enable all of them in the metrics pipeline yourself.
+
+HA requires eager metric series and aggregates: leave `settings.metricStore.lazySeries`
+and `lazyAggregates` disabled. The chart rejects lazy collection with HA because
+queries on one replica cannot subscribe the others to the same data.
+
+Only HA switches the readiness probe to `/readyz`; liveness stays on `/info`.
+Readiness waits for fresh ingestion, samples at distinct timestamps, and a warmup
+period. `settings.ha.warmupSeconds: 0` uses `settings.metricStore.retentionSeconds`;
+an explicit positive value overrides it. Ingestion remains reachable throughout
+warmup. A loss of fresh samples makes the replica unready and requires warmup
+again when ingestion resumes. Clearing the store or garbage-collecting its last
+series also restarts warmup. Choose a warmup that covers the queries' history.
+
+KEDA metric/activation calls return `Unavailable` during warmup or when a query has
+no fresh matching data, including when `errIfNotFound` is false. The KEDA gRPC listener
+opens after warmup and is drained and closed whenever the replica becomes unready,
+so existing clients can reconnect through the Service to another replica. OTLP
+ingestion stays open. Windowed queries also check the matching
+series' own warmup and require distinct sample timestamps; `last_one` only needs
+a fresh sample once the replica has warmed. These checks cover existing gRPC
+connections, which are not immediately removed by a readiness change. An activation
+stream ends with an error if the replica becomes unready. This is a conservative
+history check; it does not establish that every expected producer has reported.
+
+Each replica holds its own in-memory history; it recovers by receiving fresh metrics.
+Switching between Deployment and StatefulSet replaces the workload controller and
+does not transfer history. Use `affinity` to spread scaler Pods across nodes and
+keep the Collector path redundant too; see [the OTLP push example](../../examples/ha/scaler-ha-values.yaml).
+When HA is disabled, the Deployment, Services, collector configuration and probes
+render exactly as before.
+
 ## Garbage collection
 
 `settings.gcStaleAfterMinutes` defaults to `10`. Set it with, for example,

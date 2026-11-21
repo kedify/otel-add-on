@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -67,6 +68,7 @@ func Init(restApiPort int, info prometheus.Labels, ms types.MemStore, isDebug bo
 	router.POST("/memstore/query", a.query)
 	router.POST("/memstore/reset", a.reset)
 	router.GET("/info", a.getInfo)
+	router.GET("/readyz", a.getReadiness)
 	a.lggr.Info(fmt.Sprintf("Swagger docs available at: http://localhost:%d", restApiPort))
 	return router.Run(fmt.Sprintf(":%d", restApiPort))
 }
@@ -84,6 +86,9 @@ func (a api) reset(c *gin.Context) {
 	metricNames := a.getMetricNamesInternal()
 	for _, m := range metricNames {
 		a.ms.GetStore().Delete(m)
+	}
+	if store, ok := a.ms.(interface{ ResetReadiness() }); ok {
+		store.ResetReadiness()
 	}
 
 	c.IndentedJSON(http.StatusOK, OperationResult{
@@ -125,7 +130,11 @@ func (a api) query(c *gin.Context) {
 	metric.Metrics().TouchMetricValues(metricNames, request.Query, string(opOverTime), "expression", "", "")
 	value, found, err := query.Evaluate(a.ms, opOverTime)
 	if err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		code := http.StatusBadRequest
+		if errors.Is(err, metric.ErrHistoryNotReady) {
+			code = http.StatusServiceUnavailable
+		}
+		c.IndentedJSON(code, gin.H{"error": err.Error()})
 		return
 	}
 	if !found {
@@ -214,4 +223,14 @@ func (a api) getMetricData(c *gin.Context) {
 // @Router /info [get]
 func (a api) getInfo(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, a.info)
+}
+
+func (a api) getReadiness(c *gin.Context) {
+	if store, ok := a.ms.(interface{ Ready() error }); ok {
+		if err := store.Ready(); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"ready": false, "reason": err.Error()})
+			return
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"ready": true})
 }

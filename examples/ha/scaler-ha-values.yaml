@@ -1,0 +1,23 @@
+settings:
+  ha:
+    enabled: true
+    replicas: 3
+    # 0 waits for metricStore.retentionSeconds after fresh ingestion starts.
+    warmupSeconds: 0
+
+# Applications push OTLP metrics to otelcol:4317. Each Collector independently
+# broadcasts its received metrics to all three scaler replicas.
+otelCollector:
+  enabled: true
+  mode: deployment
+  replicaCount: 2
+  alternateConfig:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+    service:
+      pipelines:
+        metrics:
+          receivers: [otlp]

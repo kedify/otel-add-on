@@ -28,6 +28,14 @@
     "settings": {
       "type": "object",
       "properties": {
+        "ha": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "replicas": { "type": "integer", "minimum": 1 },
+            "warmupSeconds": { "type": "integer", "minimum": 0, "maximum": 2147483647 }
+          }
+        },
         "gcStaleAfterMinutes": {
           "type": "integer",
           "minimum": 0,

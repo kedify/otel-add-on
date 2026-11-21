@@ -14,6 +14,12 @@ The application consists of three parts:
 - simple metric storage
 - external scaler for KEDA
 
+#### High availability
+
+Enable active-active scaler replicas with `--set settings.ha.enabled=true --set settings.ha.replicas=3`.
+HA is disabled by default. See the [HA configuration and readiness behavior](helmchart/otel-add-on/README.md#high-availability)
+and the [example with redundant OTLP Collectors](examples/ha/scaler-ha-values.yaml).
+
 #### Receiver
 
 This component is implementation of OTLP Receiver [spec](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/opencensusreceiver),

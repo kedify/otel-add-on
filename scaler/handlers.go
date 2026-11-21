@@ -5,6 +5,7 @@ package scaler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -16,6 +17,8 @@ import (
 	"github.com/kedify/otel-add-on/metric"
 	"github.com/kedify/otel-add-on/types"
 	"github.com/kedify/otel-add-on/util"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -183,6 +186,13 @@ func (e *impl) GetMetrics(
 
 func (e *impl) getMetric(sor *externalscaler.ScaledObjectRef) (float64, error) {
 	lggr := e.lggr.WithName("getMetric")
+	if e.cfg.HAEnabled {
+		if store, ok := e.metricStore.(interface{ Ready() error }); ok {
+			if err := store.Ready(); err != nil {
+				return 0, status.Error(codes.Unavailable, err.Error())
+			}
+		}
+	}
 	query, err := util.GetMetricQuery(lggr, sor.GetScalerMetadata(), e.metricParser)
 	if err != nil {
 		return e.cfg.MetricStoreValueIfNotFound, err
@@ -194,9 +204,15 @@ func (e *impl) getMetric(sor *externalscaler.ScaledObjectRef) (float64, error) {
 	value, found, err := query.Evaluate(e.metricStore, opOverTime)
 	lggr.Info("got metric value: ", "query", sor.GetScalerMetadata()[util.MetadataMetricQuery], "value", value, "found", found, "error", err)
 	if err != nil {
+		if e.cfg.HAEnabled && errors.Is(err, metric.ErrHistoryNotReady) {
+			return 0, status.Error(codes.Unavailable, err.Error())
+		}
 		return e.cfg.MetricStoreValueIfNotFound, err
 	}
 	if !found {
+		if e.cfg.HAEnabled {
+			return 0, status.Error(codes.Unavailable, "HA query has no fresh matching metric samples")
+		}
 		if e.cfg.MetricStoreErrIfNotFound {
 			return e.cfg.MetricStoreValueIfNotFound, fmt.Errorf("not found")
 		}

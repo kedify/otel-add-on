@@ -26,12 +26,22 @@ type ms struct {
 	lazyAggregates     bool
 	valIfNotFound      float64
 	subscriptions      map[t.MetricName][]t.OperationOverTime
+	ha                 *haReadiness
 }
 
 func NewMetricStore(cfg *util.Config) t.MemStore {
 	m := Metrics()
 	m.Init()
+	var ha *haReadiness
+	if cfg.HAEnabled {
+		warmup := cfg.HAWarmupSeconds
+		if warmup == 0 {
+			warmup = cfg.MetricStoreRetentionSeconds
+		}
+		ha = &haReadiness{warmup: time.Duration(warmup) * time.Second, now: time.Now}
+	}
 	return ms{
+		ha:                 ha,
 		mu:                 &sync.RWMutex{},
 		store:              &t.Map[string, *t.Map[t.LabelsHash, *t.MetricData]]{},
 		stalePeriodSeconds: cfg.MetricStoreRetentionSeconds,
@@ -63,6 +73,9 @@ func (m ms) get(name t.MetricName, searchLabels t.LabelMatchers, timeOp t.Operat
 	}
 	var value float64
 	for i, sample := range series {
+		if sample.HistoryError != nil {
+			return m.valIfNotFound, false, sample.HistoryError
+		}
 		value = calculateAggregate(sample.Value, i+1, value, vecOp)
 	}
 	return value, true, nil
@@ -86,7 +99,11 @@ func (m ms) GetSeries(unescapedName t.MetricName, searchLabels t.LabelMatchers, 
 	if !found {
 		return nil, nil
 	}
-	now := time.Now().Unix()
+	nowTime := time.Now()
+	if m.ha != nil {
+		nowTime = m.ha.now()
+	}
+	now := nowTime.Unix()
 	var result []t.Series
 	storedMetrics.Range(func(key t.LabelsHash, md *t.MetricData) bool {
 		if m.isStale(md.LastUpdate, now) {
@@ -96,8 +113,12 @@ func (m ms) GetSeries(unescapedName t.MetricName, searchLabels t.LabelMatchers, 
 		if !searchLabels.Matches(md.Labels) {
 			return true
 		}
+		var historyErr error
+		if m.ha != nil {
+			historyErr = m.checkHistory(md, timeOp, nowTime)
+		}
 		if value, found := md.AggregatesOverTime.Load(timeOp); found {
-			result = append(result, t.Series{Labels: maps.Clone(md.Labels), Value: value})
+			result = append(result, t.Series{Labels: maps.Clone(md.Labels), Value: value, HistoryError: historyErr})
 		}
 		return true
 	})
@@ -108,6 +129,13 @@ func (m ms) GetSeries(unescapedName t.MetricName, searchLabels t.LabelMatchers, 
 func (m ms) Put(entry t.NewMetricEntry) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	now := time.Now()
+	if m.ha != nil {
+		now = m.ha.now()
+		if !m.freshHASample(entry, now) {
+			return
+		}
+	}
 	name := escapeName(entry.Name)
 	if (m.lazySeries || m.lazyAggregates) && len(m.subscriptions[name]) == 0 {
 		// nobody has been listening yet
@@ -117,11 +145,13 @@ func (m ms) Put(entry t.NewMetricEntry) {
 	labelsH := hashOfMap(entry.Labels)
 	md, found := metrics.LoadOrStore(labelsH, newFirstMetricDatapoint(entry, m.lazyAggregates))
 	m.metricsExporter.IncMetricWrite(string(name))
-	now := time.Now()
 	if found {
 		// Publish a new snapshot so readers of GetStore never see mutations.
 		previous := md
-		md = &t.MetricData{Labels: previous.Labels, Data: previous.Data, LastWrite: now}
+		md = &t.MetricData{Labels: previous.Labels, Data: previous.Data, LastWrite: now, FirstWrite: previous.FirstWrite}
+		if m.ha != nil && m.isStale(previous.LastUpdate, now.Unix()) {
+			md.FirstWrite = now
+		}
 		previous.AggregatesOverTime.Range(func(op t.OperationOverTime, value float64) bool {
 			md.AggregatesOverTime.Store(op, value)
 			return true
@@ -136,6 +166,13 @@ func (m ms) Put(entry t.NewMetricEntry) {
 		})
 		m.updateAggregatesOverTime(md, name)
 		md.LastUpdate = timeInSeconds
+	}
+	if m.ha != nil {
+		if !found {
+			md.FirstWrite = now
+			md.LastWrite = now
+		}
+		m.observeHA(entry, now)
 	}
 	metrics.Store(labelsH, md)
 	m.store.Store(string(name), metrics)
@@ -167,6 +204,9 @@ func (m ms) CollectStale(now time.Time, staleAfter time.Duration) int {
 		}
 		return true
 	})
+	if m.ha != nil && removed > 0 {
+		m.resetHAIfEmpty()
+	}
 	return removed
 }
 
@@ -277,6 +317,7 @@ func newFirstMetricDatapoint(entry t.NewMetricEntry, lazyAggregates bool) *t.Met
 		Labels:     maps.Clone(entry.Labels),
 		LastUpdate: timeInSeconds,
 		LastWrite:  time.Now(),
+		FirstWrite: time.Now(),
 		Data: []t.ObservedValue{
 			{
 				Time:  timeInSeconds,

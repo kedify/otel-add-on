@@ -70,7 +70,10 @@ jobs:
         run: make build
 
       - name: Test
-        run: make test
+        run: |
+          helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+          helm dependency build helmchart/otel-add-on
+          make test
 
   build-and-publish-images:
     needs: [ go-build-test ]
