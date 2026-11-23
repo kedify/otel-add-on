@@ -1,0 +1,47 @@
+settings:
+  ha:
+    enabled: true
+    replicas: 3
+  metricStore:
+    retentionSeconds: 15
+
+resources:
+  requests:
+    cpu: 100m
+
+otelCollector:
+  clusterRole:
+    create: true
+    rules: &scrapeRules
+      - apiGroups: [""]
+        resources: [pods]
+        verbs: [get, list, watch]
+  alternateConfig:
+    receivers:
+      prometheus:
+        config:
+          scrape_configs: &podinfoScrapeConfigs
+            - job_name: podinfo
+              scrape_interval: 2s
+              kubernetes_sd_configs:
+                - role: pod
+                  namespaces:
+                    own_namespace: true
+              relabel_configs:
+                - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name, __meta_kubernetes_pod_container_port_number]
+                  regex: podinfo;9797
+                  action: keep
+    service:
+      pipelines:
+        metrics:
+          receivers: [prometheus]
+          exporters: [otlp]
+
+otelOperatorCrDefaultTemplate:
+  serviceAccount:
+    create: true
+    name: podinfo-scraper
+  clusterRole:
+    create: true
+    rules: *scrapeRules
+  prometheusScrapeConfigs: *podinfoScrapeConfigs
