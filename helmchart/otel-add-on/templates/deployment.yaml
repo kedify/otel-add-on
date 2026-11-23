@@ -124,7 +124,7 @@ spec:
           readinessProbe:
             httpGet:
               port: {{ .Values.settings.restApiPort }}
-              path: {{ if $ha.enabled }}/readyz{{ else }}/info{{ end }}
+              path: {{ if and $ha.enabled (not (include "atLeastOneOperatorCr" .)) }}/readyz{{ else }}/info{{ end }}
             timeoutSeconds: 1
             periodSeconds: 5
             successThreshold: 1

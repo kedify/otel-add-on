@@ -72,6 +72,25 @@ func TestHAChart(t *testing.T) {
 			}
 		}
 	})
+	for _, tc := range []struct {
+		name             string
+		collectorEnabled bool
+		want             string
+	}{
+		{"operator only", false, "/readyz"},
+		{"operator with collector", true, "/info"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			objects, _ := render(t, "settings:\n  ha:\n    enabled: true\n",
+				"--show-only", "templates/deployment.yaml",
+				"--set", "otelOperator.enabled=true",
+				"--set", fmt.Sprintf("otelOperatorCrs[0].enabled=%t", tc.collectorEnabled))
+			container := field(objects[0], "spec", "template", "spec", "containers").([]any)[0].(map[string]any)
+			if path := field(container, "readinessProbe", "httpGet", "path"); path != tc.want {
+				t.Errorf("readiness probe path = %v, want %s", path, tc.want)
+			}
+		})
+	}
 	for _, values := range []string{
 		"settings:\n  ha:\n    enabled: true\n    replicas: 3\n",
 		"settings:\n  ha:\n    enabled: true\n    replicas: 3\nnamespace: telemetry\nfullnameOverride: scaler\nservice:\n  name: ingestion\n",
@@ -107,8 +126,8 @@ func TestHAChart(t *testing.T) {
 						t.Fatal("incorrect HA replica count")
 					}
 					container := field(object, "spec", "template", "spec", "containers").([]any)[0].(map[string]any)
-					if field(container, "readinessProbe", "httpGet", "path") != "/readyz" || field(container, "livenessProbe", "httpGet", "path") != "/info" {
-						t.Fatal("HA must gate readiness while preserving liveness")
+					if field(container, "readinessProbe", "httpGet", "path") != "/info" || field(container, "livenessProbe", "httpGet", "path") != "/info" {
+						t.Fatal("HA with a Collector hook must use /info for both probes")
 					}
 					haEnabled := false
 					for _, item := range container["env"].([]any) {

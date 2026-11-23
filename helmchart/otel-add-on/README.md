@@ -189,24 +189,28 @@ HA requires eager metric series and aggregates: leave `settings.metricStore.lazy
 and `lazyAggregates` disabled. The chart rejects lazy collection with HA because
 queries on one replica cannot subscribe the others to the same data.
 
-Only HA switches the readiness probe to `/readyz`; liveness stays on `/info`.
-Readiness waits for fresh ingestion, samples at distinct timestamps, and a warmup
-period. `settings.ha.warmupSeconds: 0` uses `settings.metricStore.retentionSeconds`;
-an explicit positive value overrides it. Ingestion remains reachable throughout
-warmup. A loss of fresh samples makes the replica unready and requires warmup
-again when ingestion resumes. Clearing the store or garbage-collecting its last
-series also restarts warmup. Choose a warmup that covers the queries' history.
+HA uses `/readyz` to probe metric readiness. If any `otelOperatorCrs` entry is
+enabled, HA uses `/info` for Pod readiness so the Collector hooks can run after
+the workload becomes ready. The KEDA Service can route connections to warming
+replicas in this configuration. Liveness uses `/info`.
+
+Metric readiness requires fresh ingestion, distinct sample timestamps, and a
+warmup period. `settings.ha.warmupSeconds: 0` uses
+`settings.metricStore.retentionSeconds`. An explicit positive value overrides it.
+Ingestion remains reachable throughout warmup. Losing fresh samples, clearing the
+store, or garbage-collecting its last series starts a new warmup when ingestion
+resumes. Choose a warmup that covers the queries' history.
 
 KEDA metric/activation calls return `Unavailable` during warmup or when a query has
 no fresh matching data, including when `errIfNotFound` is false. The KEDA gRPC listener
-opens after warmup and is drained and closed whenever the replica becomes unready,
+opens after warmup and is drained and closed if metric history becomes unavailable,
 so existing clients can reconnect through the Service to another replica. OTLP
 ingestion stays open. Windowed queries also check the matching
 series' own warmup and require distinct sample timestamps; `last_one` only needs
 a fresh sample once the replica has warmed. These checks cover existing gRPC
 connections, which are not immediately removed by a readiness change. An activation
-stream ends with an error if the replica becomes unready. This is a conservative
-history check; it does not establish that every expected producer has reported.
+stream ends with an error if metric history becomes unavailable. The history
+check only covers the samples that arrived.
 
 Each replica holds its own in-memory history; it recovers by receiving fresh metrics.
 Switching between Deployment and StatefulSet replaces the workload controller and
