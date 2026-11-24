@@ -78,7 +78,7 @@ func TestHAChart(t *testing.T) {
 		want             string
 	}{
 		{"operator only", false, "/readyz"},
-		{"operator with collector", true, "/info"},
+		{"operator with collector", true, "/pod-readyz"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			objects, _ := render(t, "settings:\n  ha:\n    enabled: true\n",
@@ -126,8 +126,8 @@ func TestHAChart(t *testing.T) {
 						t.Fatal("incorrect HA replica count")
 					}
 					container := field(object, "spec", "template", "spec", "containers").([]any)[0].(map[string]any)
-					if field(container, "readinessProbe", "httpGet", "path") != "/info" || field(container, "livenessProbe", "httpGet", "path") != "/info" {
-						t.Fatal("HA with a Collector hook must use /info for both probes")
+					if field(container, "readinessProbe", "httpGet", "path") != "/pod-readyz" || field(container, "livenessProbe", "httpGet", "path") != "/info" {
+						t.Fatal("HA with a Collector hook must use /pod-readyz for readiness and /info for liveness")
 					}
 					haEnabled := false
 					for _, item := range container["env"].([]any) {
@@ -161,7 +161,7 @@ func TestHAChart(t *testing.T) {
 						t.Fatal("query Service must respect Pod readiness")
 					}
 				case "ConfigMap":
-					data := object["data"].(map[string]any)
+					data, _ := object["data"].(map[string]any)
 					var config map[string]any
 					if relay, ok := data["relay"]; ok {
 						if err := yaml.Unmarshal([]byte(relay.(string)), &config); err != nil {

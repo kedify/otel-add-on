@@ -48,7 +48,6 @@ var (
 func main() {
 	cfg := util.MustParseConfig()
 	otlpReceiverPort := cfg.OTLPReceiverPort
-	restApiPort := cfg.RestApiPort
 
 	lvl := util.SetupLog(cfg.NoColor)
 	isDebug = util.IsDebug(lvl)
@@ -76,7 +75,7 @@ func main() {
 			setupLog.Error(e, "metric server failed")
 			return e
 		}
-		startRestServer(eg, restApiPort, info, ms)
+		startRestServer(eg, cfg, info, ms)
 
 		tlsSettings := makeTlsSettings(cfg)
 		if e = startReceiver(ctx, otlpReceiverPort, tlsSettings, ms); !util.IsIgnoredErr(e) {
@@ -119,9 +118,9 @@ func makeTlsSettings(cfg *util.Config) *configtls.ServerConfig {
 	}
 }
 
-func startRestServer(eg *errgroup.Group, restApiPort int, info prometheus.Labels, ms types.MemStore) {
+func startRestServer(eg *errgroup.Group, cfg *util.Config, info prometheus.Labels, ms types.MemStore) {
 	eg.Go(func() error {
-		return rest.Init(restApiPort, info, ms, isDebug)
+		return rest.Init(cfg, info, ms, isDebug)
 	})
 }
 

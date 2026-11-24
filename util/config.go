@@ -9,8 +9,9 @@ import (
 
 type Config struct {
 	// HA settings are opt-in; zero warmup uses the metric retention window.
-	HAEnabled       bool `envconfig:"HA_ENABLED" default:"false"`
-	HAWarmupSeconds int  `envconfig:"HA_WARMUP_SECONDS" default:"0"`
+	HAEnabled         bool   `envconfig:"HA_ENABLED" default:"false"`
+	HAWarmupSeconds   int    `envconfig:"HA_WARMUP_SECONDS" default:"0"`
+	HAReadinessMarker string `envconfig:"HA_READINESS_MARKER"`
 
 	// Ports
 	OTLPReceiverPort       int `envconfig:"OTLP_RECEIVER_PORT" default:"4317"`

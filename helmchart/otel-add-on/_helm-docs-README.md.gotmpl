@@ -181,10 +181,14 @@ HA requires eager metric series and aggregates: leave `settings.metricStore.lazy
 and `lazyAggregates` disabled. The chart rejects lazy collection with HA because
 queries on one replica cannot subscribe the others to the same data.
 
-HA uses `/readyz` to probe metric readiness. If any `otelOperatorCrs` entry is
-enabled, HA uses `/info` for Pod readiness so the Collector hooks can run after
-the workload becomes ready. The KEDA Service can route connections to warming
-replicas in this configuration. Liveness uses `/info`.
+HA uses `/readyz` to probe metric readiness. With an enabled `otelOperatorCrs`
+entry, `/pod-readyz` starts with the `/info` check so Helm and GitOps can run the
+Collector hook. After applying the Collectors, the hook writes a readiness marker
+for that configuration to a mounted ConfigMap. Once Kubernetes projects the
+update, the probe switches to `/readyz` behavior and later replacements wait for
+metric history from startup. A change to the Collector configuration or scaler
+fan-out starts a new bootstrap. The KEDA Service can route to cold replicas
+during bootstrap. Liveness uses `/info`.
 
 Metric readiness requires fresh ingestion, distinct sample timestamps, and a
 warmup period. `settings.ha.warmupSeconds: 0` uses

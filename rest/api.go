@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
@@ -38,16 +39,18 @@ type OperationResult struct {
 }
 
 type api struct {
-	ms   types.MemStore
-	info prometheus.Labels
-	lggr logr.Logger
+	ms              types.MemStore
+	info            prometheus.Labels
+	lggr            logr.Logger
+	readinessMarker string
 }
 
-func Init(restApiPort int, info prometheus.Labels, ms types.MemStore, isDebug bool) error {
+func Init(cfg *util.Config, info prometheus.Labels, ms types.MemStore, isDebug bool) error {
 	a := api{
-		ms:   ms,
-		info: info,
-		lggr: ctrl.Log.WithName("Gin"),
+		ms:              ms,
+		info:            info,
+		lggr:            ctrl.Log.WithName("Gin"),
+		readinessMarker: cfg.HAReadinessMarker,
 	}
 	if isDebug {
 		gin.SetMode(gin.DebugMode)
@@ -69,8 +72,9 @@ func Init(restApiPort int, info prometheus.Labels, ms types.MemStore, isDebug bo
 	router.POST("/memstore/reset", a.reset)
 	router.GET("/info", a.getInfo)
 	router.GET("/readyz", a.getReadiness)
-	a.lggr.Info(fmt.Sprintf("Swagger docs available at: http://localhost:%d", restApiPort))
-	return router.Run(fmt.Sprintf(":%d", restApiPort))
+	router.GET("/pod-readyz", a.getPodReadiness)
+	a.lggr.Info(fmt.Sprintf("Swagger docs available at: http://localhost:%d", cfg.RestApiPort))
+	return router.Run(fmt.Sprintf(":%d", cfg.RestApiPort))
 }
 
 // @BasePath /
@@ -223,6 +227,16 @@ func (a api) getMetricData(c *gin.Context) {
 // @Router /info [get]
 func (a api) getInfo(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, a.info)
+}
+
+func (a api) getPodReadiness(c *gin.Context) {
+	if a.readinessMarker != "" {
+		if _, err := os.Stat(a.readinessMarker); errors.Is(err, os.ErrNotExist) {
+			a.getInfo(c)
+			return
+		}
+	}
+	a.getReadiness(c)
 }
 
 func (a api) getReadiness(c *gin.Context) {

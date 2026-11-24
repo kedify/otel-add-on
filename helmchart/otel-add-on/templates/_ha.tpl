@@ -21,6 +21,16 @@
 {{- printf "%s-%d.%s.%s.svc:%v" (include "otel-add-on.haWorkloadName" $root) (int .ordinal) (include "otel-add-on.headlessServiceName" $root) ($root.Values.namespace | default $root.Release.Namespace) $root.Values.service.otlpReceiverPort -}}
 {{- end -}}
 
+{{- define "otel-add-on.haReadinessConfigMap" -}}
+{{- printf "%s-ha-readiness" (include "otel-add-on.haWorkloadName" .) -}}
+{{- end -}}
+
+{{/* Reuse the marker across scaler rollouts with the same Collector configuration. */}}
+{{- define "otel-add-on.haReadinessKey" -}}
+{{- $endpoint := include "otel-add-on.replicaEndpoint" (dict "root" . "ordinal" 0) -}}
+{{- list (include "operatorCrs" .) $endpoint (.Values.settings.ha.replicas | default 3 | int) | toJson | sha256sum -}}
+{{- end -}}
+
 {{/* Replace a scaler exporter with independently queued exporters in metrics pipelines.
      Preserve its TLS/auth/timeout settings and every unrelated pipeline/exporter. */}}
 {{- define "otel-add-on.haCollectorConfig" -}}

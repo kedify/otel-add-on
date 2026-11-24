@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -15,6 +17,31 @@ import (
 	"github.com/kedify/otel-add-on/types"
 	"github.com/kedify/otel-add-on/util"
 )
+
+func TestPodReadinessAfterCollectorHook(t *testing.T) {
+	marker := filepath.Join(t.TempDir(), "collector")
+	store := metric.NewMetricStore(&util.Config{HAEnabled: true, MetricStoreRetentionSeconds: 60})
+	a := api{ms: store, readinessMarker: marker}
+	status := func(handler gin.HandlerFunc) int {
+		response := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(response)
+		handler(ctx)
+		return response.Code
+	}
+	if status(a.getPodReadiness) != http.StatusOK || status(a.getReadiness) != http.StatusServiceUnavailable {
+		t.Fatal("the Pod should be ready during bootstrap while metric readiness stays unavailable")
+	}
+	if err := os.WriteFile(marker, []byte("true"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if status(a.getPodReadiness) != http.StatusServiceUnavailable {
+		t.Fatal("the Pod should require warm metric history once the Collector hook succeeds")
+	}
+	replacement := api{ms: store, readinessMarker: marker}
+	if status(replacement.getPodReadiness) != http.StatusServiceUnavailable {
+		t.Fatal("replacement Pods should require warm metric history from startup")
+	}
+}
 
 func TestQueryLabelMatchers(t *testing.T) {
 	store := metric.NewMetricStore(&util.Config{MetricStoreRetentionSeconds: 60})

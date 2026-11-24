@@ -1,4 +1,5 @@
 {{- $ha := .Values.settings.ha | default dict -}}
+{{- $bootstrap := and $ha.enabled (include "atLeastOneOperatorCr" .) -}}
 {{- if .Values.deployScaler }}
 apiVersion: apps/v1
 kind: {{ if $ha.enabled }}StatefulSet{{ else }}Deployment{{ end }}
@@ -53,6 +54,10 @@ spec:
               value: "true"
             - name: HA_WARMUP_SECONDS
               value: {{ ($ha.warmupSeconds | default 0) | quote }}
+            {{- end }}
+            {{- if $bootstrap }}
+            - name: HA_READINESS_MARKER
+              value: /etc/otel-add-on/readiness/{{ include "otel-add-on.haReadinessKey" . }}
             {{- end }}
             # Ports
             - name: OTLP_RECEIVER_PORT
@@ -124,15 +129,20 @@ spec:
           readinessProbe:
             httpGet:
               port: {{ .Values.settings.restApiPort }}
-              path: {{ if and $ha.enabled (not (include "atLeastOneOperatorCr" .)) }}/readyz{{ else }}/info{{ end }}
+              path: {{ if $bootstrap }}/pod-readyz{{ else if $ha.enabled }}/readyz{{ else }}/info{{ end }}
             timeoutSeconds: 1
             periodSeconds: 5
             successThreshold: 1
             failureThreshold: 3
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          {{- if or .Values.volumeMounts .Values.settings.tls.secrets }}
+          {{- if or $bootstrap .Values.volumeMounts .Values.settings.tls.secrets }}
           volumeMounts:
+          {{- if $bootstrap }}
+            - name: ha-readiness
+              mountPath: /etc/otel-add-on/readiness
+              readOnly: true
+          {{- end }}
           {{- with .Values.volumeMounts }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
@@ -142,8 +152,13 @@ spec:
               readOnly: true
           {{- end }}
           {{- end }}
-      {{- if or .Values.volumes .Values.settings.tls.secrets }}
+      {{- if or $bootstrap .Values.volumes .Values.settings.tls.secrets }}
       volumes:
+      {{- if $bootstrap }}
+        - name: ha-readiness
+          configMap:
+            name: {{ include "otel-add-on.haReadinessConfigMap" . }}
+      {{- end }}
       {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
