@@ -210,9 +210,6 @@ func (e *impl) getMetric(sor *externalscaler.ScaledObjectRef) (float64, error) {
 		return e.cfg.MetricStoreValueIfNotFound, err
 	}
 	if !found {
-		if e.cfg.HAEnabled {
-			return 0, status.Error(codes.Unavailable, "HA query has no fresh matching metric samples")
-		}
 		if e.cfg.MetricStoreErrIfNotFound {
 			return e.cfg.MetricStoreValueIfNotFound, fmt.Errorf("not found")
 		}

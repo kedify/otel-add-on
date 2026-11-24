@@ -205,8 +205,11 @@ Ingestion remains reachable throughout warmup. Losing fresh samples, clearing th
 store, or garbage-collecting its last series starts a new warmup when ingestion
 resumes. Choose a warmup that covers the queries' history.
 
-KEDA metric/activation calls return `Unavailable` during warmup or when a query has
-no fresh matching data, including when `errIfNotFound` is false. The KEDA gRPC listener
+KEDA metric and activation calls return `Unavailable` during warmup or when a
+matching series has insufficient history for a windowed query. On a ready
+replica, a query with no fresh matching data returns
+`settings.metricStore.valueIfNotFound` or an error if
+`settings.metricStore.errIfNotFound` is enabled. The KEDA gRPC listener
 opens after warmup and is drained and closed if metric history becomes unavailable,
 so existing clients can reconnect through the Service to another replica. OTLP
 ingestion stays open. Windowed queries also check the matching
