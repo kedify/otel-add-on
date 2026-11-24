@@ -30,9 +30,13 @@ jobs:
 
       - name: Verify dependencies
         run: |
+          tidy_with_retry() {
+            go mod tidy || { sleep 5 && go mod tidy; }
+          }
+
           go mod verify
-          go mod tidy
-          (cd e2e-tests && go mod verify && go mod tidy)
+          tidy_with_retry
+          (cd e2e-tests && go mod verify && tidy_with_retry)
           gofmt -s -w .
           if [[ -n "$(git status --porcelain)" ]]; then
             echo "dirty repository"
