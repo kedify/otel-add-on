@@ -33,7 +33,7 @@ settings:
   gcStaleAfterMinutes: 10
 
   metricStore:
-    # -- how long the metrics should be kept in the short term (in memory) storage
+    # -- How long to retain metric samples in memory, in seconds. Sets METRIC_STORE_RETENTION_SECONDS.
     retentionSeconds: 90
 
     # -- if enabled, no metrics will be stored until there is a request for such metric

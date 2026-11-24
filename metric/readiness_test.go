@@ -42,7 +42,13 @@ func TestHAHistory(t *testing.T) {
 	if _, _, err := store.Get("counter", nil, types.OpRate, types.VecSum); !errors.Is(err, ErrHistoryNotReady) {
 		t.Fatalf("cold rate: %v", err)
 	}
-	now = now.Add(5 * time.Second)
+	now = now.Add(2 * time.Second)
+	put("counter", now, 14)
+	assertReady(false)
+	if value, found, err := store.Get("counter", nil, types.OpRate, types.VecSum); err != nil || !found || value != 2 {
+		t.Fatalf("rate from two fresh samples should work before warmup: value=%v, found=%t, err=%v", value, found, err)
+	}
+	now = now.Add(3 * time.Second)
 	put("counter", now, 20)
 	assertReady(true)
 	for _, op := range []types.OperationOverTime{types.OpLastOne, types.OpRate, types.OpAvg, types.OpMin, types.OpMax, types.OpCount} {
@@ -131,10 +137,13 @@ func TestHAStartupReadinessDeadline(t *testing.T) {
 			deadline := store.ha.startupDeadline
 			now := deadline.Add(-10 * time.Second)
 			store.ha.now = func() time.Time { return now }
-			assertReadiness := func(ready, historyReady bool) {
+			assertReadiness := func(ready, listenerReady, historyReady bool) {
 				t.Helper()
 				if err := store.Ready(); (err == nil) != ready {
 					t.Fatalf("Pod ready=%t, want %t: %v", err == nil, ready, err)
+				}
+				if err := store.ListenerReady(); (err == nil) != listenerReady {
+					t.Fatalf("listener ready=%t, want %t: %v", err == nil, listenerReady, err)
 				}
 				if err := store.HistoryReady(); (err == nil) != historyReady {
 					t.Fatalf("history ready=%t, want %t: %v", err == nil, historyReady, err)
@@ -145,20 +154,24 @@ func TestHAStartupReadinessDeadline(t *testing.T) {
 				now = now.Add(2 * time.Second)
 				store.Put(types.NewMetricEntry{Name: "counter", MeasurementTime: pcommon.NewTimestampFromTime(now), MeasurementValue: 3})
 			}
-			assertReadiness(false, false)
+			assertReadiness(false, false, false)
 			if warmEarly {
 				warm()
-				assertReadiness(true, true)
+				assertReadiness(true, true, true)
 			} else {
 				now = deadline.Add(-time.Nanosecond)
-				assertReadiness(false, false)
+				assertReadiness(false, false, false)
 				now = deadline
-				assertReadiness(true, false)
+				assertReadiness(true, false, false)
+				store.Put(types.NewMetricEntry{Name: "counter", MeasurementTime: pcommon.NewTimestampFromTime(now), MeasurementValue: 1})
+				assertReadiness(true, true, false)
+				now = now.Add(6 * time.Second)
+				assertReadiness(true, false, false)
 				warm()
-				assertReadiness(true, true)
+				assertReadiness(true, true, true)
 			}
-			now = deadline.Add(10 * time.Second)
-			assertReadiness(false, false)
+			now = now.Add(10 * time.Second)
+			assertReadiness(false, false, false)
 		})
 	}
 }

@@ -13,6 +13,8 @@ import (
 // error rather than interpreting a replica's warmup as zero demand.
 var ErrHistoryNotReady = errors.New("HA metric history is not ready")
 
+var errNoFreshMetricSamples = fmt.Errorf("%w: no fresh metric samples", ErrHistoryNotReady)
+
 func (m ms) freshHASample(entry types.NewMetricEntry, now time.Time) bool {
 	age := now.Unix() - int64(timestampToSeconds(entry.MeasurementTime))
 	return age >= -5 && age <= int64(m.stalePeriodSeconds) && !math.IsNaN(entry.MeasurementValue) && !math.IsInf(entry.MeasurementValue, 0)
@@ -70,9 +72,18 @@ func (m ms) resetHAIfEmpty() {
 	}
 }
 
-// Ready gates the Pod probe and KEDA listener. The startup deadline allows a
-// cold replica to accept connections until its first successful metric warmup.
+// Ready gates the Pod probe. The startup deadline can make a cold Pod ready.
 func (m ms) Ready() error {
+	return m.ready(true)
+}
+
+// ListenerReady gates KEDA connections. After the startup deadline the listener
+// still needs fresh samples, so clients can reconnect if ingestion stops.
+func (m ms) ListenerReady() error {
+	return m.ready(false)
+}
+
+func (m ms) ready(allowEmpty bool) error {
 	if m.ha == nil || m.ha.startupDeadline.IsZero() {
 		return m.HistoryReady()
 	}
@@ -82,14 +93,13 @@ func (m ms) Ready() error {
 	err := m.historyReadyLocked(now)
 	if err == nil {
 		m.ha.hasWarmed = true
-	} else if !m.ha.hasWarmed && !now.Before(m.ha.startupDeadline) {
+	} else if !m.ha.hasWarmed && !now.Before(m.ha.startupDeadline) && (allowEmpty || m.hasFreshSamplesLocked(now)) {
 		return nil
 	}
 	return err
 }
 
-// HistoryReady checks replica-wide metric history for KEDA metric and activation calls.
-// GetSeries also checks the history of each matching series.
+// HistoryReady checks whether the replica has completed metric warmup.
 func (m ms) HistoryReady() error {
 	if m.ha == nil {
 		return nil
@@ -99,9 +109,27 @@ func (m ms) HistoryReady() error {
 	return m.historyReadyLocked(m.ha.now())
 }
 
+// QueryReady checks whether the replica can serve the requested operation.
+// GetSeries checks that each matching series has enough history.
+func (m ms) QueryReady(op types.OperationOverTime) error {
+	if m.ha == nil || (op != types.OpLastOne && op != types.OpRate) {
+		return m.HistoryReady()
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if !m.hasFreshSamplesLocked(m.ha.now()) {
+		return errNoFreshMetricSamples
+	}
+	return nil
+}
+
+func (m ms) hasFreshSamplesLocked(now time.Time) bool {
+	return !m.ha.firstWrite.IsZero() && !m.isStale(m.ha.latestSample, now.Unix())
+}
+
 func (m ms) historyReadyLocked(now time.Time) error {
-	if m.ha.firstWrite.IsZero() || now.Unix()-int64(m.ha.latestSample) > int64(m.stalePeriodSeconds) {
-		return fmt.Errorf("%w: no fresh metric samples", ErrHistoryNotReady)
+	if !m.hasFreshSamplesLocked(now) {
+		return errNoFreshMetricSamples
 	}
 	if now.Sub(m.ha.firstWrite) < m.ha.warmup {
 		return fmt.Errorf("%w: replica is warming up", ErrHistoryNotReady)
@@ -116,7 +144,7 @@ func (m ms) checkHistory(md *types.MetricData, op types.OperationOverTime, now t
 	if op == types.OpLastOne {
 		return nil
 	}
-	if md.FirstWrite.IsZero() || now.Sub(md.FirstWrite) < m.ha.warmup {
+	if op != types.OpRate && (md.FirstWrite.IsZero() || now.Sub(md.FirstWrite) < m.ha.warmup) {
 		return fmt.Errorf("%w: series is warming up for %s", ErrHistoryNotReady, op)
 	}
 	var first uint32

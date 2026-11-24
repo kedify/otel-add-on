@@ -28,10 +28,10 @@ and stores all incoming metrics in the short term storage - simple metric storag
 
 #### Simple Metric Storage
 
-Very simple metric storage designed to remember last couple of measurements (~ 10-100) for each metric vector. It can be 
-[configured](https://github.com/kedify/otel-add-on/blob/v0.0.0-1/helmchart/otel-add-on/values.yaml#L11-L12)
-with number of seconds to remember. Then during the write operation, it removes the stale measurements, so it effectively works as a
-cyclic buffer. Metrics are stored together with labels (key-value pairs) for later querying.
+The in-memory metric store retains samples for 90 seconds by default. Set
+`settings.metricStore.retentionSeconds` in Helm or `METRIC_STORE_RETENTION_SECONDS`
+when running the scaler directly. Writes remove stale samples. The store keeps
+each sample's labels for later querying.
 
 #### External Scaler
 

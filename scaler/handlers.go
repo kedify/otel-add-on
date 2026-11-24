@@ -186,9 +186,14 @@ func (e *impl) GetMetrics(
 
 func (e *impl) getMetric(sor *externalscaler.ScaledObjectRef) (float64, error) {
 	lggr := e.lggr.WithName("getMetric")
+	opOverTime := util.GetOperationOverTime(lggr, sor.GetScalerMetadata())
 	if e.cfg.HAEnabled {
 		var readinessErr error
 		switch store := e.metricStore.(type) {
+		case interface {
+			QueryReady(types.OperationOverTime) error
+		}:
+			readinessErr = store.QueryReady(opOverTime)
 		case interface{ HistoryReady() error }:
 			readinessErr = store.HistoryReady()
 		case interface{ Ready() error }:
@@ -202,7 +207,6 @@ func (e *impl) getMetric(sor *externalscaler.ScaledObjectRef) (float64, error) {
 	if err != nil {
 		return e.cfg.MetricStoreValueIfNotFound, err
 	}
-	opOverTime := util.GetOperationOverTime(lggr, sor.GetScalerMetadata())
 	metricNames := fmt.Sprint(query.MetricNames())
 	metricQuery := sor.GetScalerMetadata()[util.MetadataMetricQuery]
 	e.metricsExporter.TouchMetricValues(metricNames, metricQuery, string(opOverTime), "expression", sor.GetName(), sor.GetNamespace())
@@ -215,6 +219,12 @@ func (e *impl) getMetric(sor *externalscaler.ScaledObjectRef) (float64, error) {
 		return e.cfg.MetricStoreValueIfNotFound, err
 	}
 	if !found {
+		// A cold replica may not have received this series yet.
+		if store, ok := e.metricStore.(interface{ HistoryReady() error }); e.cfg.HAEnabled && ok {
+			if err := store.HistoryReady(); err != nil {
+				return 0, status.Error(codes.Unavailable, err.Error())
+			}
+		}
 		if e.cfg.MetricStoreErrIfNotFound {
 			return e.cfg.MetricStoreValueIfNotFound, fmt.Errorf("not found")
 		}

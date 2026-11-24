@@ -208,11 +208,11 @@ func startKEDAGrpcServer(
 	if !cfg.HAEnabled {
 		return serveKEDAGrpcServer(ctx, lggr, ms, mp, cfg)
 	}
-	store, ok := ms.(interface{ Ready() error })
+	store, ok := ms.(interface{ ListenerReady() error })
 	if !ok {
 		return fmt.Errorf("HA requires a metric store with readiness support")
 	}
-	return runHAQueryServer(ctx, store.Ready, func(serverCtx context.Context) error {
+	return runHAQueryServer(ctx, store.ListenerReady, func(serverCtx context.Context) error {
 		return serveKEDAGrpcServer(serverCtx, lggr, ms, mp, cfg)
 	})
 }
