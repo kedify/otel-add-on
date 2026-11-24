@@ -8,6 +8,12 @@ import (
 )
 
 type Config struct {
+	// HA settings are opt-in; zero warmup uses the metric retention window.
+	HAEnabled               bool   `envconfig:"HA_ENABLED" default:"false"`
+	HAWarmupSeconds         int    `envconfig:"HA_WARMUP_SECONDS" default:"0"`
+	HAMakeReadyAfterSeconds int    `envconfig:"HA_MAKE_READY_AFTER_SECONDS" default:"105"`
+	HAReadinessMarker       string `envconfig:"HA_READINESS_MARKER"`
+
 	// Ports
 	OTLPReceiverPort       int `envconfig:"OTLP_RECEIVER_PORT" default:"4317"`
 	KedaExternalScalerPort int `envconfig:"KEDA_EXTERNAL_SCALER_PORT" default:"4318"`
@@ -19,7 +25,7 @@ type Config struct {
 	ProfilingPort    int  `envconfig:"PROFILING_PORT" default:"8081"`
 
 	// Metric Store
-	MetricStoreRetentionSeconds int     `envconfig:"METRIC_STORE_RETENTION_SECONDS" default:"120"`
+	MetricStoreRetentionSeconds int     `envconfig:"METRIC_STORE_RETENTION_SECONDS" default:"90"`
 	MetricStoreLazySeries       bool    `envconfig:"METRIC_STORE_LAZY_SERIES" default:"false"`
 	MetricStoreLazyAggregates   bool    `envconfig:"METRIC_STORE_LAZY_AGGREGATES" default:"false"`
 	MetricStoreErrIfNotFound    bool    `envconfig:"METRIC_STORE_ERROR_IF_NOT_FOUND" default:"false"`
@@ -40,9 +46,24 @@ type Config struct {
 	NoBanner bool `envconfig:"NO_BANNER" default:"false"`
 }
 
+// HAWarmupDuration returns the configured warmup or the metric retention window.
+func (cfg *Config) HAWarmupDuration() time.Duration {
+	warmup := cfg.HAWarmupSeconds
+	if warmup == 0 {
+		warmup = cfg.MetricStoreRetentionSeconds
+	}
+	return time.Duration(warmup) * time.Second
+}
+
 func MustParseConfig() *Config {
 	ret := new(Config)
 	envconfig.MustProcess("", ret)
+	if ret.HAEnabled && (ret.HAWarmupSeconds < 0 || ret.MetricStoreRetentionSeconds <= 0 || ret.MetricStoreLazySeries || ret.MetricStoreLazyAggregates) {
+		panic("HA requires nonnegative HA_WARMUP_SECONDS, positive METRIC_STORE_RETENTION_SECONDS, and eager metric series and aggregates")
+	}
+	if ret.HAEnabled && (ret.HAMakeReadyAfterSeconds < 0 || ret.HAMakeReadyAfterSeconds > 2147483647) {
+		panic("HA_MAKE_READY_AFTER_SECONDS must be between 0 and 2147483647")
+	}
 	if ret.GCStaleAfterMinutes < 0 || int64(ret.GCStaleAfterMinutes) > int64((1<<63-1)/time.Minute) {
 		panic(fmt.Sprintf("GC_STALE_AFTER_MINUTES must be between 0 and %d", (1<<63-1)/time.Minute))
 	}

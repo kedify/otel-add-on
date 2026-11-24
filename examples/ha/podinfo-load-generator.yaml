@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo-load-generator
+  namespace: ha-enabled
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: podinfo-load-generator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: podinfo-load-generator
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: hey
+          image: alpine:3.23
+          env:
+            - name: REQUESTS_PER_SECOND
+              value: "15"
+            - name: PODINFO_SERVICE
+              value: podinfo.ha-enabled.svc
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              case "$REQUESTS_PER_SECOND" in
+                ''|0*|*[!0-9]*)
+                  echo 'REQUESTS_PER_SECOND must be a positive integer' >&2
+                  exit 1
+                  ;;
+              esac
+              apk add --no-cache hey
+
+              # Each worker sends at most one request every two seconds.
+              workers=$((2 * REQUESTS_PER_SECOND))
+              url="http://${PODINFO_SERVICE}:9898/delay/1"
+              trap 'exit 0' INT TERM
+              while true; do
+                hey -z 10m -c "$workers" -q 0.5 "$url" &
+                wait "$!"
+              done

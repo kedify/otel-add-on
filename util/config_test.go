@@ -3,7 +3,24 @@ package util
 import (
 	"os"
 	"testing"
+	"time"
 )
+
+func TestMetricStoreRetentionConfig(t *testing.T) {
+	t.Setenv("HA_WARMUP_SECONDS", "0")
+	t.Setenv("METRIC_STORE_RETENTION_SECONDS", "45")
+	if got := MustParseConfig().MetricStoreRetentionSeconds; got != 45 {
+		t.Fatalf("retention override = %d, want 45", got)
+	}
+	if err := os.Unsetenv("METRIC_STORE_RETENTION_SECONDS"); err != nil {
+		t.Fatal(err)
+	}
+	cfg := MustParseConfig()
+	if cfg.MetricStoreRetentionSeconds != 90 || cfg.HAWarmupDuration() != 90*time.Second {
+		t.Fatalf("default retention = %ds, HA warmup = %v, want 90s for both",
+			cfg.MetricStoreRetentionSeconds, cfg.HAWarmupDuration())
+	}
+}
 
 func TestGCConfig(t *testing.T) {
 	for _, tt := range []struct {

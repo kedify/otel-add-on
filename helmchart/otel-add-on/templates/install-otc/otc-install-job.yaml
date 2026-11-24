@@ -1,4 +1,5 @@
 {{- if (include "atLeastOneOperatorCr" $) -}}
+{{- $bootstrap := and .Values.deployScaler (.Values.settings.ha | default dict).enabled -}}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -82,7 +83,16 @@ spec:
           set -o nounset
           for i in $(seq 20)
           do
-            kubectl apply -f /data/ 2>&1 && exit 0
+            if kubectl apply -f /data/ 2>&1; then
+              {{- if $bootstrap }}
+              # Replace the old marker so a later upgrade back to that config can bootstrap.
+              exec kubectl --namespace {{ (.Values.namespace | default .Release.Namespace) | quote }} patch configmap {{ include "otel-add-on.haReadinessConfigMap" . | quote }} \
+                --field-manager=otel-add-on-collector-hook --type=json \
+                --patch '[{"op":"add","path":"/data","value":{"{{ include "otel-add-on.haReadinessKey" . }}":"true"}}]'
+              {{- else }}
+              exit 0
+              {{- end }}
+            fi
             _sec=$(echo "1.5^$i" | bc)
             echo "Waiting ${_sec} seconds.."
             sleep ${_sec}

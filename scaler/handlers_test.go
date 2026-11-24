@@ -10,6 +10,8 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kedacore/keda/v2/pkg/scalers/externalscaler"
 	"go.opentelemetry.io/collector/pdata/pcommon"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/kedify/otel-add-on/metric"
 	"github.com/kedify/otel-add-on/types"
@@ -116,6 +118,41 @@ func TestGetMetricsErrorsWhenAllMatchingSeriesAreStale(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetMetricsHAWithPartialHistory(t *testing.T) {
+	cfg := &util.Config{HAEnabled: true, HAWarmupSeconds: 60, MetricStoreRetentionSeconds: 90}
+	store := metric.NewMetricStore(cfg)
+	scaler := New(logr.Discard(), store, metric.NewParser(), cfg)
+	check := func(query string, op types.OperationOverTime, wantCode codes.Code, wantValue float64) {
+		t.Helper()
+		response, err := scaler.GetMetrics(context.Background(), &externalscaler.GetMetricsRequest{
+			MetricName: "requests-scaling",
+			ScaledObjectRef: &externalscaler.ScaledObjectRef{ScalerMetadata: map[string]string{
+				util.MetadataMetricQuery: query, util.MetadataOperationOverTime: string(op),
+			}},
+		})
+		if got := status.Code(err); got != wantCode {
+			t.Fatalf("%s with %s: got %s (%v), want %s", query, op, got, err, wantCode)
+		}
+		if wantCode == codes.OK && (len(response.MetricValues) != 1 || response.MetricValues[0].MetricValueFloat != wantValue) {
+			t.Fatalf("%s with %s: got %v, want metric value %v", query, op, response, wantValue)
+		}
+	}
+	now := time.Now().Unix()
+	put := func(at int64, value float64) {
+		store.Put(types.NewMetricEntry{Name: "requests", MeasurementTime: pcommon.Timestamp(at), MeasurementValue: value})
+	}
+	check("requests", types.OpLastOne, codes.Unavailable, 0)
+	put(now-2, 10)
+	check("requests", types.OpLastOne, codes.OK, 10)
+	check("requests", types.OpRate, codes.Unavailable, 0)
+	put(now-2, 10)
+	check("requests", types.OpRate, codes.Unavailable, 0)
+	put(now, 14)
+	check("sum(requests)", types.OpRate, codes.OK, 2)
+	check("requests", types.OpCount, codes.Unavailable, 0)
+	check("missing", types.OpLastOne, codes.Unavailable, 0)
 }
 
 func TestGetMetricSpecInitializesAllReferences(t *testing.T) {

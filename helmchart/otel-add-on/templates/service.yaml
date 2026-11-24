@@ -1,3 +1,4 @@
+{{- $ha := .Values.settings.ha | default dict -}}
 {{- if .Values.deployScaler }}
 apiVersion: v1
 kind: Service
@@ -9,10 +10,12 @@ metadata:
 spec:
   type: {{ .Values.service.type }}
   ports:
+    {{- if not $ha.enabled }}
     - port: {{ .Values.service.otlpReceiverPort }}
       targetPort: {{ .Values.service.otlpReceiverPort }}
       protocol: TCP
       name: grpc-otlp-receiver
+    {{- end }}
     - port: {{ .Values.service.kedaExternalScalerPort }}
       targetPort: {{ .Values.service.kedaExternalScalerPort }}
       protocol: TCP
@@ -33,4 +36,24 @@ spec:
     {{- end }}
   selector:
     {{- include "otel-add-on.selectorLabels" . | nindent 4 }}
+{{- if $ha.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "otel-add-on.headlessServiceName" . }}
+  namespace: {{ .Values.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "otel-add-on.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - port: {{ .Values.service.otlpReceiverPort }}
+      targetPort: {{ .Values.service.otlpReceiverPort }}
+      protocol: TCP
+      name: grpc-otlp-receiver
+  selector:
+    {{- include "otel-add-on.selectorLabels" . | nindent 4 }}
+{{- end }}
 {{- end }}

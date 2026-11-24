@@ -9,9 +9,9 @@ spec:
     - type: external
       metadata:
         scalerAddress: "keda-otel-scaler.keda.svc:4318"
-        metricQuery: "avg(http_request_duration_seconds_count{method=GET, status=200})"
+        metricQuery: "sum(http_request_duration_seconds_count{method=GET, status=200})"
         operationOverTime: "rate"
-        targetValue: "2"
+        targetValue: "5"
         clampMax: "600"
   minReplicaCount: 1
   maxReplicaCount: 3

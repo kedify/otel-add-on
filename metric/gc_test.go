@@ -159,7 +159,7 @@ func TestGCRemovesUnreadSeriesAndEmptyFamilies(t *testing.T) {
 }
 
 func TestGCUsesReceiptTimeAndRefreshesOnWrite(t *testing.T) {
-	store := NewMetricStore(&util.Config{MetricStoreRetentionSeconds: 120}).(ms)
+	store := NewMetricStore(&util.Config{MetricStoreRetentionSeconds: 90}).(ms)
 	now := time.Now()
 	// Future producer timestamps cannot keep abandoned series alive forever;
 	// recently received old timestamps cannot cause premature idle collection.
@@ -190,7 +190,7 @@ func TestGCUsesReceiptTimeAndRefreshesOnWrite(t *testing.T) {
 }
 
 func TestBackgroundGCCollectsWithoutRequestsAndStops(t *testing.T) {
-	store := NewMetricStore(&util.Config{MetricStoreRetentionSeconds: 120})
+	store := NewMetricStore(&util.Config{MetricStoreRetentionSeconds: 90})
 	metrics := &InternalMetrics{}
 	metrics.Init()
 	putGCSeries(store, "unread", "gone", time.Now())
@@ -227,7 +227,7 @@ func TestBackgroundGCCollectsWithoutRequestsAndStops(t *testing.T) {
 func TestGCDisabledAndConcurrentUpdates(t *testing.T) {
 	metrics := &InternalMetrics{}
 	metrics.Init()
-	store := NewMetricStore(&util.Config{MetricStoreRetentionSeconds: 120})
+	store := NewMetricStore(&util.Config{MetricStoreRetentionSeconds: 90})
 	putGCSeries(store, "queue", "live", time.Now())
 	metrics.SetMetricValue("queue", "query", "last_one", "expression", 1)
 	if store.CollectStale(time.Now().Add(time.Hour), 0) != 0 || metrics.CollectStale(time.Now().Add(time.Hour), 0) != 0 {

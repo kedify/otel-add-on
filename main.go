@@ -48,7 +48,6 @@ var (
 func main() {
 	cfg := util.MustParseConfig()
 	otlpReceiverPort := cfg.OTLPReceiverPort
-	restApiPort := cfg.RestApiPort
 
 	lvl := util.SetupLog(cfg.NoColor)
 	isDebug = util.IsDebug(lvl)
@@ -56,6 +55,11 @@ func main() {
 		util.PrintBanner(cfg.NoColor)
 	}
 	build.PrintComponentInfo(ctrl.Log, lvl, "OTel addon for KEDA")
+	// The chart uses /pod-readyz when an operator bootstrap marker is configured.
+	if cfg.HAEnabled && cfg.HAReadinessMarker == "" {
+		setupLog.Info("HA /readyz startup timing",
+			"warmupAfterFirstSample", cfg.HAWarmupDuration().String(), "makeReadyAfterSeconds", cfg.HAMakeReadyAfterSeconds)
+	}
 
 	ctx := util.ContextWithLogger(ctrl.SetupSignalHandler(), setupLog)
 	eg, ctx := errgroup.WithContext(ctx)
@@ -76,7 +80,7 @@ func main() {
 			setupLog.Error(e, "metric server failed")
 			return e
 		}
-		startRestServer(eg, restApiPort, info, ms)
+		startRestServer(eg, cfg, info, ms)
 
 		tlsSettings := makeTlsSettings(cfg)
 		if e = startReceiver(ctx, otlpReceiverPort, tlsSettings, ms); !util.IsIgnoredErr(e) {
@@ -119,9 +123,9 @@ func makeTlsSettings(cfg *util.Config) *configtls.ServerConfig {
 	}
 }
 
-func startRestServer(eg *errgroup.Group, restApiPort int, info prometheus.Labels, ms types.MemStore) {
+func startRestServer(eg *errgroup.Group, cfg *util.Config, info prometheus.Labels, ms types.MemStore) {
 	eg.Go(func() error {
-		return rest.Init(restApiPort, info, ms, isDebug)
+		return rest.Init(cfg, info, ms, isDebug)
 	})
 }
 
@@ -201,6 +205,70 @@ func startKEDAGrpcServer(
 	mp types.Parser,
 	cfg *util.Config,
 ) error {
+	if !cfg.HAEnabled {
+		return serveKEDAGrpcServer(ctx, lggr, ms, mp, cfg)
+	}
+	store, ok := ms.(interface{ ListenerReady() error })
+	if !ok {
+		return fmt.Errorf("HA requires a metric store with readiness support")
+	}
+	return runHAQueryServer(ctx, store.ListenerReady, func(serverCtx context.Context) error {
+		return serveKEDAGrpcServer(serverCtx, lggr, ms, mp, cfg)
+	})
+}
+
+// A ClusterIP balances connections. Close the KEDA listener when readiness is
+// lost so an existing client can reconnect to another ready replica.
+// The separate OTLP listener continues receiving metrics throughout recovery.
+func runHAQueryServer(ctx context.Context, ready func() error, serve func(context.Context) error) error {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if ready() != nil {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-ticker.C:
+				continue
+			}
+		}
+		serverCtx, cancel := context.WithCancel(ctx)
+		setupLog.Info("HA replica is ready to accept KEDA connections")
+		watchStopped := make(chan struct{})
+		go func() {
+			defer close(watchStopped)
+			for {
+				select {
+				case <-serverCtx.Done():
+					return
+				case <-ticker.C:
+					if ready() != nil {
+						setupLog.Info("HA metric history is unavailable; draining the KEDA gRPC listener")
+						cancel()
+						return
+					}
+				}
+			}
+		}()
+		err := serve(serverCtx)
+		cancel()
+		<-watchStopped
+		if err != nil && !errors.Is(err, grpc.ErrServerStopped) && !errors.Is(err, context.Canceled) {
+			return err
+		}
+	}
+}
+
+func serveKEDAGrpcServer(
+	ctx context.Context,
+	lggr logr.Logger,
+	ms types.MemStore,
+	mp types.Parser,
+	cfg *util.Config,
+) error {
 	kedaExternalScalerAddr := fmt.Sprintf("0.0.0.0:%d", cfg.KedaExternalScalerPort)
 	setupLog.Info("starting the gRPC server for KEDA scaler", "address", kedaExternalScalerAddr)
 	lis, err := net.Listen("tcp", kedaExternalScalerAddr)
@@ -237,7 +305,17 @@ func startKEDAGrpcServer(
 
 	go func() {
 		<-ctx.Done()
-		grpcServer.GracefulStop()
+		if !cfg.HAEnabled {
+			grpcServer.GracefulStop()
+			return
+		}
+		drained := make(chan struct{})
+		go func() { grpcServer.GracefulStop(); close(drained) }()
+		select {
+		case <-drained:
+		case <-time.After(5 * time.Second):
+			grpcServer.Stop()
+		}
 	}()
 
 	return grpcServer.Serve(lis)

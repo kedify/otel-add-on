@@ -1,8 +1,10 @@
 package rest
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
@@ -37,16 +39,18 @@ type OperationResult struct {
 }
 
 type api struct {
-	ms   types.MemStore
-	info prometheus.Labels
-	lggr logr.Logger
+	ms              types.MemStore
+	info            prometheus.Labels
+	lggr            logr.Logger
+	readinessMarker string
 }
 
-func Init(restApiPort int, info prometheus.Labels, ms types.MemStore, isDebug bool) error {
+func Init(cfg *util.Config, info prometheus.Labels, ms types.MemStore, isDebug bool) error {
 	a := api{
-		ms:   ms,
-		info: info,
-		lggr: ctrl.Log.WithName("Gin"),
+		ms:              ms,
+		info:            info,
+		lggr:            ctrl.Log.WithName("Gin"),
+		readinessMarker: cfg.HAReadinessMarker,
 	}
 	if isDebug {
 		gin.SetMode(gin.DebugMode)
@@ -67,8 +71,10 @@ func Init(restApiPort int, info prometheus.Labels, ms types.MemStore, isDebug bo
 	router.POST("/memstore/query", a.query)
 	router.POST("/memstore/reset", a.reset)
 	router.GET("/info", a.getInfo)
-	a.lggr.Info(fmt.Sprintf("Swagger docs available at: http://localhost:%d", restApiPort))
-	return router.Run(fmt.Sprintf(":%d", restApiPort))
+	router.GET("/readyz", a.getReadiness)
+	router.GET("/pod-readyz", a.getPodReadiness)
+	a.lggr.Info(fmt.Sprintf("Swagger docs available at: http://localhost:%d", cfg.RestApiPort))
+	return router.Run(fmt.Sprintf(":%d", cfg.RestApiPort))
 }
 
 // @BasePath /
@@ -84,6 +90,9 @@ func (a api) reset(c *gin.Context) {
 	metricNames := a.getMetricNamesInternal()
 	for _, m := range metricNames {
 		a.ms.GetStore().Delete(m)
+	}
+	if store, ok := a.ms.(interface{ ResetReadiness() }); ok {
+		store.ResetReadiness()
 	}
 
 	c.IndentedJSON(http.StatusOK, OperationResult{
@@ -125,7 +134,11 @@ func (a api) query(c *gin.Context) {
 	metric.Metrics().TouchMetricValues(metricNames, request.Query, string(opOverTime), "expression", "", "")
 	value, found, err := query.Evaluate(a.ms, opOverTime)
 	if err != nil {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		code := http.StatusBadRequest
+		if errors.Is(err, metric.ErrHistoryNotReady) {
+			code = http.StatusServiceUnavailable
+		}
+		c.IndentedJSON(code, gin.H{"error": err.Error()})
 		return
 	}
 	if !found {
@@ -214,4 +227,24 @@ func (a api) getMetricData(c *gin.Context) {
 // @Router /info [get]
 func (a api) getInfo(c *gin.Context) {
 	c.IndentedJSON(http.StatusOK, a.info)
+}
+
+func (a api) getPodReadiness(c *gin.Context) {
+	if a.readinessMarker != "" {
+		if _, err := os.Stat(a.readinessMarker); errors.Is(err, os.ErrNotExist) {
+			a.getInfo(c)
+			return
+		}
+	}
+	a.getReadiness(c)
+}
+
+func (a api) getReadiness(c *gin.Context) {
+	if store, ok := a.ms.(interface{ Ready() error }); ok {
+		if err := store.Ready(); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"ready": false, "reason": err.Error()})
+			return
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"ready": true})
 }
