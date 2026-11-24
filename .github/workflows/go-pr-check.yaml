@@ -55,14 +55,17 @@ jobs:
           staticcheck ./...
 
       - name: Run vulncheck
+        continue-on-error: true
         run: |
           set -euo pipefail
-          echo -e "### vulncheck\n\n" >> ${GITHUB_STEP_SUMMARY}
-          echo '```' >> ${GITHUB_STEP_SUMMARY}
           go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
-          govulncheck ./... | tee -a ${GITHUB_STEP_SUMMARY}
-          (cd e2e-tests && govulncheck ./...) | tee -a ${GITHUB_STEP_SUMMARY}
-          echo '```' >> ${GITHUB_STEP_SUMMARY}
+          printf '### vulncheck\n\n```\n' >> "$GITHUB_STEP_SUMMARY"
+          scan_exit=0
+          for module in . e2e-tests; do
+            (cd "$module" && govulncheck ./...) 2>&1 | tee -a "$GITHUB_STEP_SUMMARY" || scan_exit=$?
+          done
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit "$scan_exit"
 
       - name: Build
         env:

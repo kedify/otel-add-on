@@ -1,6 +1,6 @@
 # https://github.com/stefanprodan/podinfo/blob/master/charts/podinfo/values.yaml
 ui:
-  message: "Hello OTEL+KEDA"
+  message: "Hello OTel+KEDA"
   color: "#222222"
   logo: "https://kedify.io/assets/images/logo.svg"
 
