@@ -9,9 +9,10 @@ import (
 
 type Config struct {
 	// HA settings are opt-in; zero warmup uses the metric retention window.
-	HAEnabled         bool   `envconfig:"HA_ENABLED" default:"false"`
-	HAWarmupSeconds   int    `envconfig:"HA_WARMUP_SECONDS" default:"0"`
-	HAReadinessMarker string `envconfig:"HA_READINESS_MARKER"`
+	HAEnabled               bool   `envconfig:"HA_ENABLED" default:"false"`
+	HAWarmupSeconds         int    `envconfig:"HA_WARMUP_SECONDS" default:"0"`
+	HAMakeReadyAfterSeconds int    `envconfig:"HA_MAKE_READY_AFTER_SECONDS" default:"105"`
+	HAReadinessMarker       string `envconfig:"HA_READINESS_MARKER"`
 
 	// Ports
 	OTLPReceiverPort       int `envconfig:"OTLP_RECEIVER_PORT" default:"4317"`
@@ -45,11 +46,23 @@ type Config struct {
 	NoBanner bool `envconfig:"NO_BANNER" default:"false"`
 }
 
+// HAWarmupDuration returns the configured warmup or the metric retention window.
+func (cfg *Config) HAWarmupDuration() time.Duration {
+	warmup := cfg.HAWarmupSeconds
+	if warmup == 0 {
+		warmup = cfg.MetricStoreRetentionSeconds
+	}
+	return time.Duration(warmup) * time.Second
+}
+
 func MustParseConfig() *Config {
 	ret := new(Config)
 	envconfig.MustProcess("", ret)
 	if ret.HAEnabled && (ret.HAWarmupSeconds < 0 || ret.MetricStoreRetentionSeconds <= 0 || ret.MetricStoreLazySeries || ret.MetricStoreLazyAggregates) {
 		panic("HA requires nonnegative HA_WARMUP_SECONDS, positive METRIC_STORE_RETENTION_SECONDS, and eager metric series and aggregates")
+	}
+	if ret.HAEnabled && (ret.HAMakeReadyAfterSeconds < 0 || ret.HAMakeReadyAfterSeconds > 2147483647) {
+		panic("HA_MAKE_READY_AFTER_SECONDS must be between 0 and 2147483647")
 	}
 	if ret.GCStaleAfterMinutes < 0 || int64(ret.GCStaleAfterMinutes) > int64((1<<63-1)/time.Minute) {
 		panic(fmt.Sprintf("GC_STALE_AFTER_MINUTES must be between 0 and %d", (1<<63-1)/time.Minute))

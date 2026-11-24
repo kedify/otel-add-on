@@ -4,6 +4,8 @@ settings:
     replicas: 3
     # 0 waits for metricStore.retentionSeconds after fresh ingestion starts.
     warmupSeconds: 0
+  metricStore:
+    retentionSeconds: 30
 
 # Applications push OTLP metrics to otelcol:4317. Each Collector independently
 # broadcasts its received metrics to all three scaler replicas.

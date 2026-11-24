@@ -34,11 +34,10 @@ func NewMetricStore(cfg *util.Config) t.MemStore {
 	m.Init()
 	var ha *haReadiness
 	if cfg.HAEnabled {
-		warmup := cfg.HAWarmupSeconds
-		if warmup == 0 {
-			warmup = cfg.MetricStoreRetentionSeconds
+		ha = &haReadiness{warmup: cfg.HAWarmupDuration(), now: time.Now}
+		if cfg.HAMakeReadyAfterSeconds > 0 {
+			ha.startupDeadline = ha.now().Add(time.Duration(cfg.HAMakeReadyAfterSeconds) * time.Second)
 		}
-		ha = &haReadiness{warmup: time.Duration(warmup) * time.Second, now: time.Now}
 	}
 	return ms{
 		ha:                 ha,

@@ -187,10 +187,15 @@ func (e *impl) GetMetrics(
 func (e *impl) getMetric(sor *externalscaler.ScaledObjectRef) (float64, error) {
 	lggr := e.lggr.WithName("getMetric")
 	if e.cfg.HAEnabled {
-		if store, ok := e.metricStore.(interface{ Ready() error }); ok {
-			if err := store.Ready(); err != nil {
-				return 0, status.Error(codes.Unavailable, err.Error())
-			}
+		var readinessErr error
+		switch store := e.metricStore.(type) {
+		case interface{ HistoryReady() error }:
+			readinessErr = store.HistoryReady()
+		case interface{ Ready() error }:
+			readinessErr = store.Ready()
+		}
+		if readinessErr != nil {
+			return 0, status.Error(codes.Unavailable, readinessErr.Error())
 		}
 	}
 	query, err := util.GetMetricQuery(lggr, sor.GetScalerMetadata(), e.metricParser)

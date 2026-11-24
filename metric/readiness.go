@@ -21,11 +21,13 @@ func (m ms) freshHASample(entry types.NewMetricEntry, now time.Time) bool {
 // haReadiness is protected by the store mutex. A replica warms independently
 // from its first fresh write; producer timestamps determine ingestion freshness.
 type haReadiness struct {
-	warmup       time.Duration
-	firstWrite   time.Time
-	firstSample  uint32
-	latestSample uint32
-	now          func() time.Time
+	warmup          time.Duration
+	startupDeadline time.Time
+	hasWarmed       bool
+	firstWrite      time.Time
+	firstSample     uint32
+	latestSample    uint32
+	now             func() time.Time
 }
 
 func (m ms) observeHA(entry types.NewMetricEntry, now time.Time) {
@@ -68,16 +70,36 @@ func (m ms) resetHAIfEmpty() {
 	}
 }
 
-// Ready gates HA query discovery. Ingestion and liveness remain independent.
-// This is a conservative replica-wide warmup; GetSeries also checks the history
-// of each matching series, including series that arrive after the Pod is ready.
+// Ready gates the Pod probe and KEDA listener. The startup deadline allows a
+// cold replica to accept connections until its first successful metric warmup.
 func (m ms) Ready() error {
+	if m.ha == nil || m.ha.startupDeadline.IsZero() {
+		return m.HistoryReady()
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	now := m.ha.now()
+	err := m.historyReadyLocked(now)
+	if err == nil {
+		m.ha.hasWarmed = true
+	} else if !m.ha.hasWarmed && !now.Before(m.ha.startupDeadline) {
+		return nil
+	}
+	return err
+}
+
+// HistoryReady checks replica-wide metric history for KEDA metric and activation calls.
+// GetSeries also checks the history of each matching series.
+func (m ms) HistoryReady() error {
 	if m.ha == nil {
 		return nil
 	}
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	now := m.ha.now()
+	return m.historyReadyLocked(m.ha.now())
+}
+
+func (m ms) historyReadyLocked(now time.Time) error {
 	if m.ha.firstWrite.IsZero() || now.Unix()-int64(m.ha.latestSample) > int64(m.stalePeriodSeconds) {
 		return fmt.Errorf("%w: no fresh metric samples", ErrHistoryNotReady)
 	}

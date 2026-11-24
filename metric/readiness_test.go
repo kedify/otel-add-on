@@ -117,3 +117,48 @@ func TestHAHistory(t *testing.T) {
 		t.Fatal("default warmup must follow retention")
 	}
 }
+
+func TestHAStartupReadinessDeadline(t *testing.T) {
+	for _, warmEarly := range []bool{false, true} {
+		name := "cold at deadline"
+		if warmEarly {
+			name = "warmed before deadline"
+		}
+		t.Run(name, func(t *testing.T) {
+			store := NewMetricStore(&util.Config{
+				HAEnabled: true, HAWarmupSeconds: 2, HAMakeReadyAfterSeconds: 10, MetricStoreRetentionSeconds: 5,
+			}).(ms)
+			deadline := store.ha.startupDeadline
+			now := deadline.Add(-10 * time.Second)
+			store.ha.now = func() time.Time { return now }
+			assertReadiness := func(ready, historyReady bool) {
+				t.Helper()
+				if err := store.Ready(); (err == nil) != ready {
+					t.Fatalf("Pod ready=%t, want %t: %v", err == nil, ready, err)
+				}
+				if err := store.HistoryReady(); (err == nil) != historyReady {
+					t.Fatalf("history ready=%t, want %t: %v", err == nil, historyReady, err)
+				}
+			}
+			warm := func() {
+				store.Put(types.NewMetricEntry{Name: "counter", MeasurementTime: pcommon.NewTimestampFromTime(now), MeasurementValue: 1})
+				now = now.Add(2 * time.Second)
+				store.Put(types.NewMetricEntry{Name: "counter", MeasurementTime: pcommon.NewTimestampFromTime(now), MeasurementValue: 3})
+			}
+			assertReadiness(false, false)
+			if warmEarly {
+				warm()
+				assertReadiness(true, true)
+			} else {
+				now = deadline.Add(-time.Nanosecond)
+				assertReadiness(false, false)
+				now = deadline
+				assertReadiness(true, false)
+				warm()
+				assertReadiness(true, true)
+			}
+			now = deadline.Add(10 * time.Second)
+			assertReadiness(false, false)
+		})
+	}
+}

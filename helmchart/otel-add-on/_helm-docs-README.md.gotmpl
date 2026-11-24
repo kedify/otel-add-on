@@ -193,18 +193,23 @@ during bootstrap. Liveness uses `/info`.
 Metric readiness requires fresh ingestion, distinct sample timestamps, and a
 warmup period. `settings.ha.warmupSeconds: 0` uses
 `settings.metricStore.retentionSeconds`. An explicit positive value overrides it.
-Ingestion remains reachable throughout warmup. Losing fresh samples, clearing the
-store, or garbage-collecting its last series starts a new warmup when ingestion
-resumes. Choose a warmup that covers the queries' history.
+`settings.ha.makeReadyAfterSeconds` defaults to `105` and limits how long the Pod
+probe and KEDA listener wait for the first warmup. The deadline runs from scaler
+startup, even when no metrics arrive. Set it to `0` to wait for fresh metric
+history indefinitely. Ingestion remains reachable throughout warmup. After a
+replica first warms, losing fresh samples, clearing the store, or
+garbage-collecting its last series starts a new warmup when ingestion resumes.
+Choose a warmup that covers the queries' history.
 
 KEDA metric and activation calls return `Unavailable` during warmup or when a
-matching series has insufficient history for a windowed query. On a ready
-replica, a query with no fresh matching data returns
+matching series has insufficient history for a windowed query. Once a replica
+has warmed, a query with no fresh matching data returns
 `settings.metricStore.valueIfNotFound` or an error if
-`settings.metricStore.errIfNotFound` is enabled. The KEDA gRPC listener
-opens after warmup and is drained and closed if metric history becomes unavailable,
-so existing clients can reconnect through the Service to another replica. OTLP
-ingestion stays open. Windowed queries also check the matching
+`settings.metricStore.errIfNotFound` is enabled. The KEDA gRPC listener opens
+after warmup or at the startup deadline, whichever comes first. Once the replica
+has warmed, losing metric history drains and closes the listener so existing
+clients can reconnect through the Service to another replica. OTLP ingestion
+stays open. Windowed queries also check the matching
 series' own warmup and require distinct sample timestamps; `last_one` only needs
 a fresh sample once the replica has warmed. These checks cover existing gRPC
 connections, which are not immediately removed by a readiness change. An activation

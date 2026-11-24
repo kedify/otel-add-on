@@ -55,6 +55,11 @@ func main() {
 		util.PrintBanner(cfg.NoColor)
 	}
 	build.PrintComponentInfo(ctrl.Log, lvl, "OTel addon for KEDA")
+	// The chart uses /pod-readyz when an operator bootstrap marker is configured.
+	if cfg.HAEnabled && cfg.HAReadinessMarker == "" {
+		setupLog.Info("HA /readyz startup timing",
+			"warmupAfterFirstSample", cfg.HAWarmupDuration().String(), "makeReadyAfterSeconds", cfg.HAMakeReadyAfterSeconds)
+	}
 
 	ctx := util.ContextWithLogger(ctrl.SetupSignalHandler(), setupLog)
 	eg, ctx := errgroup.WithContext(ctx)
@@ -212,8 +217,8 @@ func startKEDAGrpcServer(
 	})
 }
 
-// A ClusterIP balances connections. Close the KEDA listener while history is
-// unavailable so an existing client can reconnect to another ready replica.
+// A ClusterIP balances connections. Close the KEDA listener when readiness is
+// lost so an existing client can reconnect to another ready replica.
 // The separate OTLP listener continues receiving metrics throughout recovery.
 func runHAQueryServer(ctx context.Context, ready func() error, serve func(context.Context) error) error {
 	ticker := time.NewTicker(time.Second)
@@ -231,7 +236,7 @@ func runHAQueryServer(ctx context.Context, ready func() error, serve func(contex
 			}
 		}
 		serverCtx, cancel := context.WithCancel(ctx)
-		setupLog.Info("HA metric history is ready; opening the KEDA gRPC listener")
+		setupLog.Info("HA replica is ready to accept KEDA connections")
 		watchStopped := make(chan struct{})
 		go func() {
 			defer close(watchStopped)

@@ -54,6 +54,8 @@ spec:
               value: "true"
             - name: HA_WARMUP_SECONDS
               value: {{ ($ha.warmupSeconds | default 0) | quote }}
+            - name: HA_MAKE_READY_AFTER_SECONDS
+              value: {{ dig "makeReadyAfterSeconds" 105 $ha | quote }}
             {{- end }}
             {{- if $bootstrap }}
             - name: HA_READINESS_MARKER
