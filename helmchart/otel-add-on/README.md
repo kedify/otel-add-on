@@ -1068,7 +1068,7 @@ requests:
                     <div style="max-width: 200px;">
 <pre lang="yaml">
 tag: "v1.36.6"
-repository: ghcr.io/kedify/kubectl-hooks
+repository: ghcr.io/kedify/kubectl
 pullPolicy: Always
 pullSecrets: []
 
