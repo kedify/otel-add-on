@@ -120,8 +120,14 @@ jobs:
       - uses: marcofranssen/setup-kubectl@v2.0.0
         with:
           kubectlVersion: ${{ steps.kubernetes.outputs.kubectl }}
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: github.event.pull_request.head.repo.full_name != github.repository
+        with:
+          name: otel-scaler-image
+          path: ${{ runner.temp }}
       - name: Run the end to end tests
         env:
+          OTEL_SCALER_ARCHIVE: ${{ github.event.pull_request.head.repo.full_name != github.repository && format('{0}/otel-scaler.tar', runner.temp) || '' }}
           OTEL_SCALER_VERSION: pr-${{ github.event.pull_request.number }}
           PR_BRANCH: ${{ github.head_ref }}
           GH_PAT: ${{ secrets.GITHUB_TOKEN }}
@@ -144,7 +150,13 @@ jobs:
           sudo install -m 0755 "$RUNNER_TEMP/k3d" /usr/local/bin/k3d
           sudo apt-get update
           sudo apt-get install -y hey
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: github.event.pull_request.head.repo.full_name != github.repository
+        with:
+          name: otel-scaler-image
+          path: ${{ runner.temp }}
       - name: Test scaler failover and replica changes
         env:
+          OTEL_SCALER_ARCHIVE: ${{ github.event.pull_request.head.repo.full_name != github.repository && format('{0}/otel-scaler.tar', runner.temp) || '' }}
           OTEL_SCALER_VERSION: pr-${{ github.event.pull_request.number }}
         run: bash e2e-tests/test-ha.sh
