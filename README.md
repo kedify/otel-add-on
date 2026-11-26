@@ -199,7 +199,7 @@ helm upgrade -i keda kedacore/keda --namespace keda --create-namespace
 
 ### Then install this add-on
 ```bash
-helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=v0.1.5
+helm upgrade -i keda-otel-scaler -nkeda oci://ghcr.io/kedify/charts/otel-add-on --version=0.1.6
 ```
 
 ### Create an example scaled object
