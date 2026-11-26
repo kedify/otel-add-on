@@ -32,6 +32,11 @@ trap 'exit 143' TERM
 k3d cluster create "$cluster" --no-lb --timeout 3m \
   --kubeconfig-update-default=false --kubeconfig-switch-context=false \
   --k3s-arg '--disable=traefik,servicelb,metrics-server@server:*'
+scaler_image_args=(--set-string "image.tag=$OTEL_SCALER_VERSION")
+if [[ -n ${OTEL_SCALER_ARCHIVE:-} ]]; then
+  k3d image import "$OTEL_SCALER_ARCHIVE" --cluster "$cluster" --mode direct
+  scaler_image_args+=(--set image.pullPolicy=Never)
+fi
 k3d kubeconfig get "$cluster" >"$KUBECONFIG"
 
 helm repo add kedify https://kedify.github.io/charts
@@ -54,7 +59,7 @@ test_failover() {
   shift
   helm install "$release" "$chart" --namespace "$namespace" \
     -f "$root/e2e-tests/testdata/scaler-ha-values.yaml" \
-    --set-string "image.tag=$OTEL_SCALER_VERSION" --wait --timeout 5m --hide-notes "$@"
+    "${scaler_image_args[@]}" --wait --timeout 5m --hide-notes "$@"
   sed "s/keda-otel-scaler\.keda\.svc/$release.$namespace.svc/" "$example/podinfo-so.yaml" >"$manifest"
   bash "$root/examples/ha/test-failover.sh" "$context" 2 "$namespace" 3 "$manifest"
 }

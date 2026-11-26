@@ -99,20 +99,42 @@ func TestCheckClusterVersions(t *testing.T) {
 func TestPrepareClusterWithKubectlWarnings(t *testing.T) {
 	_, version, err := configuredKubernetesImage()
 	require.NoError(t, err)
-	for _, fail := range []bool{false, true} {
-		t.Run(fmt.Sprintf("command failure=%t", fail), func(t *testing.T) {
+	for _, tc := range []struct {
+		name                             string
+		archive, failImport, failKubectl bool
+	}{
+		{name: "published image"},
+		{name: "kubectl failure", failKubectl: true},
+		{name: "import archived image", archive: true},
+		{name: "stop on import failure", archive: true, failImport: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			originalCtx := ctx
 			ctx = TestContext{t: t}
 			t.Cleanup(func() { ctx = originalCtx })
 
 			bin := t.TempDir()
 			t.Setenv("PATH", bin+string(os.PathListSeparator)+"/usr/bin:/bin")
-			t.Setenv("TEST_KUBECTL_FAIL", fmt.Sprint(fail))
+			archive := ""
+			if tc.archive {
+				archive = filepath.Join(bin, "snapshot image.tar")
+			}
+			t.Setenv("OTEL_SCALER_ARCHIVE", archive)
+			t.Setenv("TEST_IMPORT_LOG", filepath.Join(bin, "imported"))
+			t.Setenv("TEST_IMPORT_FAIL", fmt.Sprint(tc.failImport))
+			t.Setenv("TEST_KUBECTL_LOG", filepath.Join(bin, "kubectl-called"))
+			t.Setenv("TEST_KUBECTL_FAIL", fmt.Sprint(tc.failKubectl))
 			t.Setenv("TEST_SERVER_JSON", fmt.Sprintf(`{"serverVersion":{"gitVersion":%q}}`, version))
 			t.Setenv("TEST_NODES_JSON", fmt.Sprintf(`{"items":[{"status":{"nodeInfo":{"kubeletVersion":%q}}}]}`, version))
-			require.NoError(t, os.WriteFile(filepath.Join(bin, "k3d"), []byte("#!/bin/sh\nexit 0\n"), 0o755))
+			require.NoError(t, os.WriteFile(filepath.Join(bin, "k3d"), []byte(`#!/bin/sh
+set -eu
+if [ "$1" = cluster ]; then exit 0; fi
+printf '%s\n' "$@" > "$TEST_IMPORT_LOG"
+if [ "$TEST_IMPORT_FAIL" = true ]; then echo "fixture import failure" >&2; exit 42; fi
+`), 0o755))
 			require.NoError(t, os.WriteFile(filepath.Join(bin, "kubectl"), []byte(`#!/bin/sh
 set -eu
+touch "$TEST_KUBECTL_LOG"
 echo 'Warning: kubectl fixture warning' >&2
 case "$*" in
   'wait --for=condition=Ready node --all --timeout=2m') ;;
@@ -126,7 +148,17 @@ esac
 `), 0o755))
 
 			err := prepareCluster("warning-fixture", "")
-			if fail {
+			if tc.archive {
+				args, readErr := os.ReadFile(os.Getenv("TEST_IMPORT_LOG"))
+				require.NoError(t, readErr)
+				require.Equal(t, "image\nimport\n"+archive+"\n--cluster\nwarning-fixture\n--mode\ndirect\n", string(args))
+			} else {
+				require.NoFileExists(t, os.Getenv("TEST_IMPORT_LOG"))
+			}
+			if tc.failImport {
+				require.ErrorContains(t, err, "fixture import failure")
+				require.NoFileExists(t, os.Getenv("TEST_KUBECTL_LOG"))
+			} else if tc.failKubectl {
 				require.ErrorContains(t, err, "kubectl fixture warning")
 			} else {
 				require.NoError(t, err, "stderr warnings must not corrupt valid Kubernetes JSON")

@@ -38,6 +38,8 @@ jobs:
       id-token: write # needed for signing the images with GitHub OIDC Token
 
     name: build-images
+    env:
+      FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
     steps:
       - name: Maximize build space
         uses: easimon/maximize-build-space@v10
@@ -63,6 +65,7 @@ jobs:
         uses: sigstore/cosign-installer@v3.2.0
 
       - name: Login to GitHub Container Registry
+        if: env.FORK_PR != 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -124,10 +127,31 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGE_TAG: ${{ inputs.tag }}
 
-      - name: Retag and push
-        if: "${{ inputs.releaseWithGoReleaser != true }}"
+      - name: Tag snapshot for end-to-end tests
+        if: inputs.releaseWithGoReleaser != true
+        env:
+          IMAGE: ghcr.io/kedify/otel-add-on:${{ inputs.tag }}
+        run: docker tag "$IMAGE-amd64" "$IMAGE"
+
+      - name: Export fork PR image
+        if: env.FORK_PR == 'true' && inputs.releaseWithGoReleaser != true
+        env:
+          IMAGE: ghcr.io/kedify/otel-add-on:${{ inputs.tag }}
+        run: docker save "$IMAGE" -o "$RUNNER_TEMP/otel-scaler.tar"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: env.FORK_PR == 'true' && inputs.releaseWithGoReleaser != true
+        with:
+          name: otel-scaler-image
+          path: ${{ runner.temp }}/otel-scaler.tar
+          if-no-files-found: error
+          retention-days: 1
+          overwrite: true
+
+      - name: Push snapshot
+        if: env.FORK_PR != 'true' && inputs.releaseWithGoReleaser != true
+        env:
+          IMAGE: ghcr.io/kedify/otel-add-on:${{ inputs.tag }}
         run: |
-          docker images
-          docker tag ghcr.io/kedify/otel-add-on:${{ inputs.tag }}-amd64 ghcr.io/kedify/otel-add-on:${{ inputs.tag }}
-          docker push ghcr.io/kedify/otel-add-on:${{ inputs.tag }}
-          echo "New container image has been published: \`ghcr.io/kedify/otel-add-on:${{ inputs.tag }}\`" | tee -a ${GITHUB_STEP_SUMMARY}
+          docker push "$IMAGE"
+          echo "Published $IMAGE" >> "$GITHUB_STEP_SUMMARY"

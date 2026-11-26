@@ -67,9 +67,7 @@ var _ = Describe("Helm chart (op):", Ordered, func() {
 		execCmdE(fmt.Sprintf("kubectl create secret -nkeda generic gh-token --from-literal=GH_PAT=%s", ghPat))
 		time.Sleep(1 * time.Second)
 		cmd := "helm upgrade -i keda-otel-scaler ../helmchart/otel-add-on --namespace keda --create-namespace -f ./testdata/scaler-operator-values.yaml"
-		if len(otelScalerVersion) > 0 {
-			cmd += fmt.Sprintf(" --set image.tag=%s", otelScalerVersion)
-		}
+		cmd += scalerImageArgs()
 		err = execCmdE(cmd)
 		Expect(err).NotTo(HaveOccurred(), "helm upgrade -i failed: %s", err)
 	})

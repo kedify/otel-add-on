@@ -246,6 +246,17 @@ func installHey() error {
 	return err
 }
 
+func scalerImageArgs() string {
+	args := ""
+	if otelScalerVersion != "" {
+		args = " --set-string image.tag=" + otelScalerVersion
+	}
+	if os.Getenv("OTEL_SCALER_ARCHIVE") != "" {
+		args += " --set image.pullPolicy=Never"
+	}
+	return args
+}
+
 func prepareCluster(name string, params string) error {
 	image, expectedVersion, err := configuredKubernetesImage()
 	if err != nil {
@@ -256,6 +267,12 @@ func prepareCluster(name string, params string) error {
 	if err != nil {
 		require.NoErrorf(ctx.t, err, "cannot create new k3d cluster: %s", out)
 		return err
+	}
+	if archive := os.Getenv("OTEL_SCALER_ARCHIVE"); archive != "" {
+		cmd := exec.Command("k3d", "image", "import", archive, "--cluster", name, "--mode", "direct")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("import scaler image: %w: %s", err, out)
+		}
 	}
 	if _, err = kubectl("wait --for=condition=Ready node --all --timeout=2m"); err != nil {
 		return err
