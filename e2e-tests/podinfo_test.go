@@ -94,9 +94,7 @@ var _ = Describe("Helm chart:", Ordered, func() {
 		_, err = execCmdOE(ctx.helm+" dependency build", pwd+"/../helmchart/otel-add-on")
 		Expect(err).NotTo(HaveOccurred())
 		cmd := ctx.helm + " upgrade -i keda-otel-scaler ../helmchart/otel-add-on --namespace keda --create-namespace -f ./testdata/scaler-values.yaml"
-		if len(otelScalerVersion) > 0 {
-			cmd += fmt.Sprintf(" --set image.tag=%s", otelScalerVersion)
-		}
+		cmd += scalerImageArgs()
 		err = execCmdE(cmd)
 		Expect(err).NotTo(HaveOccurred(), "helm upgrade -i failed: %s", err)
 	})
